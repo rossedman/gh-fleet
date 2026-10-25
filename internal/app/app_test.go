@@ -98,7 +98,8 @@ targets:
   include:
     topics: [service]
 change:
-  run: ./change.sh
+  steps:
+    - run: ./change.sh
   env: {LINE: "managed by fleet"}
 pr:
   title: "chore: add line to {{ .Repo.Name }}"

@@ -14,9 +14,12 @@ targets:
   include:
     topics: [service]
 change:
-  starlark: ./change.star
-  run: echo "shell saw $FLEET_VAR_TEAM" >> NOTES.md
   env: {LINE: "managed by fleet"}
+  steps:
+    - name: edit readme
+      starlark: ./change.star
+    - name: notes
+      run: echo "shell saw $FLEET_VAR_TEAM after $FLEET_VAR_ACTION" >> NOTES.md
 pr:
   title: "chore: {{ .Vars.action }} {{ .Repo.Name }}"
   body: "Owned by {{ .Vars.team }}."
@@ -51,7 +54,7 @@ func TestStarlarkPlanAndApply(t *testing.T) {
 	if err := h.app.Plan(ctx, Common{File: f, Repos: []string{"acme/api"}}); err != nil {
 		t.Fatalf("%v\n%s", err, h.errOut.String())
 	}
-	if out := h.out.String(); !strings.Contains(out, "+managed by fleet") || !strings.Contains(out, "+shell saw platform") {
+	if out := h.out.String(); !strings.Contains(out, "+managed by fleet") || !strings.Contains(out, "+shell saw platform after add line to") {
 		t.Fatalf("plan diff:\n%s", out)
 	}
 	log, _ := readFile(h.app.Store.LogPath("star", "acme/api"))
@@ -79,7 +82,7 @@ func TestStarlarkPlanAndApply(t *testing.T) {
 func TestStarlarkOnly(t *testing.T) {
 	t.Parallel()
 	h := newHarness(t)
-	camp := strings.Replace(starCampaign, "  run: echo \"shell saw $FLEET_VAR_TEAM\" >> NOTES.md\n", "", 1)
+	camp := strings.Replace(starCampaign, "    - name: notes\n      run: echo \"shell saw $FLEET_VAR_TEAM after $FLEET_VAR_ACTION\" >> NOTES.md\n", "", 1)
 	f := h.campaign(camp, map[string]string{"change.star": starScript, "lib/text.star": starLib})
 	if err := h.app.Plan(context.Background(), Common{File: f, Repos: []string{"acme/web"}}); err != nil {
 		t.Fatalf("%v\n%s", err, h.errOut.String())
@@ -100,7 +103,7 @@ func TestStarlarkErrorsSurfaceEarly(t *testing.T) {
 		"apply":   func() error { return h.app.Apply(ctx, ApplyOptions{Common: Common{File: f, Yes: true}}) },
 	} {
 		err := run()
-		if err == nil || !strings.Contains(err.Error(), "change.starlark: change.star:2:5: undefined: undefined_helper") {
+		if err == nil || !strings.Contains(err.Error(), "change.steps[0] (edit readme): change.star:2:5: undefined: undefined_helper") {
 			t.Errorf("%s: err = %v", name, err)
 		}
 	}
@@ -112,7 +115,7 @@ func TestStarlarkErrorsSurfaceEarly(t *testing.T) {
 	h.campaign(starCampaign, map[string]string{"change.star": "def change(repo):\n    repo.set_var('action', 'x')\n    if repo.name == 'web':\n        fail('web is special')\n", "lib/text.star": starLib})
 	h.reset()
 	err := h.app.Plan(ctx, Common{File: f})
-	if err == nil || !strings.Contains(h.errOut.String(), "failed   acme/web change.star:4:13: fail: web is special") || !strings.Contains(h.errOut.String(), "1 failed") {
+	if err == nil || !strings.Contains(h.errOut.String(), "failed   acme/web step edit readme: change.star:4:13: fail: web is special") || !strings.Contains(h.errOut.String(), "1 failed") {
 		t.Fatalf("plan: %v\n%s", err, h.errOut.String())
 	}
 }

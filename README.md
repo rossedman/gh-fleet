@@ -59,7 +59,9 @@ targets:
   exclude:
     topics: [no-fleet]
 change:
-  run: ./scripts/pin.sh          # a script next to this file, or inline
+  steps:                         # run in order in one clone
+    - run: ./scripts/pin.sh      # a shell script next to this file, or inline
+    # - starlark: ./change.star  # or a sandboxed Starlark edit
 pr:
   title: "ci: pin GitHub Actions to commit SHAs"
   body: ./pr-body.md             # a Go template with .Repo and .Campaign
@@ -105,8 +107,8 @@ acme/worker     noop     -                                       -        -
 API quota: core 4,871/5,000 · graphql 4,962/5,000
 ```
 
-[`examples/`](examples/) has thirteen tested campaigns for the changes people
-make most: syncing standard files, find and replace, dependency and base
+[`examples/`](examples/) has fourteen tested campaigns for the changes people
+make most, most of them a few lines of Starlark: syncing standard files, find and replace, dependency and base
 image bumps, action upgrades and SHA pinning, Dependabot, CODEOWNERS,
 `.gitignore` entries, read-only workflow tokens, and removing retired config.
 
@@ -135,11 +137,13 @@ Common flags: `--repo owner/name` (limit to some repos), `--concurrency N`,
   marker in their body, so re-running `apply` updates them, and `status` is
   right even if local state is deleted. Merged PRs are skipped; closed ones are
   left alone unless you pass `--reopen`.
-- **Shell or Starlark.** Write the change as any script, or as a sandboxed
-  [Starlark](https://rossedman.github.io/gh-fleet/guides/starlark/) change
-  that edits files through a `repo` object with JSON, YAML, semver and regex
-  helpers, no shell or network, and helpers shared from other repos by
-  pinned commit.
+- **Ordered steps, shell or Starlark.** A change is a list of steps run in
+  order in one clone. Each is any shell script, or a sandboxed
+  [Starlark](https://rossedman.github.io/gh-fleet/guides/starlark/) script
+  that edits files through a `repo` object with no shell or network. A
+  [built-in library](https://rossedman.github.io/gh-fleet/reference/starlark-library/)
+  (`load("@fleet//gha.star", "bump_action")`) covers the common edits, and
+  your own helpers can be shared from other repos by pinned commit.
 - **Per-repo variables.** Give repos different values (owning team, on-call
   channel, target version) from defaults, match rules, a CSV, or the org's
   custom properties. They reach scripts as `FLEET_VAR_*` and PR text as

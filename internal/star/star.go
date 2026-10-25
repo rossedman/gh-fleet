@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -42,7 +43,8 @@ type Options struct {
 	// RemoteURL returns the clone URL of a library repository; defaults to
 	// https://<host>/<owner>/<repo>.git.
 	RemoteURL func(host, owner, repo string) string
-	// Env is the campaign's change.env, available to scripts as env.
+	// Env is the step's environment (change.env plus the step's env),
+	// available to scripts as env.
 	Env map[string]string
 }
 
@@ -68,7 +70,8 @@ type module struct {
 }
 
 // predeclared are the names every script and module can use: the
-// modules, and env, the campaign's change.env as a frozen dict.
+// modules, env (the step's environment as a frozen dict) and campaign
+// (read-only access to the files next to the campaign file).
 func (s *Script) predeclared() starlark.StringDict {
 	env := starlark.NewDict(len(s.opts.Env))
 	for _, k := range sortedKeys(s.opts.Env) {
@@ -76,11 +79,12 @@ func (s *Script) predeclared() starlark.StringDict {
 	}
 	env.Freeze()
 	return starlark.StringDict{
-		"json":   jsonModule,
-		"yaml":   yamlModule,
-		"semver": semverModule,
-		"re":     reModule,
-		"env":    env,
+		"json":     jsonModule,
+		"yaml":     yamlModule,
+		"semver":   semverModule,
+		"re":       reModule,
+		"env":      env,
+		"campaign": &campaignDir{dir: s.root},
 	}
 }
 
@@ -130,7 +134,7 @@ func (s *Script) compile(ctx context.Context, path, root, name string, stack []s
 			return fmt.Errorf("load cycle: %s", strings.Join(append(stack, path), " -> "))
 		}
 	}
-	src, err := os.ReadFile(path)
+	src, err := s.source(path)
 	if err != nil {
 		return err
 	}
@@ -158,9 +162,22 @@ func (s *Script) compile(ctx context.Context, path, root, name string, stack []s
 	return nil
 }
 
+// source returns a module's source: from the embedded library for
+// @fleet// paths, else from disk.
+func (s *Script) source(path string) ([]byte, error) {
+	if name, ok := strings.CutPrefix(path, LibPrefix); ok {
+		return fs.ReadFile(libFS, "lib/"+name)
+	}
+	return os.ReadFile(path)
+}
+
 // displayName is how a loaded file appears in errors: the library
-// reference with a short SHA, or the path relative to the campaign.
+// reference with a short SHA, the built-in library path, or the path
+// relative to the campaign.
 func (s *Script) displayName(loadName, path string) string {
+	if strings.HasPrefix(path, LibPrefix) {
+		return path
+	}
 	if m := remoteLoad.FindStringSubmatch(loadName); m != nil {
 		dir := filepath.Join(s.opts.CacheDir, m[1], m[2], m[3], m[4])
 		return m[1] + "/" + m[2] + "/" + m[3] + "@" + m[4][:12] + ":" + relTo(dir, path)
@@ -174,6 +191,15 @@ var remoteLoad = regexp.MustCompile(`^([a-z0-9.-]+\.[a-z]{2,})/([A-Za-z0-9_.-]+)
 // resolveLoad turns a load() module name into a file path and the root
 // that file's own loads must stay inside.
 func (s *Script) resolveLoad(ctx context.Context, name, from, root string) (string, string, error) {
+	if root == LibPrefix && strings.HasPrefix(name, "./") {
+		name = LibPrefix + strings.TrimPrefix(name, "./")
+	}
+	if strings.HasPrefix(name, LibPrefix) {
+		return resolveLib(name)
+	}
+	if root == LibPrefix {
+		return "", "", fmt.Errorf("the built-in library can only load %s modules", LibPrefix)
+	}
 	if m := remoteLoad.FindStringSubmatch(name); m != nil {
 		dir, err := s.fetch(ctx, m[1], m[2], m[3], m[4])
 		if err != nil {
@@ -185,7 +211,7 @@ func (s *Script) resolveLoad(ctx context.Context, name, from, root string) (stri
 		return "", "", errors.New("libraries from other repositories are loaded as host/owner/repo@<full commit SHA>:path.star")
 	}
 	if !strings.HasPrefix(name, "./") && !strings.HasPrefix(name, "../") {
-		return "", "", errors.New(`load a file relative to this one ("./lib.star") or host/owner/repo@<sha>:path.star`)
+		return "", "", errors.New(`load a file relative to this one ("./lib.star"), a built-in module ("@fleet//files.star") or host/owner/repo@<sha>:path.star`)
 	}
 	if !strings.HasSuffix(name, ".star") {
 		return "", "", errors.New("only .star files can be loaded")

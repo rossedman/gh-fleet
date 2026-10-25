@@ -49,7 +49,9 @@ targets:
     files: [.github/workflows]
 
 change:
-  run: ./scripts/pin.sh
+  steps:
+    - name: pin
+      run: ./scripts/pin.sh
   timeout: 5m
 
 pr:

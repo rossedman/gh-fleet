@@ -174,17 +174,27 @@ func (a *App) LoadCampaign(c Common) (*campaign.Campaign, error) {
 	}
 }
 
-// script compiles and checks a campaign's change.starlark, fetching any
-// libraries it loads. It returns nil when the campaign has none.
-func (a *App) script(ctx context.Context, camp *campaign.Campaign) (*star.Script, error) {
-	if camp.Change.Starlark == "" {
-		return nil, nil
+// scripts compiles and checks every starlark step of a campaign, fetching
+// any libraries they load. It returns the scripts by step index.
+func (a *App) scripts(ctx context.Context, camp *campaign.Campaign) (map[int]*star.Script, error) {
+	out := map[int]*star.Script{}
+	for i, st := range camp.Change.Steps {
+		if st.Starlark == "" {
+			continue
+		}
+		s, err := star.Load(ctx, camp.StarlarkFile(st), camp.Dir(), star.Options{
+			CacheDir: a.LibCache, Git: a.Git, RemoteURL: a.LibURL, Env: camp.StepEnv(st),
+		})
+		if err != nil {
+			where := fmt.Sprintf("change.steps[%d]", i)
+			if st.Name != "" {
+				where += " (" + st.Name + ")"
+			}
+			return nil, fmt.Errorf("%s: %w", where, err)
+		}
+		out[i] = s
 	}
-	s, err := star.Load(ctx, camp.StarlarkFile(), camp.Dir(), star.Options{CacheDir: a.LibCache, Git: a.Git, RemoteURL: a.LibURL, Env: camp.Change.Env})
-	if err != nil {
-		return nil, fmt.Errorf("change.starlark: %w", err)
-	}
-	return s, nil
+	return out, nil
 }
 
 // resolve resolves a campaign's targets, applies --repo and works out each

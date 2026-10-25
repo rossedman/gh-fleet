@@ -28,7 +28,9 @@ targets:
     topics: [no-fleet]
 
 change:
-  run: ./scripts/pin.sh
+  steps:
+    - name: pin
+      run: ./scripts/pin.sh
   shell: bash
   env:
     PIN_MODE: sha
@@ -87,7 +89,7 @@ func TestLoadSpecExample(t *testing.T) {
 	if c.Change.Timeout.Std() != 5*time.Minute || c.Change.Env["PIN_MODE"] != "sha" {
 		t.Fatalf("change: %+v", c.Change)
 	}
-	if got := c.ScriptFile(); got != filepath.Join(filepath.Dir(p), "scripts", "pin.sh") {
+	if got := c.ScriptFile(c.Change.Steps[0]); got != filepath.Join(filepath.Dir(p), "scripts", "pin.sh") {
 		t.Fatalf("ScriptFile = %q", got)
 	}
 	body, err := c.RenderBody(RepoData{FullName: "acme/api"})
@@ -108,7 +110,7 @@ func TestDefaults(t *testing.T) {
 	c, err := Parse([]byte(`apiVersion: fleet.gh/v1
 name: bump
 targets: {orgs: [acme]}
-change: {run: "true"}
+change: {steps: [{run: "true"}]}
 pr: {title: "chore: bump {{ .Repo.Name }}"}
 `), "x.yaml")
 	if err != nil {
@@ -121,7 +123,7 @@ pr: {title: "chore: bump {{ .Repo.Name }}"}
 	if c.PR.Commit.Message != c.PR.Title {
 		t.Fatalf("commit message default = %q", c.PR.Commit.Message)
 	}
-	if c.ScriptFile() != "" {
+	if c.ScriptFile(c.Change.Steps[0]) != "" || c.Change.Steps[0].Shell != "bash" || c.Change.Steps[0].Timeout.Std() != DefaultTimeout {
 		t.Fatal("inline script reported as file")
 	}
 	title, err := c.RenderTitle(RepoData{Name: "api"})
@@ -156,7 +158,7 @@ targets:
   orgs: acme
   bogus: 1
 change:
-  run: "true"
+  steps: [{run: "true", timeout: later}]
   timeout: soon
 pr:
   title: x
@@ -165,7 +167,8 @@ pr:
 				"f.yaml:2:7: name:",
 				"f.yaml:4:9: targets.orgs:",
 				"f.yaml:5:3: targets.bogus: unknown field",
-				"f.yaml:8:12: change.timeout:",
+				"f.yaml:7:34: change.steps.0.timeout: use a Go duration",
+				"f.yaml:8:12: change.timeout: use a Go duration",
 			},
 		},
 		{
@@ -175,12 +178,12 @@ pr:
 		},
 		{
 			name: "no orgs or repos",
-			yaml: "apiVersion: fleet.gh/v1\nname: x\ntargets:\n  include: {topics: [a]}\nchange: {run: x}\npr: {title: x}\n",
+			yaml: "apiVersion: fleet.gh/v1\nname: x\ntargets:\n  include: {topics: [a]}\nchange: {steps: [{run: x}]}\npr: {title: x}\n",
 			want: []string{"f.yaml:4:3: targets: needs orgs, include.repos, or both"},
 		},
 		{
 			name: "bad branch",
-			yaml: "apiVersion: fleet.gh/v1\nname: x\ntargets: {orgs: [a]}\nchange: {run: x}\npr: {title: x, branch: 'a..b'}\n",
+			yaml: "apiVersion: fleet.gh/v1\nname: x\ntargets: {orgs: [a]}\nchange: {steps: [{run: x}]}\npr: {title: x, branch: 'a..b'}\n",
 			want: []string{"f.yaml:5:24: pr.branch: is not a valid git branch name"},
 		},
 		{
@@ -195,7 +198,7 @@ pr:
 		},
 		{
 			name: "wrong version",
-			yaml: "apiVersion: v2\nname: x\ntargets: {orgs: [a]}\nchange: {run: x}\npr: {title: x}\n",
+			yaml: "apiVersion: v2\nname: x\ntargets: {orgs: [a]}\nchange: {steps: [{run: x}]}\npr: {title: x}\n",
 			want: []string{"f.yaml:1:13: apiVersion:"},
 		},
 	}
@@ -219,12 +222,12 @@ pr:
 
 func TestLoadMissingReferencedFile(t *testing.T) {
 	t.Parallel()
-	p := writeCampaign(t, "apiVersion: fleet.gh/v1\nname: x\ntargets: {orgs: [a]}\nchange:\n  run: ./missing.sh\npr: {title: x, body: ../nope.md}\n", nil)
+	p := writeCampaign(t, "apiVersion: fleet.gh/v1\nname: x\ntargets: {orgs: [a]}\nchange:\n  steps:\n    - run: ./missing.sh\npr: {title: x, body: ../nope.md}\n", nil)
 	_, err := Load(p)
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	for _, w := range []string{":5:8: change.run: file \"./missing.sh\" not found", "pr.body: file \"../nope.md\""} {
+	for _, w := range []string{":6:12: change.steps.0.run: file \"./missing.sh\" not found", "pr.body: file \"../nope.md\""} {
 		if !strings.Contains(err.Error(), w) {
 			t.Errorf("%q missing %q", err, w)
 		}
@@ -349,7 +352,7 @@ func TestParseYAMLLine(t *testing.T) {
 func FuzzParse(f *testing.F) {
 	seeds := []string{
 		specExample,
-		"apiVersion: fleet.gh/v1\nname: x\ntargets: {orgs: [a]}\nchange: {run: x}\npr: {title: x}\n",
+		"apiVersion: fleet.gh/v1\nname: x\ntargets: {orgs: [a]}\nchange: {steps: [{run: x}]}\npr: {title: x}\n",
 		"name: [\n",
 		"",
 		"a: &x [*x]\n",

@@ -10,9 +10,12 @@ targets:
     search: "golang.org/x/net filename:go.mod"
 
 change:
-  # In every go.mod that requires MODULE: go get MODULE@VERSION, then
-  # go mod tidy. Modules already at or above VERSION are no-ops.
-  run: ./scripts/go-get.sh
+  steps:
+    # In every go.mod that requires MODULE: go get MODULE@VERSION, then
+    # go mod tidy. Modules already at or above VERSION are no-ops. A shell
+    # step, since it needs the Go toolchain.
+    - name: go get
+      run: ./scripts/go-get.sh
   env:
     MODULE: golang.org/x/net
     VERSION: v0.33.0

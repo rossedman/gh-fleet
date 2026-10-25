@@ -28,14 +28,19 @@ targets:
     # topics: [no-fleet]
 
 change:
-  # A script next to this file (./scripts/change.sh) or an inline script.
-  # It runs at the repo root with FLEET_REPO, FLEET_CAMPAIGN,
-  # FLEET_DEFAULT_BRANCH, FLEET_DRY_RUN and FLEET_OUTPUT set.
-  # Exit 0 with a diff is a change, exit 0 without one is a no-op.
-  run: |
-    echo "replace me" >/dev/null
+  # Steps run in order in one checkout of each repo. Each step is a shell
+  # script (run) or a Starlark script (starlark). Shell steps run at the
+  # repo root with FLEET_REPO, FLEET_CAMPAIGN, FLEET_DEFAULT_BRANCH,
+  # FLEET_DRY_RUN and FLEET_OUTPUT set. A diff at the end is a change; no
+  # diff is a no-op.
+  steps:
+    # - name: edit files
+    #   starlark: ./change.star   # defines change(repo); load("@fleet//files.star", ...)
+    - name: change
+      run: |                       # or a script next to this file: ./scripts/change.sh
+        echo "replace me" >/dev/null
   shell: bash
-  timeout: 5m
+  timeout: 5m                      # per step
   # env:
   #   KEY: value
 

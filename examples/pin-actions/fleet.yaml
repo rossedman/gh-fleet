@@ -11,9 +11,12 @@ targets:
     topics: [no-fleet]
 
 change:
-  # Resolves each `uses: owner/repo@ref` to the commit SHA with `gh api`
-  # and keeps the ref as a comment, so Dependabot can still update it.
-  run: ./scripts/pin.sh
+  steps:
+    # Resolves each `uses: owner/repo@ref` to the commit SHA with `gh api`
+    # and keeps the ref as a comment, so Dependabot can still update it.
+    # A shell step, since it needs the network.
+    - name: pin
+      run: ./scripts/pin.sh
   timeout: 5m
 
 pr:

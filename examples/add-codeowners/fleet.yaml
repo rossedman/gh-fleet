@@ -19,10 +19,12 @@ vars:
   file: ./owners.csv
 
 change:
-  # Writes .github/CODEOWNERS assigning the repo to @<org>/<team>, unless the
-  # repo already has a CODEOWNERS file in any of the three places GitHub
-  # reads. The team arrives as FLEET_VAR_TEAM.
-  run: ./scripts/codeowners.sh
+  steps:
+    # Writes .github/CODEOWNERS assigning the repo to @<org>/<team>, unless
+    # the repo already has a CODEOWNERS file in any of the three places
+    # GitHub reads. The team comes from vars, as repo.vars["team"].
+    - name: codeowners
+      starlark: ./change.star
   timeout: 1m
 
 pr:

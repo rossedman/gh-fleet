@@ -10,8 +10,10 @@ targets:
     search: "docs.acme.io"
 
 change:
-  # Replaces FROM with TO, literally (no regex), in every tracked text file.
-  run: ./scripts/replace.sh
+  steps:
+    # Replaces FROM with TO, literally (no regex), in every text file.
+    - name: replace
+      starlark: ./change.star
   env:
     FROM: "https://docs.acme.io"
     TO: "https://docs.acme.dev"

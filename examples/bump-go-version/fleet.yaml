@@ -12,9 +12,11 @@ targets:
     repos: [acme/legacy-api]
 
 change:
-  # Raises the go directive (never lowers it) and the toolchain line, and
-  # bumps go-version in workflows that pin one.
-  run: ./scripts/bump-go.sh
+  steps:
+    # Raises the go directive (never lowers it), drops a toolchain line the
+    # new version covers, and bumps go-version in workflows that pin one.
+    - name: go version
+      starlark: ./change.star
   env:
     GO_VERSION: "1.27.3"
   timeout: 2m

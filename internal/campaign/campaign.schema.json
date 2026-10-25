@@ -124,51 +124,40 @@
       }
     },
     "change": {
-      "description": "What to change in each repository: a Starlark script (`starlark`), a shell script (`run`), or both, in that order. At least one is required.",
+      "description": "What to change in each repository: an ordered list of `steps`, each a shell script (`run`) or a Starlark script (`starlark`). Steps run in order in the same checkout, and variables a step sets are visible to the steps after it.",
       "type": "object",
       "additionalProperties": false,
+      "required": [
+        "steps"
+      ],
       "properties": {
-        "starlark": {
-          "description": "A Starlark file relative to the campaign file that defines `change(repo)`. It edits files through `repo` with no shell or network access, and runs before `run` when both are set.",
-          "type": "string",
-          "pattern": "\\.star$"
-        },
-        "run": {
-          "description": "A shell script path relative to the campaign file, or an inline script. Runs with the repo root as working directory, after `starlark` when both are set.",
-          "type": "string",
-          "minLength": 1
+        "steps": {
+          "description": "The steps to run, in order.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/step"
+          }
         },
         "shell": {
-          "description": "Shell used to run the script.",
+          "description": "Default shell for `run` steps.",
           "type": "string",
           "default": "bash"
         },
         "env": {
-          "description": "Extra environment variables for the script.",
+          "description": "Environment variables for every step.",
           "type": "object",
           "additionalProperties": {
             "type": "string"
           }
         },
         "timeout": {
-          "description": "Maximum run time per repo, as a Go duration (`30s`, `5m`).",
+          "description": "Default maximum run time of each step per repo, as a Go duration (`30s`, `5m`).",
           "type": "string",
           "pattern": "^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$",
           "default": "5m"
         }
-      },
-      "anyOf": [
-        {
-          "required": [
-            "run"
-          ]
-        },
-        {
-          "required": [
-            "starlark"
-          ]
-        }
-      ]
+      }
     },
     "pr": {
       "description": "How the pull request is opened.",
@@ -374,6 +363,56 @@
           }
         ]
       }
+    },
+    "step": {
+      "description": "One step of the change. Set exactly one of `run` or `starlark`.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "description": "A label for the step, used in logs and errors.",
+          "type": "string",
+          "minLength": 1
+        },
+        "starlark": {
+          "description": "A Starlark file relative to the campaign file that defines `change(repo)`. It edits files through `repo` with no shell or network access.",
+          "type": "string",
+          "pattern": "\\.star$"
+        },
+        "run": {
+          "description": "A shell script path relative to the campaign file, or an inline script. Runs with the repo root as working directory.",
+          "type": "string",
+          "minLength": 1
+        },
+        "shell": {
+          "description": "Shell for this `run` step. Defaults to `change.shell`.",
+          "type": "string"
+        },
+        "env": {
+          "description": "Environment variables for this step, added to `change.env`.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "timeout": {
+          "description": "Maximum run time of this step per repo. Defaults to `change.timeout`.",
+          "type": "string",
+          "pattern": "^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$"
+        }
+      },
+      "oneOf": [
+        {
+          "required": [
+            "run"
+          ]
+        },
+        {
+          "required": [
+            "starlark"
+          ]
+        }
+      ]
     }
   }
 }

@@ -10,9 +10,11 @@ targets:
     search: "actions/checkout@v3 path:.github/workflows"
 
 change:
-  # Rewrites `uses: ACTION@FROM` to `ACTION@TO` in workflows and local
-  # composite actions. Refs pinned to a SHA are left for pin-actions.
-  run: ./scripts/upgrade-action.sh
+  steps:
+    # Rewrites `uses: ACTION@FROM` to `ACTION@TO` in workflows and local
+    # composite actions. Refs pinned to a SHA are left for pin-actions.
+    - name: upgrade action
+      starlark: ./change.star
   env:
     ACTION: actions/checkout
     FROM: v3

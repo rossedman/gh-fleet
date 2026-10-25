@@ -10,10 +10,12 @@ targets:
     search: "FROM node:18"
 
 change:
-  # Rewrites FROM lines for IMAGE:FROM_TAG to IMAGE:TO_TAG in every
-  # Dockerfile, keeping variants (node:18-alpine -> node:22-alpine), stage
-  # names and --platform flags.
-  run: ./scripts/base-image.sh
+  steps:
+    # Rewrites FROM lines for IMAGE:FROM_TAG to IMAGE:TO_TAG in every
+    # Dockerfile, keeping variants (node:18-alpine -> node:22-alpine), stage
+    # names and --platform flags.
+    - name: base image
+      starlark: ./change.star
   env:
     IMAGE: node
     FROM_TAG: "18"

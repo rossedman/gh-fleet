@@ -4,11 +4,12 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 // varsCampaign is a valid campaign with a vars block appended.
 func varsCampaign(vars string) string {
-	return "apiVersion: fleet.gh/v1\nname: v\ntargets:\n  orgs: [acme]\n  include:\n    properties: {tier: [1, 2], team: payments}\n  exclude:\n    properties: {pci: true}\nchange: {run: x}\npr: {title: x}\n" + vars
+	return "apiVersion: fleet.gh/v1\nname: v\ntargets:\n  orgs: [acme]\n  include:\n    properties: {tier: [1, 2], team: payments}\n  exclude:\n    properties: {pci: true}\nchange: {steps: [{run: x}]}\npr: {title: x}\n" + vars
 }
 
 func TestParseVarsAndProperties(t *testing.T) {
@@ -48,7 +49,7 @@ func TestVarsValidationErrors(t *testing.T) {
 			t.Errorf("vars %q: err = %v, want %q", tt.vars, err, tt.want)
 		}
 	}
-	bad := "apiVersion: fleet.gh/v1\nname: v\ntargets:\n  orgs: [a]\n  include:\n    properties: {tier: {x: 1}}\nchange: {run: x}\npr: {title: x}\n"
+	bad := "apiVersion: fleet.gh/v1\nname: v\ntargets:\n  orgs: [a]\n  include:\n    properties: {tier: {x: 1}}\nchange: {steps: [{run: x}]}\npr: {title: x}\n"
 	if _, err := Parse([]byte(bad), "v.yaml"); err == nil {
 		t.Fatal("object property filter accepted")
 	}
@@ -56,7 +57,7 @@ func TestVarsValidationErrors(t *testing.T) {
 
 func TestStringList(t *testing.T) {
 	t.Parallel()
-	c, err := Parse([]byte("apiVersion: fleet.gh/v1\nname: v\ntargets:\n  orgs: [a]\n  include:\n    properties: {tier: 1}\nchange: {run: x}\npr: {title: x}\n"), "v.yaml")
+	c, err := Parse([]byte("apiVersion: fleet.gh/v1\nname: v\ntargets:\n  orgs: [a]\n  include:\n    properties: {tier: 1}\nchange: {steps: [{run: x}]}\npr: {title: x}\n"), "v.yaml")
 	if err != nil || c.Targets.Include.Properties["tier"][0] != "1" {
 		t.Fatalf("scalar filter: %v %v", c, err)
 	}
@@ -202,25 +203,49 @@ func TestUsesProperties(t *testing.T) {
 	}
 }
 
-func TestStarlarkChange(t *testing.T) {
+func TestSteps(t *testing.T) {
 	t.Parallel()
 	base := "apiVersion: fleet.gh/v1\nname: s\ntargets: {orgs: [a]}\npr: {title: x}\n"
-	p := writeCampaign(t, base+"change: {starlark: ./change.star}\n", map[string]string{"change.star": "def change(repo):\n  pass\n"})
+	p := writeCampaign(t, base+`change:
+  env: {A: "1", B: "1"}
+  timeout: 2m
+  steps:
+    - starlark: ./change.star
+    - name: tidy
+      run: echo hi
+      env: {B: "2"}
+      shell: sh
+      timeout: 10s
+`, map[string]string{"change.star": "def change(repo):\n  pass\n"})
 	c, err := Load(p)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.StarlarkFile() == "" || c.ScriptFile() != "" || c.Change.Run != "" {
-		t.Fatalf("change = %+v", c.Change)
+	star, run := c.Change.Steps[0], c.Change.Steps[1]
+	if c.StarlarkFile(star) == "" || c.ScriptFile(star) != "" || star.Kind() != "starlark" || star.Label(0) != "#1" {
+		t.Fatalf("starlark step = %+v", star)
 	}
-	p = writeCampaign(t, base+"change:\n  starlark: ./missing.star\n", nil)
-	if _, err := Load(p); err == nil || !strings.Contains(err.Error(), `:6:13: change.starlark: file "./missing.star" not found`) {
+	if star.Shell != "bash" || star.Timeout.Std() != 2*time.Minute {
+		t.Fatalf("step defaults = %+v", star)
+	}
+	if run.Kind() != "run" || run.Label(1) != "tidy" || run.Shell != "sh" || run.Timeout.Std() != 10*time.Second {
+		t.Fatalf("run step = %+v", run)
+	}
+	if env := c.StepEnv(run); env["A"] != "1" || env["B"] != "2" {
+		t.Fatalf("env = %v", env)
+	}
+	p = writeCampaign(t, base+"change:\n  steps:\n    - starlark: ./missing.star\n", nil)
+	if _, err := Load(p); err == nil || !strings.Contains(err.Error(), `:7:17: change.steps.0.starlark: file "./missing.star" not found`) {
 		t.Fatalf("missing file: %v", err)
 	}
 	for yaml, want := range map[string]string{
-		"change: {timeout: 1m}\n":           "change: needs 'run', 'starlark', or both",
-		"change: {starlark: x.py}\n":        "change.starlark: must be a .star file",
-		"change: {run: x, timeout: soon}\n": "change.timeout: use a Go duration",
+		"change: {timeout: 1m}\n":                         "change: missing property 'steps'",
+		"change: {steps: []}\n":                           "change.steps: ",
+		"change: {steps: [{name: x}]}\n":                  "change.steps.0: needs 'run' or 'starlark'",
+		"change: {steps: [{run: x, starlark: a.star}]}\n": "change.steps.0: set only one of 'run' or 'starlark'",
+		"change: {steps: [{starlark: x.py}]}\n":           "change.steps.0.starlark: must be a .star file",
+		"change: {run: x, steps: [{run: x}]}\n":           "change.run: unknown field",
+		"change: {timeout: soon, steps: [{run: x}]}\n":    "change.timeout: use a Go duration",
 	} {
 		if _, err := Parse([]byte(base+yaml), "f.yaml"); err == nil || !strings.Contains(err.Error(), want) {
 			t.Errorf("%q: err = %v, want %q", yaml, err, want)

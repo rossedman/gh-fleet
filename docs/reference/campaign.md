@@ -18,7 +18,7 @@ Schema URL: `https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/
 | `name` (required) | string |  | The campaign's identity. It derives the branch name and the PR marker, so renaming it starts a new campaign. Lowercase letters, digits and dashes. |
 | `description` | string |  | Free-form description, available to the PR body template as `.Campaign.Description`. |
 | `targets` (required) | object |  | Which repositories the campaign touches. Needs `orgs`, `include.repos`, or both. |
-| `change` (required) | object |  | What to change in each repository: a Starlark script (`starlark`), a shell script (`run`), or both, in that order. At least one is required. |
+| `change` (required) | object |  | What to change in each repository: an ordered list of `steps`, each a shell script (`run`) or a Starlark script (`starlark`). Steps run in order in the same checkout, and variables a step sets are visible to the steps after it. |
 | `pr` (required) | object |  | How the pull request is opened. |
 | `vars` | object |  | Per-repo variables, available to PR templates as `.Vars` and to scripts as `FLEET_VAR_<NAME>`. Values are built from `default`, then every matching `match` rule in order, then the repo's row in `file`; later sources win. |
 | `limits` | object |  | Safety limits for a run. |
@@ -60,15 +60,27 @@ Filters a candidate must pass. Keys combine with AND; values within a key combin
 
 ## `change`
 
-What to change in each repository: a Starlark script (`starlark`), a shell script (`run`), or both, in that order. At least one is required.
+What to change in each repository: an ordered list of `steps`, each a shell script (`run`) or a Starlark script (`starlark`). Steps run in order in the same checkout, and variables a step sets are visible to the steps after it.
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
-| `env` | map of string |  | Extra environment variables for the script. |
-| `run` | string |  | A shell script path relative to the campaign file, or an inline script. Runs with the repo root as working directory, after `starlark` when both are set. |
-| `shell` | string | `bash` | Shell used to run the script. |
-| `starlark` | string |  | A Starlark file relative to the campaign file that defines `change(repo)`. It edits files through `repo` with no shell or network access, and runs before `run` when both are set. |
-| `timeout` | string | `5m` | Maximum run time per repo, as a Go duration (`30s`, `5m`). |
+| `env` | map of string |  | Environment variables for every step. |
+| `shell` | string | `bash` | Default shell for `run` steps. |
+| `steps` (required) | list of object |  | The steps to run, in order. |
+| `timeout` | string | `5m` | Default maximum run time of each step per repo, as a Go duration (`30s`, `5m`). |
+
+## `change.steps[]`
+
+One step of the change. Set exactly one of `run` or `starlark`.
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `env` | map of string |  | Environment variables for this step, added to `change.env`. |
+| `name` | string |  | A label for the step, used in logs and errors. |
+| `run` | string |  | A shell script path relative to the campaign file, or an inline script. Runs with the repo root as working directory. |
+| `shell` | string |  | Shell for this `run` step. Defaults to `change.shell`. |
+| `starlark` | string |  | A Starlark file relative to the campaign file that defines `change(repo)`. It edits files through `repo` with no shell or network access. |
+| `timeout` | string |  | Maximum run time of this step per repo. Defaults to `change.timeout`. |
 
 ## `pr`
 

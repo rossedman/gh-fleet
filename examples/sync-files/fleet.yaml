@@ -9,10 +9,12 @@ targets:
     topics: [no-fleet]
 
 change:
-  # Copies everything under files/ (next to this campaign) into each repo,
-  # overwriting what is there. Edit a file once, re-run apply, and every
-  # open PR is updated.
-  run: ./scripts/sync.sh
+  steps:
+    # Copies everything under files/ (next to this campaign) into each repo,
+    # replacing what is there. Edit a file once, re-run apply, and every
+    # open PR is updated.
+    - name: sync files
+      starlark: ./change.star
   timeout: 1m
 
 pr:

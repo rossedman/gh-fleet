@@ -9,10 +9,12 @@ targets:
     files: [package.json]
 
 change:
-  # A Starlark change: it edits package.json as data, keeps its key order,
-  # never lowers a newer requirement, and tells the PR what it replaced.
-  # No shell, no network: it can only touch files in the clone.
-  starlark: ./change.star
+  steps:
+    # A Starlark change: it edits package.json as data, keeps its key order,
+    # never lowers a newer requirement, and tells the PR what it replaced.
+    # No shell, no network: it can only touch files in the clone.
+    - name: engines
+      starlark: ./change.star
   env:
     NODE: "22"
   timeout: 1m
