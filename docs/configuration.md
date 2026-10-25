@@ -25,9 +25,18 @@ targets:
 
 change:
   steps:
+    - name: find refs
+      starlark: ./change.star    # load("@fleet//gha.star", "unpinned")
+    - name: resolve              # shell only where a tool is needed
+      run: |
+        set -e
+        shas=""
+        for ref in ${FLEET_VAR_REFS//,/ }; do
+          shas="$shas $ref=$(gh api "repos/${ref%@*}/commits/${ref#*@}" --jq .sha)"
+        done
+        echo "shas=$shas" >> "$FLEET_OUTPUT/vars"
     - name: pin
-      run: ./scripts/pin.sh
-      timeout: 5m
+      starlark: ./pin.star       # load("@fleet//gha.star", "pin")
 
 pr:
   title: "ci: pin GitHub Actions to commit SHAs"

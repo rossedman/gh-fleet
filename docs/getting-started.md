@@ -50,9 +50,18 @@ targets:
 
 change:
   steps:
+    - name: find refs
+      starlark: ./change.star    # load("@fleet//gha.star", "unpinned")
+    - name: resolve              # shell only where a tool is needed
+      run: |
+        set -e
+        shas=""
+        for ref in ${FLEET_VAR_REFS//,/ }; do
+          shas="$shas $ref=$(gh api "repos/${ref%@*}/commits/${ref#*@}" --jq .sha)"
+        done
+        echo "shas=$shas" >> "$FLEET_OUTPUT/vars"
     - name: pin
-      run: ./scripts/pin.sh
-      timeout: 5m
+      starlark: ./pin.star       # load("@fleet//gha.star", "pin")
 
 pr:
   title: "ci: pin GitHub Actions to commit SHAs"
@@ -85,7 +94,7 @@ Every matched repo shows the filter that matched it. Nothing is cloned yet.
 
 ## 2. Preview the change
 
-`plan` clones each target, runs your script, and prints the diff each repo would get. Nothing is pushed and nothing is written to GitHub.
+`plan` clones each target, runs your steps, and prints the diff each repo would get. Nothing is pushed and nothing is written to GitHub.
 
 ```console
 $ gh fleet plan -f fleet.yaml --repo acme/api
@@ -106,7 +115,7 @@ index e9179e8..4b6957d 100644
 1 changed · 1 skipped
 ```
 
-Start with `--repo` on one repo, then drop it to preview all of them. A repo where the script changes nothing is reported as `noop`.
+Start with `--repo` on one repo, then drop it to preview all of them. A repo where the steps change nothing is reported as `noop`.
 
 ## 3. Open the pull requests
 
@@ -151,6 +160,7 @@ Fix a script, or change the campaign, and run `apply` again to update every open
 ## Where next
 
 - [How it works](how-it-works.md): the path each repo takes.
-- [Writing changes](guides/writing-changes.md): the script contract.
+- [Writing changes](guides/writing-changes.md): how steps run, and the shell contract.
+- [Starlark library](reference/starlark-library.md): every built-in helper.
 - [Targeting repositories](guides/targeting.md): topics, languages, files and code search.
-- [Examples](examples.md): thirteen tested campaigns for common changes.
+- [Examples](examples.md): twenty-three tested campaigns for common changes.

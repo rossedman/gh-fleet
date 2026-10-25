@@ -126,8 +126,8 @@ func read(t *testing.T, path string) string {
 func TestExamplesLoad(t *testing.T) {
 	t.Parallel()
 	dirs, _ := filepath.Glob("*/fleet.yaml")
-	if len(dirs) != 14 {
-		t.Fatalf("want 14 examples, got %v", dirs)
+	if len(dirs) != 23 {
+		t.Fatalf("want 23 examples, got %v", dirs)
 	}
 	for _, f := range dirs {
 		c, err := campaign.Load(f)
@@ -135,14 +135,19 @@ func TestExamplesLoad(t *testing.T) {
 			t.Fatal(err)
 		}
 		for i, st := range c.Change.Steps {
-			if c.ScriptFile(st) == "" && c.StarlarkFile(st) == "" {
-				t.Errorf("%s: step %s is neither a script file nor a Starlark file", f, st.Label(i))
+			// Shell stays a few lines of glue around a tool; the logic
+			// belongs in Starlark.
+			if st.Run != "" && strings.Count(strings.TrimSpace(st.Run), "\n") >= 6 {
+				t.Errorf("%s: step %s has more than 6 lines of shell; move the logic to Starlark", f, st.Label(i))
+			}
+			if c.ScriptFile(st) != "" {
+				t.Errorf("%s: step %s runs a script file; examples keep shell inline and short", f, st.Label(i))
 			}
 			if st.Name == "" {
 				t.Errorf("%s: step %d has no name", f, i)
 			}
 		}
-		vars := map[string]any{"node": 22, "previous": "unset"}
+		vars := map[string]any{"node": 22, "previous": "unset", "files": "requirements.txt"}
 		for k, v := range c.Vars.Default {
 			vars[k] = v
 		}
@@ -177,7 +182,10 @@ func TestPinActions(t *testing.T) {
       - uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b # v5.4.0
 `
 	dir := scratch(t, map[string]string{".github/workflows/ci.yml": workflow})
-	runScript(t, "pin-actions", dir, "PATH="+bin+":"+os.Getenv("PATH"))
+	vars := runTwice(t, "pin-actions", dir, "PATH="+bin+":"+os.Getenv("PATH"))
+	if got := fmt.Sprint(vars["refs"]); got != "[actions/checkout@v4 github/codeql-action@v3]" {
+		t.Errorf("refs = %s", got)
+	}
 	got := read(t, filepath.Join(dir, ".github/workflows/ci.yml"))
 	for _, want := range []string{
 		"- uses: actions/checkout@1111111111111111111111111111111111111111 # v4\n",

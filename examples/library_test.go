@@ -191,7 +191,10 @@ func TestGoModuleBump(t *testing.T) {
 		"single/go.mod":   "module d\n\nrequire golang.org/x/net v0.9.0\n",
 		"vendor/x/go.mod": "module e\n\nrequire golang.org/x/net v0.1.0\n",
 	})
-	runScript(t, "go-module-bump", dir, path)
+	vars := runScript(t, "go-module-bump", dir, path)
+	if got := fmt.Sprint(vars["dirs"]); got != "[. single]" {
+		t.Errorf("dirs = %s", got)
+	}
 	calls := read(t, log)
 	for _, want := range []string{dir + " get golang.org/x/net@v0.33.0", dir + " mod tidy", filepath.Join(dir, "single") + " get golang.org/x/net@v0.33.0"} {
 		if !strings.Contains(calls, want+"\n") {
@@ -228,7 +231,7 @@ func TestNpmPackageBump(t *testing.T) {
 	if got := read(t, filepath.Join(dir, "web/node_modules/package.json")); strings.Contains(got, "1.7.9") {
 		t.Error("node_modules changed")
 	}
-	if got := fmt.Sprint(vars["dirs"]); got != "[nolock . web]" {
+	if got := fmt.Sprint(vars["dirs"]); got != "[. web]" {
 		t.Errorf("dirs = %s", got)
 	}
 	calls := read(t, log)

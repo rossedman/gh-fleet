@@ -1,0 +1,27 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: security-policy
+description: Give every repo a SECURITY.md
+
+targets:
+  orgs: [acme]
+  exclude:
+    topics: [no-fleet]
+
+change:
+  steps:
+    # Writes SECURITY.md from the template next to this file, filled in
+    # for each repo, unless the repo already has a policy in one of the
+    # places GitHub looks.
+    - name: policy
+      starlark: ./change.star
+      timeout: 1m
+
+pr:
+  title: "docs: add a security policy"
+  body: |
+    Adds a SECURITY.md to {{ .Repo.Name }} so GitHub shows people how to
+    report a vulnerability privately.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet, security]

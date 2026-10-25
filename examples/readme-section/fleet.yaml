@@ -1,0 +1,26 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: readme-security
+description: Give every README a Security section and a CI badge
+
+targets:
+  orgs: [acme]
+  include:
+    files: [README.md]
+
+change:
+  steps:
+    # Writes the Security section (replacing an old one) and adds a CI
+    # badge under the title, using the repo's own name in the badge URL.
+    - name: readme
+      starlark: ./change.star
+      timeout: 1m
+
+pr:
+  title: "docs: security contact and CI badge in README"
+  body: |
+    Adds the standard Security section to {{ .Repo.Name }}'s README so
+    people know where to report vulnerabilities, and a CI status badge.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet, docs]

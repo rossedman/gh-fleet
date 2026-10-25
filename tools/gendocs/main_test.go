@@ -68,7 +68,7 @@ func TestLibMarkdown(t *testing.T) {
 		"## gha.star",
 		"### files.ensure_lines",
 		"ensure_lines(repo, path, lines, header = None)",
-		`load("@fleet//docker.star", "dockerfiles", "bump_base_image")`,
+		`load("@fleet//docker.star", "dockerfiles", "bump_base_image", "bump_image")`,
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("library reference missing %q", want)

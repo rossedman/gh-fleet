@@ -38,3 +38,35 @@ def set_go_version(repo, version, paths = None):
             repo.write(path, updated)
             changed.append(path)
     return changed
+
+def requires(repo, path = "go.mod"):
+    """Returns a dict of every module a go.mod requires to its version, single-line and block forms alike."""
+    out = {}
+    block = False
+    for line in repo.read(path, default = "").splitlines():
+        line = line.split("//")[0].strip()
+        if line.startswith("require ("):
+            block = True
+            continue
+        if block and line == ")":
+            block = False
+            continue
+        fields = line.split()
+        if block and len(fields) >= 2:
+            out[fields[0]] = fields[1]
+        elif len(fields) >= 3 and fields[0] == "require":
+            out[fields[1]] = fields[2]
+    return out
+
+def outdated(repo, module, version):
+    """Returns the directories of the go.mod files that require `module` below `version`.
+
+    The repo root is `.`. Use it to pick where a `run` step should run
+    `go get module@version`.
+    """
+    dirs = []
+    for path in modules(repo):
+        have = requires(repo, path).get(module)
+        if have != None and semver.less(have, version):
+            dirs.append(path.removesuffix("go.mod").rstrip("/") or ".")
+    return dirs
