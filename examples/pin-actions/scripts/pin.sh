@@ -9,13 +9,18 @@ shopt -s nullglob
 files=(.github/workflows/*.yml .github/workflows/*.yaml)
 [ ${#files[@]} -eq 0 ] && exit 0
 
-declare -A cache
+# Resolved refs are cached in a file ("repo@ref sha" per line); macOS
+# ships bash 3.2, which has no associative arrays.
+cache=$(mktemp)
+trap 'rm -f "$cache"' EXIT
 resolve() {
-  local repo=$1 ref=$2 key="$1@$2"
-  if [ -z "${cache[$key]:-}" ]; then
-    cache[$key]=$(gh api "repos/$repo/commits/$ref" --jq .sha)
+  local key="$1@$2" sha
+  sha=$(awk -v k="$key" '$1 == k { print $2; exit }' "$cache")
+  if [ -z "$sha" ]; then
+    sha=$(gh api "repos/$1/commits/$2" --jq .sha)
+    printf '%s %s\n' "$key" "$sha" >>"$cache"
   fi
-  printf '%s' "${cache[$key]}"
+  printf '%s' "$sha"
 }
 
 re='^([[:space:]]*-?[[:space:]]*uses:[[:space:]]*)([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)(/[^@[:space:]]*)?@([^[:space:]#]+)(.*)$'
