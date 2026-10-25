@@ -75,7 +75,8 @@ func TestCargoDependencyBump(t *testing.T) {
 	if got := read(t, filepath.Join(dir, "Cargo.toml")); !strings.Contains(got, `tokio = { version = "1.40", features = ["full"] }`) {
 		t.Errorf("Cargo.toml = %q", got)
 	}
-	if got := read(t, log); got != dir+" update --package tokio\n" {
+	// Contains, not equality: macOS reports /var temp dirs as /private/var.
+	if got := read(t, log); !strings.Contains(got, dir+" update --package tokio\n") || strings.Count(got, "\n") != 1 {
 		t.Errorf("cargo calls = %q", got)
 	}
 	// No lockfile, no cargo.
