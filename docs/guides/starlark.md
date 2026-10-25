@@ -127,7 +127,7 @@ The language is [Starlark](https://github.com/bazelbuild/starlark/blob/master/sp
 
 gh fleet ships a library of helpers for the changes campaigns make most. It is embedded in the binary, so it needs no network and its version always matches the gh fleet you run.
 
-It has modules for files and text, GitHub Actions, Docker, Go, npm, Python, Cargo, Terraform, runtime version files, pre-commit, Markdown, CODEOWNERS and Dependabot. The [Starlark library reference](../reference/starlark-library.md) lists them all, with a page per module.
+It has modules for files and text, editing any YAML, JSON or TOML file by key while keeping its comments, GitHub Actions, Docker, Helm, Go, npm, Python, Cargo, Gradle, Maven, .NET, Terraform, runtime version files, pre-commit, Markdown, CODEOWNERS and Dependabot. The [Starlark library reference](../reference/starlark-library.md) lists them all, with a page per module.
 
 Every helper is idempotent, edits line by line where a YAML round trip would lose comments, and returns what it changed so a script can tell the PR about it:
 

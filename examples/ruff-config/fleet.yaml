@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: ruff-settings
+description: Give every Python repo the org's ruff settings
+
+targets:
+  orgs: [acme]
+  include:
+    languages: [Python]
+    files: [pyproject.toml]
+
+change:
+  steps:
+    # Sets [tool.ruff] line-length and [tool.ruff.lint] select in
+    # pyproject.toml, adding the tables if needed, without touching
+    # comments or the rest of the file.
+    - name: pyproject.toml
+      starlark: ./change.star
+      timeout: 1m
+
+pr:
+  title: "chore: standard ruff settings"
+  body: |
+    Applies the org's ruff settings to {{ .Repo.Name }}: 100-character
+    lines, and pyflakes, pycodestyle and import-sorting rules.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet]
