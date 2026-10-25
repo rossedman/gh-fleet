@@ -109,7 +109,7 @@ def change(repo):
         repo.write(path.removeprefix("files/"), campaign.read(path))
 ```
 
-[`files.sync`](../reference/starlark-library.md#filessync) does this, skipping files that already match.
+[`files.sync`](../reference/starlark/files.md#sync) does this, skipping files that already match.
 
 ## Built-in modules
 
@@ -127,21 +127,7 @@ The language is [Starlark](https://github.com/bazelbuild/starlark/blob/master/sp
 
 gh fleet ships a library of helpers for the changes campaigns make most. It is embedded in the binary, so it needs no network and its version always matches the gh fleet you run.
 
-| Module | Helpers |
-| --- | --- |
-| `@fleet//files.star` | `ensure_lines`, `remove_lines`, `replace_all`, `write_if_missing`, `sync` |
-| `@fleet//gha.star` | `workflows`, `action_files`, `bump_action`, `set_input`, `ensure_permissions`, `unpinned`, `pin` |
-| `@fleet//docker.star` | `dockerfiles`, `bump_base_image`, `bump_image` (Compose and Kubernetes YAML) |
-| `@fleet//gomod.star` | `modules`, `go_version`, `set_go_version`, `requires`, `outdated` |
-| `@fleet//npm.star` | `packages`, `read_package`, `write_package`, `set_dependency` |
-| `@fleet//codeowners.star` | `find`, `owners`, `set_owners` |
-| `@fleet//dependabot.star` | `find`, `ecosystems`, `config`, `write_if_missing` |
-| `@fleet//python.star` | `requirements_files`, `set_requirement`, `requires_python`, `set_requires_python` |
-| `@fleet//cargo.star` | `manifests`, `set_dependency`, `rust_version`, `set_rust_version` |
-| `@fleet//terraform.star` | `files`, `set_required_version`, `set_provider_version` |
-| `@fleet//runtime.star` | `version`, `set_version` for `.nvmrc`, `.python-version`, `.tool-versions` and friends |
-| `@fleet//precommit.star` | `revs`, `set_rev` |
-| `@fleet//markdown.star` | `has_section`, `set_section`, `ensure_badge` |
+It has modules for files and text, GitHub Actions, Docker, Go, npm, Python, Cargo, Terraform, runtime version files, pre-commit, Markdown, CODEOWNERS and Dependabot. The [Starlark library reference](../reference/starlark-library.md) lists them all, with a page per module.
 
 Every helper is idempotent, edits line by line where a YAML round trip would lose comments, and returns what it changed so a script can tell the PR about it:
 
@@ -153,7 +139,7 @@ def change(repo):
     repo.set_var("dockerfiles", ", ".join(changed))
 ```
 
-The [Starlark library reference](../reference/starlark-library.md) documents every function. It is generated from the library's docstrings, so it always matches the code.
+Each function's entry shows its arguments, what it returns, a before-and-after example, and the [example campaigns](../examples.md) that use it. The reference is generated from the library's docstrings, and every example in it runs as a test, so it always matches the code.
 
 ## Sharing your own helpers with `load`
 

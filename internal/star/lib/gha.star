@@ -9,22 +9,80 @@ def _lit(s):
     return s.replace("$", "$$")
 
 def workflows(repo):
-    """Returns the paths of the repo's workflow files under .github/workflows."""
+    """Lists the repo's workflow files.
+
+    Returns:
+        The sorted paths of every .yml and .yaml file directly under
+        .github/workflows.
+    Example:
+        before .github/workflows/ci.yml:
+            on: push
+        before .github/workflows/release.yaml:
+            on: release
+        before docs/ci.yml:
+            not a workflow
+        call:
+            workflows(repo)
+        returns:
+            [".github/workflows/ci.yml", ".github/workflows/release.yaml"]
+    """
     return repo.glob(".github/workflows/*.yml", ".github/workflows/*.yaml")
 
 def action_files(repo):
-    """Returns the workflows plus every local action's action.yml or action.yaml."""
+    """Lists the workflows and every local action's metadata file.
+
+    Local actions are the action.yml or action.yaml files a repo keeps for
+    its own workflows, often under .github/actions.
+
+    Returns:
+        The sorted paths of the workflows and the action.yml and action.yaml
+        files anywhere in the repo.
+    Example:
+        before .github/workflows/ci.yml:
+            on: push
+        before .github/actions/setup/action.yml:
+            runs:
+              using: composite
+        call:
+            action_files(repo)
+        returns:
+            [".github/actions/setup/action.yml", ".github/workflows/ci.yml"]
+    """
     return sorted(set(workflows(repo) + repo.glob("**/action.yml", "**/action.yaml")))
 
 def bump_action(repo, action, to, from_ref = None):
-    """Rewrites `uses: <action>@<ref>` to `uses: <action>@<to>` in workflows and local actions.
+    """Moves an action to a new version wherever a workflow or local action uses it.
 
-    `action` is `owner/repo`; steps that use a sub-path (`owner/repo/path`)
-    match too. Refs pinned to a full commit SHA are left alone. With
-    `from_ref`, only that exact ref is replaced, so `v3` does not match
-    `v3.1`.
+    Steps that use a sub-path of the action (`owner/repo/path`) match too.
+    Refs pinned to a full commit SHA are left alone; use `pin` for those.
+    Quotes and trailing comments are kept.
 
-    Returns the paths that changed.
+    Args:
+        action: the action as `owner/repo`, such as `actions/checkout`.
+        to: the new ref, such as `v4`.
+        from_ref: when set, only this exact ref is replaced, so `v3` never
+            matches `v3.5.0`; otherwise every non-SHA ref is.
+    Returns:
+        The list of paths that changed.
+    Example:
+        before .github/workflows/ci.yml:
+            jobs:
+              test:
+                steps:
+                  - uses: actions/checkout@v3
+                  - uses: actions/checkout@v3.5.0
+                  - uses: actions/setup-go@v5
+        call:
+            bump_action(repo, "actions/checkout", "v4", from_ref = "v3")
+        after .github/workflows/ci.yml:
+            jobs:
+              test:
+                steps:
+                  - uses: actions/checkout@v4
+                  - uses: actions/checkout@v3.5.0
+                  - uses: actions/setup-go@v5
+        returns:
+            [".github/workflows/ci.yml"]
     """
     pattern = r"""(uses:\s*["']?)""" + re.escape(action) + r"""((?:/[^@\s"']*)?)@([^\s"'#]+)"""
     changed = []
@@ -44,13 +102,40 @@ def bump_action(repo, action, to, from_ref = None):
     return changed
 
 def set_input(repo, key, value, match = None):
-    """Sets every `<key>: <value>` line in workflows, such as `go-version` or `node-version`.
+    r"""Sets every `<key>: <value>` line in the workflows, such as an action input.
 
-    Quotes around the old value are kept. With `match`, a regular
-    expression, only current values it matches are replaced; for example
-    `match = r"^\\d"` leaves `go-version: stable` alone.
+    Typical keys are `go-version`, `node-version` and `python-version`.
+    Quotes around the old value are kept.
 
-    Returns the paths that changed.
+    Args:
+        key: the key to set.
+        value: the new value.
+        match: a regular expression the current value must match to be
+            replaced; for example `r"^\d"` leaves `stable` and matrix
+            expressions alone.
+    Returns:
+        The list of paths that changed.
+    Example:
+        before .github/workflows/ci.yml:
+            steps:
+              - uses: actions/setup-go@v5
+                with:
+                  go-version: '1.22'
+              - uses: actions/setup-go@v5
+                with:
+                  go-version: stable
+        call:
+            set_input(repo, "go-version", "1.27", match = r"^\d")
+        after .github/workflows/ci.yml:
+            steps:
+              - uses: actions/setup-go@v5
+                with:
+                  go-version: '1.27'
+              - uses: actions/setup-go@v5
+                with:
+                  go-version: stable
+        returns:
+            [".github/workflows/ci.yml"]
     """
     pattern = r"""^(\s*-?\s*""" + re.escape(key) + r""":\s*["']?)([^"'\s#]+)"""
     changed = []
@@ -72,9 +157,33 @@ def ensure_permissions(repo, permissions = {"contents": "read"}):
     """Adds a top-level `permissions` block to each workflow that has none.
 
     The block goes right above the top-level `jobs:` key. Workflows that
-    already set top-level permissions, even broader ones, are left alone.
+    already set top-level permissions, even broader ones, and files without a
+    `jobs:` key are left alone.
 
-    Returns the paths that changed.
+    Args:
+        permissions: the scopes and levels to write, in order.
+    Returns:
+        The list of paths that changed.
+    Example:
+        before .github/workflows/ci.yml:
+            on: push
+
+            jobs:
+              test:
+                runs-on: ubuntu-latest
+        call:
+            ensure_permissions(repo, {"contents": "read"})
+        after .github/workflows/ci.yml:
+            on: push
+
+            permissions:
+              contents: read
+
+            jobs:
+              test:
+                runs-on: ubuntu-latest
+        returns:
+            [".github/workflows/ci.yml"]
     """
     block = "permissions:\n" + "".join(["  %s: %s\n" % (k, v) for k, v in permissions.items()]) + "\n"
     changed = []
@@ -95,13 +204,27 @@ def ensure_permissions(repo, permissions = {"contents": "read"}):
 _USES = r"""^(\s*-?\s*uses:\s*["']?)([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)((?:/[^@\s"']*)?)@([^\s"'#]+)(["']?)(.*)$"""
 
 def unpinned(repo):
-    """Returns each remote action used at a ref that is not a commit SHA, as sorted `owner/repo@ref` strings.
+    """Lists each remote action used at a tag or branch rather than a commit SHA.
 
     Sub-paths are dropped (`github/codeql-action/init@v3` is listed as
     `github/codeql-action@v3`), since the ref belongs to the repository.
-    Local actions (`./path`) and `docker://` images are not listed. Pass
-    the list to something that can resolve refs, such as `gh api`, and the
-    results to `pin`.
+    Local actions (`./path`) and `docker://` images are not listed. Hand the
+    list to something that can resolve refs, such as `gh api` in a `run`
+    step, and the results to `pin`.
+
+    Returns:
+        The sorted, de-duplicated `owner/repo@ref` strings.
+    Example:
+        before .github/workflows/ci.yml:
+            steps:
+              - uses: actions/checkout@v4
+              - uses: github/codeql-action/init@v3
+              - uses: ./.github/actions/setup
+              - uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b # v5
+        call:
+            unpinned(repo)
+        returns:
+            ["actions/checkout@v4", "github/codeql-action@v3"]
     """
     found = set()
     for path in action_files(repo):
@@ -112,15 +235,30 @@ def unpinned(repo):
     return sorted(found)
 
 def pin(repo, shas):
-    """Rewrites `uses: owner/repo@ref` to `owner/repo@<sha> # ref` in workflows and local actions.
+    """Pins actions to commit SHAs, keeping the old ref as a comment.
 
-    `shas` maps `owner/repo@ref`, as `unpinned` lists them, to a full commit
-    SHA. A dict works, and so does a string of space-separated
-    `owner/repo@ref=sha` pairs, which is easy to hand over from a shell
-    step. Refs missing from `shas` are left as they are; the old ref is
-    kept as a comment so Dependabot can still update the pin.
+    `uses: owner/repo@ref` becomes `uses: owner/repo@<sha> # ref`, so
+    Dependabot can still update the pin. Refs missing from `shas` are left as
+    they are.
 
-    Returns the paths that changed.
+    Args:
+        shas: maps `owner/repo@ref`, as `unpinned` lists them, to a full
+            commit SHA. A dict works, and so does a string of space-separated
+            `owner/repo@ref=sha` pairs, which is easy to hand over from a shell
+            step. A value that is not a SHA fails the run.
+    Returns:
+        The list of paths that changed.
+    Example:
+        before .github/workflows/ci.yml:
+            steps:
+              - uses: actions/checkout@v4
+        call:
+            pin(repo, {"actions/checkout@v4": "08eba0b27e820071cde6df949e0beb9ba4906955"})
+        after .github/workflows/ci.yml:
+            steps:
+              - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
+        returns:
+            [".github/workflows/ci.yml"]
     """
     if type(shas) == "string":
         pairs = {}

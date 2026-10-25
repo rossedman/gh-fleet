@@ -93,7 +93,23 @@ nav:
       - Examples: examples.md
   - Reference:
       - Campaign file: reference/campaign.md
-      - Starlark library: reference/starlark-library.md
+      - Starlark library:
+          # gendocs:starlark-library:begin
+          - Overview: reference/starlark-library.md
+          - cargo.star: reference/starlark/cargo.md
+          - codeowners.star: reference/starlark/codeowners.md
+          - dependabot.star: reference/starlark/dependabot.md
+          - docker.star: reference/starlark/docker.md
+          - files.star: reference/starlark/files.md
+          - gha.star: reference/starlark/gha.md
+          - gomod.star: reference/starlark/gomod.md
+          - markdown.star: reference/starlark/markdown.md
+          - npm.star: reference/starlark/npm.md
+          - precommit.star: reference/starlark/precommit.md
+          - python.star: reference/starlark/python.md
+          - runtime.star: reference/starlark/runtime.md
+          - terraform.star: reference/starlark/terraform.md
+          # gendocs:starlark-library:end
       - Commands:
           - gh fleet: reference/commands/gh_fleet.md
           - apply: reference/commands/gh_fleet_apply.md

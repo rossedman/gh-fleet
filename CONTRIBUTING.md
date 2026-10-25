@@ -72,6 +72,53 @@ target.
 | `star.localPath` | the sandbox boundary: every path a Starlark script passes to `repo` | | `FuzzLocalPath` |
 | `star.Script.Run` | runs untrusted-by-default campaign code against a clone | | |
 
+## Adding to the Starlark library
+
+The built-in library lives in `internal/star/lib/*.star`. Its reference
+pages (`docs/reference/starlark-library.md` and `docs/reference/starlark/`)
+and their entries in `mkdocs.yml` are generated from the docstrings by
+`make docs`, so a docstring is the only documentation you write:
+
+```python
+def ensure_lines(repo, path, lines, header = None):
+    """Appends each of `lines` that a file does not already contain.
+
+    Optional prose: how it matches, what it leaves alone.
+
+    Args:
+        path: the file to edit, relative to the repo root.
+        lines: a list of lines, or one string with a line per line.
+        header: a line written above the new lines when any are added.
+    Returns:
+        The list of lines that were added.
+    Example:
+        before .gitignore:
+            node_modules
+        call:
+            ensure_lines(repo, ".gitignore", [".env"])
+        after .gitignore:
+            node_modules
+            .env
+        returns:
+            [".env"]
+    """
+```
+
+- Every public function needs a summary line, an `Args:` entry for each
+  parameter except `repo` (in order), `Returns:`, and an `Example:`.
+  `TestLibDocumented` enforces this.
+- An example lists files with `before <path>:` (and `campaign <path>:` for
+  files next to the campaign), the `call:` (statements, then an
+  expression), files with `after <path>:` or `deleted <path>`, and the
+  `returns:` value as Starlark prints it. `TestLibExamples` runs every
+  example, checks the files and the value, and runs it again to check that
+  nothing is written the second time. Files with a `before` and no `after`
+  must be left unchanged.
+- Use `r"""` for a docstring that contains a backslash.
+- Add table tests for the edge cases to `internal/star/lib*_test.go`, and an
+  example campaign under `examples/` when the helper serves a common change;
+  the reference links each function to the examples that use it.
+
 ## Integration tests
 
 `make integration` runs a full campaign (apply twice, status, close) against a

@@ -7,20 +7,21 @@ import (
 	"testing"
 
 	"github.com/rossedman/gh-fleet/internal/campaign"
+	"github.com/rossedman/gh-fleet/internal/star"
 )
 
 func TestRunWritesEveryPage(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	if err := run(dir); err != nil {
+	if err := run(dir, "", "../../examples"); err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"campaign.md", "starlark-library.md", "commands/gh_fleet.md", "commands/gh_fleet_apply.md", "commands/gh_fleet_exec.md"} {
+	for _, name := range []string{"campaign.md", "starlark-library.md", "starlark/files.md", "starlark/gha.md", "commands/gh_fleet.md", "commands/gh_fleet_apply.md", "commands/gh_fleet_exec.md"} {
 		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
 			t.Errorf("%s not written", name)
 		}
 	}
-	if err := run("/dev/null/x"); err == nil {
+	if err := run("/dev/null/x", "", ""); err == nil {
 		t.Fatal("expected error for an unwritable dir")
 	}
 }
@@ -56,25 +57,117 @@ func TestSchemaMarkdown(t *testing.T) {
 	}
 }
 
-func TestLibMarkdown(t *testing.T) {
+func TestLibPages(t *testing.T) {
 	t.Parallel()
-	b, err := LibMarkdown()
+	docs, err := libDocs()
 	if err != nil {
 		t.Fatal(err)
 	}
-	page := string(b)
+	used, err := usedIn("../../examples")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := used["gha.star/bump_action"]; len(got) == 0 || got[0] != "upgrade-action" {
+		t.Errorf("used[gha.star/bump_action] = %v", got)
+	}
+	index := string(LibIndex(docs))
 	for _, want := range []string{
-		"| [`@fleet//files.star`](#filesstar) |",
-		"## gha.star",
-		"### files.ensure_lines",
-		"ensure_lines(repo, path, lines, header = None)",
-		`load("@fleet//docker.star", "dockerfiles", "bump_base_image", "bump_image")`,
+		"| [`files.star`](starlark/files.md) |",
+		"| [`files.ensure_lines`](starlark/files.md#ensure_lines) |",
+		"every example on these pages runs as a test",
 	} {
-		if !strings.Contains(page, want) {
-			t.Errorf("library reference missing %q", want)
+		if !strings.Contains(index, want) {
+			t.Errorf("index missing %q", want)
 		}
 	}
-	if strings.Contains(page, "._lines") {
-		t.Error("private helpers documented")
+	var files star.LibDoc
+	for _, d := range docs {
+		if d.Name == "files.star" {
+			files = d
+		}
+	}
+	page := string(LibPage(files, used))
+	for _, want := range []string{
+		"# files.star",
+		"## ensure_lines\n\n```python\nensure_lines(repo, path, lines, header = None)\n```",
+		"| `repo` | The repo passed to `change(repo)`. |",
+		"| `path` | The file to edit, relative to the repo root. |",
+		"**Returns:** The list of lines that were added",
+		"# returns [\".env.local\"]",
+		"=== \"Before\"\n\n    `.gitignore`\n\n    ```text\n    node_modules\n",
+		"`files/.editorconfig` next to the campaign file",
+		"**Used in:** [`gitignore-entries`](https://github.com/rossedman/gh-fleet/tree/main/examples/gitignore-entries)",
+		"[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/files.star#L",
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("files page missing %q", want)
+		}
+	}
+	page = string(LibPage(star.LibDoc{Name: "x.star", Summary: "S.", Funcs: []star.LibFunc{{
+		Name: "f", Signature: "f(repo)", Params: []string{"repo"}, Summary: "F.", Line: 3,
+		Example: &star.LibExample{Call: "f(repo)", Deleted: []string{"old.txt"}},
+	}}}, nil))
+	if !strings.Contains(page, "`old.txt` is deleted.") || strings.Contains(page, "Used in") {
+		t.Errorf("deleted example:\n%s", page)
+	}
+	if _, err := usedIn("[bad"); err == nil {
+		t.Error("bad glob accepted")
+	}
+}
+
+func TestUpdateNav(t *testing.T) {
+	t.Parallel()
+	docs := []star.LibDoc{{Name: "a.star"}, {Name: "b.star"}}
+	p := filepath.Join(t.TempDir(), "mkdocs.yml")
+	in := "nav:\n  - Lib:\n      " + navBegin + "\n      - old: x.md\n      " + navEnd + "\n  - Next: n.md\n"
+	if err := os.WriteFile(p, []byte(in), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for range 2 {
+		if err := updateNav(p, docs); err != nil {
+			t.Fatal(err)
+		}
+	}
+	want := "nav:\n  - Lib:\n      " + navBegin + "\n      - Overview: reference/starlark-library.md\n      - a.star: reference/starlark/a.md\n      - b.star: reference/starlark/b.md\n      " + navEnd + "\n  - Next: n.md\n"
+	if got, _ := os.ReadFile(p); string(got) != want {
+		t.Errorf("mkdocs.yml =\n%s", got)
+	}
+	if err := os.WriteFile(p, []byte("nav: []\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := updateNav(p, docs); err == nil || !strings.Contains(err.Error(), "block") {
+		t.Errorf("missing markers: %v", err)
+	}
+	if err := updateNav(filepath.Join(t.TempDir(), "none.yml"), docs); err == nil {
+		t.Error("missing file accepted")
+	}
+	dir := t.TempDir()
+	if err := writeLib(dir, filepath.Join(dir, "none.yml"), ""); err == nil {
+		t.Error("writeLib ignored a missing mkdocs.yml")
+	}
+}
+
+func TestFormatting(t *testing.T) {
+	t.Parallel()
+	for path, want := range map[string]string{
+		"Dockerfile": "dockerfile", "web/app.Dockerfile": "dockerfile", "go.mod": "text", ".nvmrc": "text",
+		"ci.yml": "yaml", "a.json": "json", "Cargo.toml": "toml", "main.tf": "hcl", "README.md": "markdown",
+		"app.ts": "typescript", "requirements.txt": "text",
+	} {
+		if got := lang(path); got != want {
+			t.Errorf("lang(%s) = %s, want %s", path, got, want)
+		}
+	}
+	if got := fence("md", "a\n```\nb\n\nc\n", "  "); got != "  ````md\n  a\n  ```\n  b\n\n  c\n  ````\n" {
+		t.Errorf("fence = %q", got)
+	}
+	if got := wrapSignature(`bump_image(repo, image, from_tag, to_tag, include = ["**/*.yml", "**/*.yaml"], exclude = [])`); got != "bump_image(\n    repo,\n    image,\n    from_tag,\n    to_tag,\n    include = [\"**/*.yml\", \"**/*.yaml\"],\n    exclude = [],\n)" {
+		t.Errorf("wrapSignature = %q", got)
+	}
+	if got := wrapSignature("f(repo)"); got != "f(repo)" {
+		t.Errorf("short signature wrapped: %q", got)
+	}
+	if sentence("") != "" || sentence("x.") != "x." || sentence("x") != "x." || upperFirst("") != "" || upperFirst("ab") != "Ab" {
+		t.Error("text helpers")
 	}
 }

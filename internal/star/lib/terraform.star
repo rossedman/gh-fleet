@@ -6,16 +6,47 @@ in CI or a `run` step to refresh it.
 """
 
 def files(repo):
-    """Returns the paths of every .tf file outside .terraform directories."""
+    """Lists the repo's Terraform files.
+
+    Returns:
+        The sorted paths of every .tf file outside .terraform directories.
+    Example:
+        before main.tf:
+            terraform {}
+        before modules/vpc/main.tf:
+            terraform {}
+        before .terraform/modules/x/main.tf:
+            terraform {}
+        call:
+            files(repo)
+        returns:
+            ["main.tf", "modules/vpc/main.tf"]
+    """
     return repo.glob("**/*.tf", exclude = ["**/.terraform/**"])
 
 def _lit(s):
     return s.replace("$", "$$")
 
 def set_required_version(repo, constraint):
-    """Sets every `required_version = "..."` to `constraint`, such as `>= 1.9`.
+    """Sets every `required_version` constraint.
 
-    Returns the paths that changed.
+    Args:
+        constraint: the new constraint, such as `>= 1.9`.
+    Returns:
+        The list of paths that changed.
+    Example:
+        before versions.tf:
+            terraform {
+              required_version = ">= 1.5"
+            }
+        call:
+            set_required_version(repo, ">= 1.9")
+        after versions.tf:
+            terraform {
+              required_version = ">= 1.9"
+            }
+        returns:
+            ["versions.tf"]
     """
     pattern = r"""(?m)^(\s*required_version\s*=\s*")[^"]*(")"""
     changed = []
@@ -28,13 +59,41 @@ def set_required_version(repo, constraint):
     return changed
 
 def set_provider_version(repo, source, constraint):
-    """Sets the `version` constraint of the provider whose `source` is `source`, such as `hashicorp/aws`.
+    """Sets the version constraint of a provider in `required_providers`.
 
-    Works on `required_providers` entries written on one line
-    (`aws = { source = "hashicorp/aws", version = "~> 5.0" }`) or as a block.
-    Entries without a `version` are left alone.
+    Works on entries written as a block or on one line
+    (`aws = { source = "hashicorp/aws", version = "~> 5.0" }`), and on
+    sources with the `registry.terraform.io/` prefix. Entries without a
+    `version` are left alone.
 
-    Returns the paths that changed.
+    Args:
+        source: the provider source, such as `hashicorp/aws`.
+        constraint: the new constraint, such as `~> 5.0`.
+    Returns:
+        The list of paths that changed.
+    Example:
+        before versions.tf:
+            terraform {
+              required_providers {
+                aws = {
+                  source  = "hashicorp/aws"
+                  version = "~> 4.0" # pinned
+                }
+              }
+            }
+        call:
+            set_provider_version(repo, "hashicorp/aws", "~> 5.0")
+        after versions.tf:
+            terraform {
+              required_providers {
+                aws = {
+                  source  = "hashicorp/aws"
+                  version = "~> 5.0" # pinned
+                }
+              }
+            }
+        returns:
+            ["versions.tf"]
     """
     src = r"""\bsource\s*=\s*"(?:registry\.terraform\.io/)?""" + re.escape(source) + '"'
     version = r"""(\bversion\s*=\s*")([^"]*)(")"""

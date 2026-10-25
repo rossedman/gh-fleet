@@ -16,9 +16,22 @@ def _runtime(name):
     return RUNTIMES[name]
 
 def version(repo, runtime):
-    """Returns the version a repo pins for `runtime` (such as "node"), or None.
+    """Reads the version a repo pins for a runtime.
 
     Dedicated files such as .nvmrc are read before .tool-versions.
+
+    Args:
+        runtime: one of `node`, `python`, `ruby`, `go`, `java` or `terraform`.
+    Returns:
+        The version as written, or None when nothing pins it.
+    Example:
+        before .tool-versions:
+            nodejs 20.11.0
+            python 3.12.1
+        call:
+            version(repo, "node")
+        returns:
+            "20.11.0"
     """
     files, tool = _runtime(runtime)
     for path in files:
@@ -32,14 +45,35 @@ def version(repo, runtime):
     return None
 
 def set_version(repo, runtime, version, create = None):
-    """Sets `runtime`'s version in every version file the repo already has.
+    """Sets a runtime's version in every version file the repo already has.
 
     Updates the dedicated files (.nvmrc and .node-version for node,
     .python-version for python, and so on) and the runtime's line in
-    .tool-versions. A repo that pins the runtime nowhere is left alone,
-    unless `create` names a file to write, such as ".nvmrc".
+    .tool-versions. A repo that pins the runtime nowhere is left alone unless
+    `create` is set.
 
-    Returns the paths that changed.
+    Args:
+        runtime: one of `node`, `python`, `ruby`, `go`, `java` or `terraform`.
+        version: the version to pin, such as `22` or `3.12.7`.
+        create: a file to write, such as `.nvmrc`, when nothing pins the
+            runtime yet.
+    Returns:
+        The list of paths that changed.
+    Example:
+        before .nvmrc:
+            20
+        before .tool-versions:
+            nodejs 20.11.0
+            python 3.12.1
+        call:
+            set_version(repo, "node", "22")
+        after .nvmrc:
+            22
+        after .tool-versions:
+            nodejs 22
+            python 3.12.1
+        returns:
+            [".nvmrc", ".tool-versions"]
     """
     files, tool = _runtime(runtime)
     changed = []

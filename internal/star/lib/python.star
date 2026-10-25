@@ -9,7 +9,23 @@ def _norm(name):
     return re.sub(r"[-_.]+", "-", name).lower()
 
 def requirements_files(repo):
-    """Returns the paths of every requirements*.txt outside virtualenvs and node_modules."""
+    """Lists the repo's requirements files.
+
+    Returns:
+        The sorted paths of every requirements*.txt, and every .txt in a
+        requirements directory, outside virtualenvs and node_modules.
+    Example:
+        before requirements.txt:
+            flask
+        before requirements/dev.txt:
+            pytest
+        before .venv/requirements.txt:
+            flask
+        call:
+            requirements_files(repo)
+        returns:
+            ["requirements.txt", "requirements/dev.txt"]
+    """
     return repo.glob(
         "**/requirements*.txt",
         "**/requirements/*.txt",
@@ -30,16 +46,36 @@ def _set_in_line(line, name, spec, quoted):
     return g[0] + g[1] + g[2] + spec + g[4] + g[5]
 
 def set_requirement(repo, name, spec):
-    """Sets the version spec of `name` wherever it is already required.
+    """Sets a package's version specifier wherever it is already required.
 
-    `spec` is a full PEP 440 specifier such as `==4.2.16` or `>=2.32,<3`.
-    It changes requirements*.txt lines and the quoted entries of
-    pyproject.toml dependency lists (`"django>=4.2"`), keeping extras such
-    as `[socks]`, environment markers and comments. Names match the way pip
-    matches them: `Django`, `django` and `DJANGO` are the same package.
-    Files that do not mention `name` are left alone.
+    Changes requirements*.txt lines and the quoted entries of pyproject.toml
+    dependency lists, keeping extras such as `[socks]`, environment markers
+    and comments. Names match the way pip matches them: `Django`, `django`
+    and `DJANGO` are the same package. Files that do not mention the package
+    are left alone.
 
-    Returns the paths that changed.
+    Args:
+        name: the package name.
+        spec: a full PEP 440 specifier, such as `==4.2.16` or `>=2.32,<3`.
+    Returns:
+        The list of paths that changed.
+    Example:
+        before requirements.txt:
+            Django==4.2.1  # web
+            requests[socks]>=2.31
+        before pyproject.toml:
+            [project]
+            dependencies = ["django>=4.0"]
+        call:
+            set_requirement(repo, "django", "==4.2.16")
+        after requirements.txt:
+            Django==4.2.16  # web
+            requests[socks]>=2.31
+        after pyproject.toml:
+            [project]
+            dependencies = ["django==4.2.16"]
+        returns:
+            ["requirements.txt", "pyproject.toml"]
     """
     changed = []
     files = [(p, False) for p in requirements_files(repo)]
@@ -54,14 +90,43 @@ def set_requirement(repo, name, spec):
     return changed
 
 def requires_python(repo, path = "pyproject.toml"):
-    """Returns the `requires-python` value of a pyproject.toml, or None."""
+    """Reads the `requires-python` of a pyproject.toml.
+
+    Args:
+        path: the pyproject.toml to read.
+    Returns:
+        The specifier, such as `>=3.9`, or None.
+    Example:
+        before pyproject.toml:
+            [project]
+            requires-python = ">=3.9"
+        call:
+            requires_python(repo)
+        returns:
+            ">=3.9"
+    """
     g = re.groups(r"""(?m)^\s*requires-python\s*=\s*["']([^"']*)["']""", repo.read(path, default = ""))
     return g[0] if g else None
 
 def set_requires_python(repo, spec, path = "pyproject.toml"):
     """Sets `requires-python` in a pyproject.toml that already has it.
 
-    Returns True when the file changed.
+    Args:
+        spec: the new specifier, such as `>=3.12`.
+        path: the pyproject.toml to edit.
+    Returns:
+        True when the file changed.
+    Example:
+        before pyproject.toml:
+            [project]
+            requires-python = ">=3.9"
+        call:
+            set_requires_python(repo, ">=3.12")
+        after pyproject.toml:
+            [project]
+            requires-python = ">=3.12"
+        returns:
+            True
     """
     content = repo.read(path, default = None)
     if content == None or requires_python(repo, path) in (None, spec):

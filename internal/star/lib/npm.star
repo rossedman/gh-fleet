@@ -8,15 +8,67 @@ the Starlark step with a `run` step such as
 SECTIONS = ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"]
 
 def packages(repo):
-    """Returns the paths of every package.json outside node_modules."""
+    """Lists the repo's package.json files.
+
+    Returns:
+        The sorted paths of every package.json outside node_modules.
+    Example:
+        before package.json:
+            {"name": "web"}
+        before packages/ui/package.json:
+            {"name": "ui"}
+        before node_modules/x/package.json:
+            {"name": "x"}
+        call:
+            packages(repo)
+        returns:
+            ["package.json", "packages/ui/package.json"]
+    """
     return repo.glob("**/package.json", exclude = ["**/node_modules/**"])
 
 def read_package(repo, path = "package.json"):
-    """Returns a package.json decoded into a dict whose keys keep the file's order."""
+    """Reads a package.json as a dict whose keys keep the file's order.
+
+    Args:
+        path: the package.json to read.
+    Returns:
+        The decoded package.json.
+    Example:
+        before package.json:
+            {"name": "web", "private": true}
+        call:
+            read_package(repo)["name"]
+        returns:
+            "web"
+    """
     return json.decode(repo.read(path))
 
 def write_package(repo, path, pkg):
-    """Writes `pkg` to `path` as JSON, using the indentation the file already has (two spaces for a new file)."""
+    """Writes a dict as a package.json, keeping the file's indentation.
+
+    The indentation the file already uses is detected; a new file gets two
+    spaces. Key order is kept, so only what you changed shows in the diff.
+
+    Args:
+        path: the package.json to write.
+        pkg: the package, usually from `read_package`.
+    Returns:
+        None.
+    Example:
+        before package.json:
+            {
+                "name": "web"
+            }
+        call:
+            pkg = read_package(repo)
+            pkg["private"] = True
+            write_package(repo, "package.json", pkg)
+        after package.json:
+            {
+                "name": "web",
+                "private": true
+            }
+    """
     indent = "  "
     g = re.groups(r"\n([ \t]+)\"", repo.read(path, default = ""))
     if g:
@@ -24,10 +76,37 @@ def write_package(repo, path, pkg):
     repo.write(path, json.encode_indent(pkg, indent = indent) + "\n")
 
 def set_dependency(repo, name, version, sections = SECTIONS):
-    """Sets `name` to `version` in each package.json that already lists it in one of `sections`.
+    """Sets a dependency's version range in every package.json that already lists it.
 
-    Packages that do not depend on `name` are left alone, so this never
-    adds a dependency. Returns the paths that changed.
+    Packages that do not depend on `name` are left alone, so this never adds
+    a dependency. package-lock.json is not touched; follow with a `run` step
+    such as `npm install --package-lock-only --ignore-scripts`.
+
+    Args:
+        name: the package name.
+        version: the new range, such as `^1.7.9`.
+        sections: the dependency sections to look in.
+    Returns:
+        The list of paths that changed.
+    Example:
+        before package.json:
+            {
+              "dependencies": {
+                "axios": "^1.6.0"
+              }
+            }
+        before web/package.json:
+            {"name": "web"}
+        call:
+            set_dependency(repo, "axios", "^1.7.9")
+        after package.json:
+            {
+              "dependencies": {
+                "axios": "^1.7.9"
+              }
+            }
+        returns:
+            ["package.json"]
     """
     changed = []
     for path in packages(repo):
