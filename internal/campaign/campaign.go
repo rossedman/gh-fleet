@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"text/template"
 	"time"
@@ -31,6 +32,7 @@ type Campaign struct {
 	Change      Change  `yaml:"change" json:"change"`
 	PR          PR      `yaml:"pr" json:"pr"`
 	Limits      Limits  `yaml:"limits" json:"limits"`
+	Vars        Vars    `yaml:"vars,omitempty" json:"vars"`
 
 	// Path is the absolute path of the file the campaign was loaded from.
 	Path string `yaml:"-" json:"path,omitempty"`
@@ -50,6 +52,9 @@ type Include struct {
 	Files     []string `yaml:"files,omitempty" json:"files,omitempty"`
 	Search    string   `yaml:"search,omitempty" json:"search,omitempty"`
 	Repos     []string `yaml:"repos,omitempty" json:"repos,omitempty"`
+	// Properties matches custom property values: every key must match one
+	// of its values.
+	Properties map[string]StringList `yaml:"properties,omitempty" json:"properties,omitempty"`
 }
 
 // Exclude holds the rules that drop a repo. Exclusion always wins.
@@ -58,6 +63,8 @@ type Exclude struct {
 	Archived *bool    `yaml:"archived,omitempty" json:"archived,omitempty"`
 	Forks    *bool    `yaml:"forks,omitempty" json:"forks,omitempty"`
 	Topics   []string `yaml:"topics,omitempty" json:"topics,omitempty"`
+	// Properties drops repos whose custom property has any listed value.
+	Properties map[string]StringList `yaml:"properties,omitempty" json:"properties,omitempty"`
 }
 
 // Change describes the script run in each repository.
@@ -201,19 +208,46 @@ func looksLikePath(v string) bool {
 	return strings.HasPrefix(v, "./") || strings.HasPrefix(v, "../")
 }
 
-// RepoData is the repository view passed to PR templates as .Repo.
+// RepoData is the repository view passed to PR templates as .Repo, with
+// the repo's variables, available to templates as .Vars.
 type RepoData struct {
 	Owner         string
 	Name          string
 	FullName      string
 	DefaultBranch string
+	Topics        []string
+	Language      string
+	// Properties are the repo's custom property values.
+	Properties map[string]string
+	// Vars are the repo's resolved campaign variables.
+	Vars map[string]any `json:"-"`
 }
 
-// templateData is the root object passed to PR title and body templates.
+// templateData is the root object passed to PR templates.
 type templateData struct {
 	Repo     RepoData
+	Vars     map[string]any
 	Campaign *Campaign
 }
+
+// templateFuncs are the helpers available in every PR template.
+var templateFuncs = template.FuncMap{
+	"join": func(v any, sep string) string {
+		if list, ok := v.([]any); ok {
+			parts := make([]string, len(list))
+			for i, e := range list {
+				parts[i] = FormatValue(e)
+			}
+			return strings.Join(parts, sep)
+		}
+		return FormatValue(v)
+	},
+	"lower": strings.ToLower,
+	"upper": strings.ToUpper,
+}
+
+// missingKey matches text/template's error for an absent map key.
+var missingKey = regexp.MustCompile(`at <\.(Vars|Repo\.Properties)[^>]*>: map has no entry for key "([^"]+)"`)
 
 // RenderTitle renders the PR title template for one repo.
 func (c *Campaign) RenderTitle(repo RepoData) (string, error) {
@@ -247,14 +281,47 @@ func (c *Campaign) RenderBody(repo RepoData) (string, error) {
 	return body + c.Marker(), nil
 }
 
+// RenderList renders each entry of a label or reviewer list. An entry that
+// renders to a comma-separated list (for example from a list variable with
+// join) becomes several entries; empty and duplicate entries are dropped.
+func (c *Campaign) RenderList(name string, entries []string, repo RepoData) ([]string, error) {
+	var out []string
+	seen := map[string]bool{}
+	for _, e := range entries {
+		v, err := c.render(name, e, repo)
+		if err != nil {
+			return nil, err
+		}
+		for _, part := range strings.Split(v, ",") {
+			part = strings.TrimSpace(part)
+			if part != "" && !seen[part] {
+				seen[part] = true
+				out = append(out, part)
+			}
+		}
+	}
+	return out, nil
+}
+
 // render executes one template against the repo and campaign.
 func (c *Campaign) render(name, src string, repo RepoData) (string, error) {
-	t, err := template.New(name).Option("missingkey=error").Parse(src)
+	t, err := template.New(name).Option("missingkey=error").Funcs(templateFuncs).Parse(src)
 	if err != nil {
 		return "", fmt.Errorf("pr.%s template: %w", name, err)
 	}
+	vars := repo.Vars
+	if vars == nil {
+		vars = map[string]any{}
+	}
 	var buf bytes.Buffer
-	if err := t.Execute(&buf, templateData{Repo: repo, Campaign: c}); err != nil {
+	if err := t.Execute(&buf, templateData{Repo: repo, Vars: vars, Campaign: c}); err != nil {
+		if m := missingKey.FindStringSubmatch(err.Error()); m != nil {
+			what := "variable"
+			if m[1] != "Vars" {
+				what = "custom property"
+			}
+			return "", fmt.Errorf("pr.%s template: missing %s %q for %s", name, what, m[2], repo.FullName)
+		}
 		return "", fmt.Errorf("pr.%s template: %w", name, err)
 	}
 	return buf.String(), nil

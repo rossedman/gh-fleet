@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -44,7 +45,10 @@ type Result struct {
 	// CommitMessage is the override the script wrote to
 	// $FLEET_OUTPUT/commit-message, if any.
 	CommitMessage string
-	Duration      time.Duration
+	// Vars are the values the script wrote to $FLEET_OUTPUT/vars as
+	// KEY=VALUE lines, for PR templates.
+	Vars     map[string]string
+	Duration time.Duration
 }
 
 // ExitError is returned when the command exits non-zero or times out.
@@ -119,6 +123,11 @@ func Run(ctx context.Context, dir string, spec Spec, env []string, log io.Writer
 		res.CommitMessage = strings.TrimSpace(string(b))
 	}
 	if runErr == nil {
+		vars, err := readVars(filepath.Join(outDir, "vars"))
+		if err != nil {
+			return res, err
+		}
+		res.Vars = vars
 		return res, nil
 	}
 	ee := &ExitError{Code: -1, Tail: tail(stderr.Bytes(), stdout.Bytes())}
@@ -133,6 +142,34 @@ func Run(ctx context.Context, dir string, spec Spec, env []string, log io.Writer
 	}
 	res.ExitCode = ee.Code
 	return res, ee
+}
+
+// varLine is one KEY=VALUE line of $FLEET_OUTPUT/vars.
+var varLine = regexp.MustCompile(`^([A-Za-z_][A-Za-z0-9_]*)=(.*)$`)
+
+// readVars parses the vars file a script may write. Blank lines and lines
+// starting with # are ignored; a missing file means no values.
+func readVars(path string) (map[string]string, error) {
+	b, err := os.ReadFile(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]string{}
+	for i, line := range strings.Split(string(b), "\n") {
+		line = strings.TrimRight(line, "\r")
+		if strings.TrimSpace(line) == "" || strings.HasPrefix(strings.TrimSpace(line), "#") {
+			continue
+		}
+		m := varLine.FindStringSubmatch(line)
+		if m == nil {
+			return nil, fmt.Errorf("$FLEET_OUTPUT/vars line %d: want NAME=value, got %q", i+1, line)
+		}
+		out[m[1]] = m[2]
+	}
+	return out, nil
 }
 
 // lockedWriter serializes writes to w.

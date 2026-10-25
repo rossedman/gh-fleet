@@ -20,6 +20,7 @@ Schema URL: `https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/
 | `targets` (required) | object |  | Which repositories the campaign touches. Needs `orgs`, `include.repos`, or both. |
 | `change` (required) | object |  | What to run in each repository. |
 | `pr` (required) | object |  | How the pull request is opened. |
+| `vars` | object |  | Per-repo variables, available to PR templates as `.Vars` and to scripts as `FLEET_VAR_<NAME>`. Values are built from `default`, then every matching `match` rule in order, then the repo's row in `file`; later sources win. |
 | `limits` | object |  | Safety limits for a run. |
 
 ## `targets`
@@ -40,6 +41,7 @@ Repos to drop. Exclusion always wins, even over `include.repos`.
 | --- | --- | --- | --- |
 | `archived` | boolean | `true` | Skip archived repos. |
 | `forks` | boolean | `true` | Skip forks. |
+| `properties` | map of property to value or list |  | Skip repos whose custom property has any of the listed values. |
 | `repos` | list of `owner/name` |  | Repos (`owner/name`) to skip. |
 | `topics` | list of string |  | Skip repos with any of these topics. |
 
@@ -51,6 +53,7 @@ Filters a candidate must pass. Keys combine with AND; values within a key combin
 | --- | --- | --- | --- |
 | `files` | list of string |  | Any of these paths (file or directory) exists on the default branch. |
 | `languages` | list of string |  | The repo's primary language is any of these (case-insensitive). |
+| `properties` | map of property to value or list |  | Custom property values the repo must have: every listed property must match one of its values (case-insensitive). |
 | `repos` | list of `owner/name` |  | Repos (`owner/name`) that are always included, bypassing the filters above. |
 | `search` | string |  | A code search query; only repos with a hit match. Scoped to `orgs` automatically. |
 | `topics` | list of string |  | The repo has any of these topics. |
@@ -89,6 +92,36 @@ The commit made in each repo.
 | --- | --- | --- | --- |
 | `message` | string |  | Commit message. Defaults to the PR title. A script can override it per repo by writing `$FLEET_OUTPUT/commit-message`. |
 | `signoff` | boolean | `false` | Add a `Signed-off-by` trailer. |
+
+## `vars`
+
+Per-repo variables, available to PR templates as `.Vars` and to scripts as `FLEET_VAR_<NAME>`. Values are built from `default`, then every matching `match` rule in order, then the repo's row in `file`; later sources win.
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `default` | map of name to value or list |  | Values every repo starts with. |
+| `file` | string |  | A `.csv`, `.json`, `.yaml` or `.yml` file of per-repo values, relative to the campaign file. A CSV needs a `repo` column and has one column per variable; JSON and YAML map `owner/name` to an object of variables. |
+| `match` | list of object |  | Rules that set values on the repos they match, applied in order. |
+
+## `vars.match[]`
+
+Each entry of `vars.match`.
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `set` (required) | map of name to value or list |  | Values to set. |
+| `when` (required) | object |  | Which repos the rule applies to. Every key that is set must match; values within a key are alternatives. An empty `when` matches every repo. |
+
+## `vars.match[].when`
+
+Which repos the rule applies to. Every key that is set must match; values within a key are alternatives. An empty `when` matches every repo.
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `languages` | list of string |  | The repo's primary language is any of these. |
+| `properties` | map of property to value or list |  | Custom property values, as in `targets.include.properties`. |
+| `repos` | list of `owner/name` |  | Repos (`owner/name`). |
+| `topics` | list of string |  | The repo has any of these topics. |
 
 ## `limits`
 

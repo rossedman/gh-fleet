@@ -384,3 +384,70 @@ func TestHelpersAndErrors(t *testing.T) {
 		t.Fatal("expected missing token error")
 	}
 }
+
+func TestCustomProperties(t *testing.T) {
+	t.Parallel()
+	pages := 0
+	s := &apiServer{rest: map[string]func(*http.Request, []byte) (any, int){
+		"GET /orgs/acme/properties/values": func(r *http.Request, _ []byte) (any, int) {
+			pages++
+			if r.URL.Query().Get("page") == "2" {
+				return []any{map[string]any{"repository_full_name": "acme/last", "properties": []any{map[string]any{"property_name": "tier", "value": "2"}}}}, 200
+			}
+			out := []any{}
+			for i := range 100 {
+				props := []any{
+					map[string]any{"property_name": "tier", "value": "1"},
+					map[string]any{"property_name": "langs", "value": []any{"go", "rust"}},
+					map[string]any{"property_name": "unset", "value": nil},
+					map[string]any{"property_name": "flag", "value": true},
+				}
+				if i == 1 {
+					props = []any{}
+				}
+				out = append(out, map[string]any{"repository_full_name": fmt.Sprintf("acme/r%d", i), "properties": props})
+			}
+			return out, 200
+		},
+		"GET /orgs/octocat/properties/values": func(*http.Request, []byte) (any, int) { return map[string]any{"message": "Not Found"}, 404 },
+		"GET /orgs/denied/properties/values":  func(*http.Request, []byte) (any, int) { return map[string]any{"message": "nope"}, 403 },
+		"GET /repos/acme/api/properties/values": func(*http.Request, []byte) (any, int) {
+			return []any{map[string]any{"property_name": "team", "value": "payments"}}, 200
+		},
+		"GET /repos/acme/broken/properties/values": func(*http.Request, []byte) (any, int) { return map[string]any{"message": "boom"}, 400 },
+	}}
+	c := newClient(t, s)
+	ctx := context.Background()
+	props, err := c.OwnerProperties(ctx, "acme")
+	if err != nil {
+		t.Fatal(err)
+	}
+	r0 := props["acme/r0"]
+	if pages != 2 || len(props) != 100 || r0["tier"] != "1" || r0["langs"] != "go,rust" || r0["flag"] != "true" || props["acme/last"]["tier"] != "2" {
+		t.Fatalf("pages %d, props = %v", pages, r0)
+	}
+	if _, ok := r0["unset"]; ok {
+		t.Fatal("unset value kept")
+	}
+	if _, ok := props["acme/r1"]; ok {
+		t.Fatal("repo without properties listed")
+	}
+	if m, err := c.OwnerProperties(ctx, "octocat"); err != nil || len(m) != 0 {
+		t.Fatalf("user account: %v %v", m, err)
+	}
+	if _, err := c.OwnerProperties(ctx, "denied"); err == nil {
+		t.Fatal("403 hidden")
+	}
+	if m, err := c.RepoProperties(ctx, "acme/api"); err != nil || m["team"] != "payments" {
+		t.Fatalf("repo props = %v, %v", m, err)
+	}
+	if m, err := c.RepoProperties(ctx, "acme/none"); err != nil || len(m) != 0 {
+		t.Fatalf("404 repo props = %v, %v", m, err)
+	}
+	if _, err := c.RepoProperties(ctx, "acme/broken"); err == nil {
+		t.Fatal("error hidden")
+	}
+	if _, err := c.RepoProperties(ctx, "bad"); err == nil {
+		t.Fatal("invalid name accepted")
+	}
+}

@@ -8,6 +8,7 @@ package target
 
 import (
 	"slices"
+	"sort"
 	"strings"
 
 	"github.com/rossedman/gh-fleet/internal/campaign"
@@ -69,6 +70,13 @@ func Evaluate(t campaign.Targets, r ghapi.Repo, f Facts) Decision {
 		}
 		reasons = append(reasons, "file:"+hit)
 	}
+	if len(inc.Properties) > 0 {
+		hits, ok := matchProperties(inc.Properties, r.Properties)
+		if !ok {
+			return Decision{}
+		}
+		reasons = append(reasons, hits...)
+	}
 	if inc.Search != "" {
 		if !f.SearchHit {
 			return Decision{}
@@ -103,7 +111,60 @@ func excluded(e campaign.Exclude, r ghapi.Repo) string {
 	if t := firstShared(e.Topics, r.Topics); t != "" {
 		return "topic:" + t
 	}
+	for _, name := range sortedKeys(e.Properties) {
+		if hits, ok := matchProperties(map[string]campaign.StringList{name: e.Properties[name]}, r.Properties); ok {
+			return hits[0]
+		}
+	}
 	return ""
+}
+
+// matchProperties reports whether every filtered property has one of its
+// allowed values, returning a reason per property. Multi-select values
+// match when any selected value is allowed.
+func matchProperties(want map[string]campaign.StringList, have map[string]string) ([]string, bool) {
+	var reasons []string
+	for _, name := range sortedKeys(want) {
+		v, ok := lookupFold(have, name)
+		if !ok {
+			return nil, false
+		}
+		hit := ""
+		for _, part := range strings.Split(v, ",") {
+			if containsFold(want[name], part) {
+				hit = part
+				break
+			}
+		}
+		if hit == "" {
+			return nil, false
+		}
+		reasons = append(reasons, "property:"+name+"="+hit)
+	}
+	return reasons, true
+}
+
+// lookupFold finds a map key ignoring case.
+func lookupFold(m map[string]string, key string) (string, bool) {
+	if v, ok := m[key]; ok {
+		return v, true
+	}
+	for k, v := range m {
+		if strings.EqualFold(k, key) {
+			return v, true
+		}
+	}
+	return "", false
+}
+
+// sortedKeys returns a map's keys in order, for deterministic reasons.
+func sortedKeys[V any](m map[string]V) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 // firstShared returns the first value of want that has contains, ignoring

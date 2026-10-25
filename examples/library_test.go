@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rossedman/gh-fleet/internal/campaign"
 )
 
 // snapshot returns every file under dir (except .git) and its content.
@@ -251,15 +253,24 @@ func TestNpmPackageBump(t *testing.T) {
 
 func TestAddCodeowners(t *testing.T) {
 	t.Parallel()
+	env := []string{"FLEET_REPO=acme/billing", "FLEET_VAR_TEAM=payments"}
 	dir := t.TempDir()
-	runTwice(t, "add-codeowners", dir)
-	if got := read(t, filepath.Join(dir, ".github/CODEOWNERS")); !strings.HasSuffix(got, "* @acme/platform\n") {
+	runTwice(t, "add-codeowners", dir, env...)
+	if got := read(t, filepath.Join(dir, ".github/CODEOWNERS")); !strings.HasSuffix(got, "* @acme/payments\n") {
 		t.Errorf("CODEOWNERS = %q", got)
 	}
 	existing := scratch(t, map[string]string{"docs/CODEOWNERS": "* @someone\n"})
-	runScript(t, "add-codeowners", existing)
+	runScript(t, "add-codeowners", existing, env...)
 	if _, err := os.Stat(filepath.Join(existing, ".github/CODEOWNERS")); err == nil {
 		t.Error("CODEOWNERS added next to an existing one")
+	}
+	// The campaign's vars resolve per repo: the data file names billing's team.
+	c, err := campaign.Load("add-codeowners/fleet.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := c.Vars.Row("acme/billing")["team"]; got != "payments" {
+		t.Errorf("owners.csv team for acme/billing = %v", got)
 	}
 }
 

@@ -167,7 +167,7 @@ func (c *Campaign) semanticErrors(filename string, doc *yaml.Node) []FieldError 
 }
 
 // checkFiles reports change.run and pr.body values that look like paths
-// but do not exist next to the campaign file.
+// but do not exist next to the campaign file, and loads vars.file.
 func (c *Campaign) checkFiles(filename string) error {
 	var out []FieldError
 	for _, f := range []struct {
@@ -177,6 +177,9 @@ func (c *Campaign) checkFiles(filename string) error {
 		if looksLikePath(f.v) && c.fileRef(f.v) == "" {
 			out = append(out, FieldError{File: filename, Path: strings.Join(f.path, "."), Message: fmt.Sprintf("file %q not found next to the campaign file", f.v)})
 		}
+	}
+	if err := c.loadVarsFile(); err != nil {
+		out = append(out, FieldError{File: filename, Path: "vars.file", Message: fmt.Sprintf("%s: %v", c.Vars.File, err)})
 	}
 	if len(out) > 0 {
 		data, err := os.ReadFile(filename)
@@ -286,20 +289,45 @@ func schemaErrors(filename string, doc *yaml.Node, ve *jsonschema.ValidationErro
 	seen := map[string]bool{}
 	var out []FieldError
 	var walk func(e *jsonschema.ValidationError)
+	add := func(fe FieldError) {
+		if key := fe.Error(); !seen[key] {
+			seen[key] = true
+			out = append(out, fe)
+		}
+	}
 	walk = func(e *jsonschema.ValidationError) {
+		parent := lookup(doc, e.InstanceLocation)
+		path := strings.Join(e.InstanceLocation, ".")
+		// A bad key name: point at the key itself.
+		// The validator reuses its location slice, so the reported location
+		// of a property name error is unreliable: find the key instead.
+		if pn, ok := e.ErrorKind.(*kind.PropertyNames); ok {
+			n, keyPath := findKey(doc, pn.Property, nil)
+			if n == nil {
+				n = doc
+			}
+			add(FieldError{
+				File: filename, Line: n.Line, Column: n.Column, Path: strings.Join(keyPath, "."),
+				Message: "invalid name: use letters, digits and underscores, not starting with a digit",
+			})
+			return
+		}
+		// "One of these types" fails once per alternative; report it once.
+		if _, ok := e.ErrorKind.(*kind.OneOf); ok {
+			if got, want, ok := typeAlternatives(e); ok {
+				add(FieldError{
+					File: filename, Line: parent.Line, Column: parent.Column, Path: path,
+					Message: fmt.Sprintf("got %s, want %s", got, strings.Join(want, ", ")),
+				})
+				return
+			}
+		}
 		if len(e.Causes) > 0 {
 			for _, c := range e.Causes {
 				walk(c)
 			}
 			return
 		}
-		add := func(fe FieldError) {
-			if key := fe.Error(); !seen[key] {
-				seen[key] = true
-				out = append(out, fe)
-			}
-		}
-		parent := lookup(doc, e.InstanceLocation)
 		if ap, ok := e.ErrorKind.(*kind.AdditionalProperties); ok {
 			for _, prop := range ap.Properties {
 				n := keyNode(parent, prop)
@@ -327,6 +355,69 @@ func schemaErrors(filename string, doc *yaml.Node, ve *jsonschema.ValidationErro
 		return out[i].Column < out[j].Column
 	})
 	return &ValidationError{Errors: out}
+}
+
+// findKey returns the first mapping key node named key, depth first, and
+// its path.
+func findKey(n *yaml.Node, key string, path []string) (*yaml.Node, []string) {
+	switch n.Kind {
+	case yaml.MappingNode:
+		for i := 0; i+1 < len(n.Content); i += 2 {
+			k := n.Content[i]
+			p := append(append([]string{}, path...), k.Value)
+			if k.Value == key {
+				return k, p
+			}
+			if found, fp := findKey(n.Content[i+1], key, p); found != nil {
+				return found, fp
+			}
+		}
+	case yaml.SequenceNode:
+		for i, c := range n.Content {
+			if found, fp := findKey(c, key, append(append([]string{}, path...), strconv.Itoa(i))); found != nil {
+				return found, fp
+			}
+		}
+	}
+	return nil, nil
+}
+
+// typeAlternatives reports whether every leaf under e is a type mismatch,
+// returning the type found and every type that would have been accepted.
+func typeAlternatives(e *jsonschema.ValidationError) (string, []string, bool) {
+	var got string
+	var want []string
+	seen := map[string]bool{}
+	var walk func(e *jsonschema.ValidationError) bool
+	walk = func(e *jsonschema.ValidationError) bool {
+		if len(e.Causes) > 0 {
+			for _, c := range e.Causes {
+				if !walk(c) {
+					return false
+				}
+			}
+			return true
+		}
+		t, ok := e.ErrorKind.(*kind.Type)
+		if !ok {
+			return false
+		}
+		got = t.Got
+		for _, w := range t.Want {
+			if w == "array" {
+				w = "a list"
+			}
+			if !seen[w] {
+				seen[w] = true
+				want = append(want, w)
+			}
+		}
+		return true
+	}
+	if !walk(e) || got == "" {
+		return "", nil, false
+	}
+	return got, want, true
 }
 
 // leafMessage renders a validator message without its location prefix.

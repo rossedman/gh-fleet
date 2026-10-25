@@ -135,6 +135,11 @@ Common flags: `--repo owner/name` (limit to some repos), `--concurrency N`,
   marker in their body, so re-running `apply` updates them, and `status` is
   right even if local state is deleted. Merged PRs are skipped; closed ones are
   left alone unless you pass `--reopen`.
+- **Per-repo variables.** Give repos different values (owning team, on-call
+  channel, target version) from defaults, match rules, a CSV, or the org's
+  custom properties. They reach scripts as `FLEET_VAR_*` and PR text as
+  `{{ .Vars.team }}`, and a missing one fails that repo before anything is
+  pushed.
 - **The script is the source of truth.** An existing campaign branch is
   rebased onto the base; on conflict it is reset and the script runs again.
 - **One failure is one failure.** A repo whose script fails is recorded and the
