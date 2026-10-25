@@ -1,0 +1,54 @@
+version: "2"
+
+run:
+  tests: true
+
+linters:
+  default: none
+  enable:
+    - govet
+    - staticcheck
+    - errcheck
+    - revive
+    - gosec
+    - misspell
+    - ineffassign
+    - unused
+    - unparam
+    - bodyclose
+    - copyloopvar
+  settings:
+    revive:
+      rules:
+        - name: exported
+        - name: package-comments
+        - name: var-naming
+        - name: indent-error-flow
+        - name: error-strings
+        - name: error-naming
+        - name: receiver-naming
+        - name: unused-parameter
+          disabled: true
+    gosec:
+      excludes:
+        - G204 # subprocesses with variable args are the point: git and user scripts
+        - G304 # reading files the user names (campaigns, scripts) is the point
+        - G703 # same: paths come from the user's own campaign and flags
+        - G122 # the repo check tools walk the user's own checkout
+        - G301 # campaign and docs directories are meant to be readable
+        - G306 # campaign files are meant to be readable
+    misspell:
+      locale: US
+  exclusions:
+    generated: strict
+    presets:
+      - std-error-handling
+    rules:
+      - path: _test\.go
+        linters: [gosec, errcheck, unparam, bodyclose]
+      - path: tools/doccheck/testdata/
+        linters: [revive, unused]
+
+formatters:
+  enable:
+    - gofmt

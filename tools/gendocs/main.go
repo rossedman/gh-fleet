@@ -1,0 +1,226 @@
+// Command gendocs writes the generated reference pages of the docs site:
+// one Markdown page per command from the cobra tree, and the campaign file
+// reference from the embedded JSON Schema, so the docs never drift from
+// the binary.
+package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+
+	"github.com/spf13/cobra/doc"
+
+	"github.com/rossedman/gh-fleet/cmd"
+	"github.com/rossedman/gh-fleet/internal/campaign"
+)
+
+// main writes both references under docs/reference, or the directory given
+// as the first argument.
+func main() {
+	out := "docs/reference"
+	if len(os.Args) > 1 {
+		out = os.Args[1]
+	}
+	if err := run(out); err != nil {
+		fmt.Fprintln(os.Stderr, "gendocs:", err)
+		os.Exit(1) //nolint:revive // main may exit
+	}
+}
+
+// run generates every page into out.
+func run(out string) error {
+	cmdDir := filepath.Join(out, "commands")
+	if err := os.RemoveAll(cmdDir); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(cmdDir, 0o755); err != nil {
+		return err
+	}
+	root := cmd.Root()
+	root.DisableAutoGenTag = true
+	if err := doc.GenMarkdownTree(root, cmdDir); err != nil {
+		return err
+	}
+	if err := promoteTitles(cmdDir); err != nil {
+		return err
+	}
+	page, err := SchemaMarkdown(campaign.SchemaJSON)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(out, "campaign.md"), page, 0o644) //nolint:gosec // docs are public
+}
+
+// promoteTitles turns the "## gh fleet x" line cobra writes first into a
+// page title, so each command page has an h1.
+func promoteTitles(dir string) error {
+	pages, err := filepath.Glob(filepath.Join(dir, "*.md"))
+	if err != nil {
+		return err
+	}
+	for _, p := range pages {
+		b, err := os.ReadFile(p)
+		if err != nil {
+			return err
+		}
+		if rest, ok := bytes.CutPrefix(b, []byte("## ")); ok {
+			if err := os.WriteFile(p, append([]byte("# "), rest...), 0o644); err != nil { //nolint:gosec // docs are public
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// schemaNode is the subset of JSON Schema the reference renders.
+type schemaNode struct {
+	Description          string                 `json:"description"`
+	Type                 string                 `json:"type"`
+	Const                any                    `json:"const"`
+	Default              any                    `json:"default"`
+	Pattern              string                 `json:"pattern"`
+	Minimum              *float64               `json:"minimum"`
+	Maximum              *float64               `json:"maximum"`
+	Required             []string               `json:"required"`
+	Properties           map[string]*schemaNode `json:"properties"`
+	Items                *schemaNode            `json:"items"`
+	Ref                  string                 `json:"$ref"`
+	AdditionalProperties any                    `json:"additionalProperties"`
+	Defs                 map[string]*schemaNode `json:"$defs"`
+}
+
+// order lists top-level keys in the order a campaign file uses them.
+var order = []string{"apiVersion", "name", "description", "targets", "change", "pr", "limits"}
+
+// SchemaMarkdown renders the campaign schema as a reference page with one
+// table per object.
+func SchemaMarkdown(schemaJSON []byte) ([]byte, error) {
+	var root schemaNode
+	if err := json.Unmarshal(schemaJSON, &root); err != nil {
+		return nil, err
+	}
+	var b bytes.Buffer
+	b.WriteString("---\ntitle: Campaign file reference\n---\n\n")
+	b.WriteString("# Campaign file reference\n\n")
+	b.WriteString("Every field of a campaign file, generated from the JSON Schema shipped in the binary. ")
+	b.WriteString("Editors that understand `yaml-language-server` validate and complete files written by `gh fleet init`.\n\n")
+	b.WriteString(root.Description + "\n\n")
+	b.WriteString("Schema URL: `" + campaign.SchemaURL + "`\n\n")
+	writeObject(&b, "Top level", "", &root, root.Defs, order)
+	return b.Bytes(), nil
+}
+
+// writeObject writes a table for one object, then sections for its
+// object-typed children.
+func writeObject(b *bytes.Buffer, title, prefix string, n *schemaNode, defs map[string]*schemaNode, keys []string) {
+	if title != "Top level" {
+		fmt.Fprintf(b, "## `%s`\n\n", prefix)
+		if n.Description != "" {
+			b.WriteString(n.Description + "\n\n")
+		}
+	} else {
+		b.WriteString("## Top level\n\n")
+	}
+	if keys == nil {
+		for k := range n.Properties {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+	}
+	required := map[string]bool{}
+	for _, r := range n.Required {
+		required[r] = true
+	}
+	b.WriteString("| Field | Type | Default | Description |\n| --- | --- | --- | --- |\n")
+	var children []string
+	for _, k := range keys {
+		p := n.Properties[k]
+		if p == nil {
+			continue
+		}
+		p = resolve(p, defs)
+		name := "`" + k + "`"
+		if required[k] {
+			name += " (required)"
+		}
+		fmt.Fprintf(b, "| %s | %s | %s | %s |\n", name, typeOf(p, defs), defaultOf(p), cell(describe(p)))
+		if p.Type == "object" && len(p.Properties) > 0 {
+			children = append(children, k)
+		}
+	}
+	b.WriteString("\n")
+	for _, k := range children {
+		path := k
+		if prefix != "" {
+			path = prefix + "." + k
+		}
+		writeObject(b, k, path, resolve(n.Properties[k], defs), defs, nil)
+	}
+}
+
+// resolve follows a local $ref into $defs, keeping the referring node's
+// description when it has one.
+func resolve(n *schemaNode, defs map[string]*schemaNode) *schemaNode {
+	if name, ok := strings.CutPrefix(n.Ref, "#/$defs/"); ok && defs[name] != nil {
+		d := *defs[name]
+		if n.Description != "" {
+			d.Description = n.Description
+		}
+		return &d
+	}
+	return n
+}
+
+// typeOf names a node's type, with list item types.
+func typeOf(n *schemaNode, defs map[string]*schemaNode) string {
+	switch {
+	case n.Const != nil:
+		return "string"
+	case n.Type == "array" && n.Items != nil:
+		return "list of " + typeOf(resolve(n.Items, defs), defs)
+	case n.Type == "object" && len(n.Properties) == 0 && n.AdditionalProperties != nil:
+		return "map of string"
+	case n.Type == "string" && n.Pattern == `^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`:
+		return "`owner/name`"
+	case n.Type == "":
+		return "-"
+	}
+	return n.Type
+}
+
+// defaultOf formats a node's default value.
+func defaultOf(n *schemaNode) string {
+	switch {
+	case n.Const != nil:
+		return fmt.Sprintf("`%v`", n.Const)
+	case n.Default == nil:
+		return ""
+	case n.Default == "":
+		return `""`
+	}
+	return fmt.Sprintf("`%v`", n.Default)
+}
+
+// describe returns a node's description plus its value constraints.
+func describe(n *schemaNode) string {
+	d := n.Description
+	if n.Const != nil {
+		d += fmt.Sprintf(" Must be `%v`.", n.Const)
+	}
+	if n.Minimum != nil && n.Maximum != nil {
+		d += fmt.Sprintf(" Between %v and %v.", *n.Minimum, *n.Maximum)
+	} else if n.Minimum != nil {
+		d += fmt.Sprintf(" At least %v.", *n.Minimum)
+	}
+	return strings.TrimSpace(d)
+}
+
+// cell escapes text for a Markdown table cell.
+func cell(s string) string {
+	return strings.ReplaceAll(strings.ReplaceAll(s, "|", `\|`), "\n", " ")
+}

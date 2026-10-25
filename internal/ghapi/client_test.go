@@ -1,0 +1,386 @@
+package ghapi
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
+	"sync"
+	"testing"
+)
+
+// apiServer is a scripted GitHub API: GraphQL requests are answered by
+// gql, REST requests by the rest routes, and every request is recorded.
+type apiServer struct {
+	mu       sync.Mutex
+	gql      func(query string, vars map[string]any) (any, int)
+	rest     map[string]func(r *http.Request, body []byte) (any, int)
+	requests []string
+	bodies   []string
+}
+
+// ServeHTTP dispatches a request.
+func (s *apiServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	var body []byte
+	if r.Body != nil {
+		body, _ = io.ReadAll(r.Body)
+	}
+	s.mu.Lock()
+	s.requests = append(s.requests, r.Method+" "+r.URL.RequestURI())
+	s.bodies = append(s.bodies, string(body))
+	s.mu.Unlock()
+	w.Header().Set("Content-Type", "application/json")
+	if r.URL.Path == "/graphql" {
+		var req struct {
+			Query     string         `json:"query"`
+			Variables map[string]any `json:"variables"`
+		}
+		_ = json.Unmarshal(body, &req)
+		data, code := s.gql(req.Query, req.Variables)
+		w.WriteHeader(code)
+		_ = json.NewEncoder(w).Encode(map[string]any{"data": data})
+		return
+	}
+	key := r.Method + " " + r.URL.Path
+	h, ok := s.rest[key]
+	if !ok {
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = io.WriteString(w, `{"message":"Not Found"}`)
+		return
+	}
+	v, code := h(r, body)
+	w.WriteHeader(code)
+	if v != nil {
+		_ = json.NewEncoder(w).Encode(v)
+	}
+}
+
+// newClient returns a GitHub client talking to s.
+func newClient(t *testing.T, s *apiServer) *GitHub {
+	t.Helper()
+	c, err := New(Options{Host: "github.com", AuthToken: "test-token", WriteRate: 1000, Base: handlerTransport{s}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return c
+}
+
+// repoNode builds a GraphQL repository node.
+func repoNode(owner, name string, perm string, topics ...string) map[string]any {
+	nodes := []any{}
+	for _, tp := range topics {
+		nodes = append(nodes, map[string]any{"topic": map[string]any{"name": tp}})
+	}
+	return map[string]any{
+		"name": name, "owner": map[string]any{"login": owner}, "url": "https://github.com/" + owner + "/" + name,
+		"isArchived": false, "isFork": false, "viewerPermission": perm,
+		"defaultBranchRef": map[string]any{"name": "main"}, "primaryLanguage": map[string]any{"name": "Go"},
+		"repositoryTopics": map[string]any{"nodes": nodes},
+	}
+}
+
+func TestListOwnerReposPaginates(t *testing.T) {
+	t.Parallel()
+	s := &apiServer{gql: func(q string, vars map[string]any) (any, int) {
+		page := map[string]any{"hasNextPage": true, "endCursor": "c1"}
+		nodes := []any{repoNode("acme", "api", "WRITE", "service")}
+		if vars["after"] == "c1" {
+			page = map[string]any{"hasNextPage": false, "endCursor": ""}
+			nodes = []any{repoNode("acme", "web", "READ")}
+		}
+		return map[string]any{"repositoryOwner": map[string]any{"repositories": map[string]any{"pageInfo": page, "nodes": nodes}}}, 200
+	}}
+	repos, err := newClient(t, s).ListOwnerRepos(context.Background(), "acme")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(repos) != 2 || repos[0].FullName() != "acme/api" || !repos[0].CanPush || repos[1].CanPush ||
+		repos[0].Topics[0] != "service" || repos[0].Language != "Go" || repos[0].DefaultBranch != "main" {
+		t.Fatalf("repos = %+v", repos)
+	}
+
+	missing := &apiServer{gql: func(string, map[string]any) (any, int) { return map[string]any{"repositoryOwner": nil}, 200 }}
+	if _, err := newClient(t, missing).ListOwnerRepos(context.Background(), "nope"); err == nil {
+		t.Fatal("expected error for missing owner")
+	}
+	broken := &apiServer{gql: func(string, map[string]any) (any, int) { return nil, 502 }}
+	c := newClient(t, broken)
+	c.Transport.MaxAttempts = 1
+	if _, err := c.ListOwnerRepos(context.Background(), "acme"); err == nil {
+		t.Fatal("expected HTTP error")
+	}
+}
+
+func TestGetRepo(t *testing.T) {
+	t.Parallel()
+	s := &apiServer{gql: func(_ string, vars map[string]any) (any, int) {
+		if vars["name"] == "gone" {
+			return map[string]any{"repository": nil}, 200
+		}
+		return map[string]any{"repository": repoNode("acme", "api", "ADMIN")}, 200
+	}}
+	c := newClient(t, s)
+	r, err := c.GetRepo(context.Background(), "acme/api")
+	if err != nil || r.FullName() != "acme/api" || !r.CanPush {
+		t.Fatalf("repo = %+v, %v", r, err)
+	}
+	if _, err := c.GetRepo(context.Background(), "acme/gone"); err == nil {
+		t.Fatal("expected not found")
+	}
+	if _, err := c.GetRepo(context.Background(), "bad"); err == nil {
+		t.Fatal("expected invalid name error")
+	}
+}
+
+func TestPathsExistBatches(t *testing.T) {
+	t.Parallel()
+	var queries []string
+	s := &apiServer{gql: func(q string, _ map[string]any) (any, int) {
+		queries = append(queries, q)
+		out := map[string]any{}
+		for i := range BatchSize {
+			alias := fmt.Sprintf("r%d", i)
+			if !strings.Contains(q, alias+":") {
+				continue
+			}
+			// Every even repo has the first path.
+			objs := map[string]any{"p0": nil, "p1": nil}
+			if i%2 == 0 {
+				objs["p0"] = map[string]any{"__typename": "Tree"}
+			}
+			out[alias] = objs
+		}
+		return out, 200
+	}}
+	var repos []Repo
+	for i := range 120 {
+		repos = append(repos, Repo{Owner: "acme", Name: fmt.Sprintf("r%03d", i), DefaultBranch: "main"})
+	}
+	repos[1].DefaultBranch = ""
+	got, err := newClient(t, s).PathsExist(context.Background(), repos, []string{".github/workflows", "/Dockerfile"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(queries) != 3 {
+		t.Fatalf("want 3 batched queries, got %d", len(queries))
+	}
+	if !strings.Contains(queries[0], `object(expression: "main:.github/workflows")`) || !strings.Contains(queries[0], `"HEAD:Dockerfile"`) {
+		t.Fatalf("query = %s", queries[0][:300])
+	}
+	if len(got["acme/r000"]) != 1 || got["acme/r001"] != nil || len(got["acme/r050"]) != 1 {
+		t.Fatalf("got = %v", got)
+	}
+	if m, err := newClient(t, s).PathsExist(context.Background(), repos, nil); err != nil || len(m) != 0 {
+		t.Fatal("no paths should mean no queries")
+	}
+}
+
+func TestSearchCodePaginates(t *testing.T) {
+	t.Parallel()
+	s := &apiServer{rest: map[string]func(*http.Request, []byte) (any, int){
+		"GET /search/code": func(r *http.Request, _ []byte) (any, int) {
+			if !strings.Contains(r.URL.Query().Get("q"), "org:acme") {
+				return map[string]any{"message": "bad query"}, 422
+			}
+			items := []any{}
+			n := 100
+			if r.URL.Query().Get("page") == "2" {
+				n = 3
+			}
+			for i := range n {
+				items = append(items, map[string]any{"repository": map[string]any{"full_name": fmt.Sprintf("acme/r%d", i%5)}})
+			}
+			return map[string]any{"total_count": 103, "items": items}, 200
+		},
+	}}
+	c := newClient(t, s)
+	repos, err := c.SearchCode(context.Background(), "uses: actions/ org:acme")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(repos) != 5 || repos[0] != "acme/r0" {
+		t.Fatalf("repos = %v", repos)
+	}
+	if _, err := c.SearchCode(context.Background(), "x"); err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestPRsByHeadAndSearch(t *testing.T) {
+	t.Parallel()
+	s := &apiServer{
+		gql: func(q string, _ map[string]any) (any, int) {
+			return map[string]any{
+				"r0": map[string]any{"pullRequests": map[string]any{"nodes": []any{map[string]any{
+					"number": 7, "url": "https://github.com/acme/api/pull/7", "state": "OPEN", "title": "t", "body": "b",
+					"isDraft": false, "headRefName": "fleet/x", "headRefOid": "abc", "baseRefName": "main",
+					"reviewDecision": "APPROVED", "labels": map[string]any{"nodes": []any{map[string]any{"name": "fleet"}}},
+					"commits": map[string]any{"nodes": []any{map[string]any{"commit": map[string]any{"statusCheckRollup": map[string]any{"state": "SUCCESS"}}}}},
+				}}}},
+				"r1": map[string]any{"pullRequests": map[string]any{"nodes": []any{}}},
+			}, 200
+		},
+		rest: map[string]func(*http.Request, []byte) (any, int){
+			"GET /search/issues": func(r *http.Request, _ []byte) (any, int) {
+				q := r.URL.Query().Get("q")
+				if !strings.Contains(q, `"gh-fleet:campaign=x"`) || !strings.Contains(q, "user:acme") {
+					return map[string]any{"message": "bad"}, 422
+				}
+				merged := "2024-01-01T00:00:00Z"
+				items := []any{
+					map[string]any{"number": 1, "state": "open", "body": "<!-- gh-fleet:campaign=x -->", "repository_url": "https://api.github.com/repos/acme/a", "pull_request": map[string]any{}},
+					map[string]any{"number": 2, "state": "closed", "body": "<!-- gh-fleet:campaign=x -->", "repository_url": "https://api.github.com/repos/acme/b", "pull_request": map[string]any{"merged_at": merged}},
+					map[string]any{"number": 3, "state": "closed", "body": "<!-- gh-fleet:campaign=x -->", "repository_url": "https://api.github.com/repos/acme/c", "pull_request": map[string]any{}},
+					map[string]any{"number": 4, "state": "open", "body": "mentions gh-fleet:campaign=x only", "repository_url": "https://api.github.com/repos/acme/d", "pull_request": map[string]any{}},
+				}
+				return map[string]any{"total_count": len(items), "items": items}, 200
+			},
+		},
+	}
+	c := newClient(t, s)
+	got, err := c.PRsByHead(context.Background(), []string{"acme/api", "acme/web"}, "fleet/x")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, ok := got["acme/api"]
+	if !ok || len(got) != 1 || p.Number != 7 || p.Checks != "SUCCESS" || p.Review != "APPROVED" || p.Labels[0] != "fleet" || p.HeadSHA != "abc" {
+		t.Fatalf("got = %+v", got)
+	}
+	if _, err := c.PRsByHead(context.Background(), []string{"bad"}, "x"); err == nil {
+		t.Fatal("expected invalid repo error")
+	}
+
+	prs, err := c.SearchCampaignPRs(context.Background(), []string{"user:acme"}, "<!-- gh-fleet:campaign=x -->")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Open and closed searches return the same items; duplicates and
+	// non-exact marker matches are dropped.
+	if len(prs) != 3 || prs[0].State != StateOpen || prs[1].State != StateMerged || prs[2].State != StateClosed || prs[0].Repo != "acme/a" {
+		t.Fatalf("prs = %+v", prs)
+	}
+	if _, err := c.SearchCampaignPRs(context.Background(), nil, "<!-- gh-fleet:campaign=x -->"); err == nil {
+		t.Fatal("expected search error")
+	}
+}
+
+func TestWrites(t *testing.T) {
+	t.Parallel()
+	s := &apiServer{rest: map[string]func(*http.Request, []byte) (any, int){
+		"POST /repos/acme/api/pulls": func(_ *http.Request, body []byte) (any, int) {
+			var in map[string]any
+			_ = json.Unmarshal(body, &in)
+			return map[string]any{"number": 5, "html_url": "u", "state": "open", "title": in["title"], "head": map[string]any{"ref": in["head"], "sha": "s"}, "base": map[string]any{"ref": in["base"]}, "labels": []any{map[string]any{"name": "l"}}}, 201
+		},
+		"PATCH /repos/acme/api/pulls/5":                    func(*http.Request, []byte) (any, int) { return map[string]any{}, 200 },
+		"POST /repos/acme/api/issues/5/labels":             func(*http.Request, []byte) (any, int) { return []any{}, 200 },
+		"POST /repos/acme/api/pulls/5/requested_reviewers": func(*http.Request, []byte) (any, int) { return map[string]any{}, 201 },
+		"POST /repos/acme/api/issues/5/comments":           func(*http.Request, []byte) (any, int) { return map[string]any{}, 201 },
+		"DELETE /repos/acme/api/git/refs/heads/fleet/x":    func(*http.Request, []byte) (any, int) { return nil, 204 },
+		"DELETE /repos/acme/api/git/refs/heads/gone": func(*http.Request, []byte) (any, int) {
+			return map[string]any{"message": "Reference does not exist"}, 422
+		},
+		"GET /rate_limit": func(*http.Request, []byte) (any, int) {
+			return map[string]any{"resources": map[string]any{
+				"core":    map[string]any{"limit": 5000, "remaining": 4000, "reset": 1700000000},
+				"graphql": map[string]any{"limit": 5000, "remaining": 4999, "reset": 1700000000},
+			}}, 200
+		},
+	}}
+	c := newClient(t, s)
+	ctx := context.Background()
+	pr, err := c.CreatePR(ctx, "acme/api", NewPR{Title: "t", Body: "b", Head: "fleet/x", Base: "main", Draft: true})
+	if err != nil || pr.Number != 5 || pr.State != StateOpen || pr.HeadRef != "fleet/x" || pr.Labels[0] != "l" {
+		t.Fatalf("pr = %+v, %v", pr, err)
+	}
+	title, closed := "new", "closed"
+	if err := c.UpdatePR(ctx, "acme/api", 5, PRUpdate{Title: &title, Body: &title, State: &closed}); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.UpdatePR(ctx, "acme/api", 5, PRUpdate{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.AddLabels(ctx, "acme/api", 5, []string{"fleet"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.AddLabels(ctx, "acme/api", 5, nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.RequestReviewers(ctx, "acme/api", 5, []string{"octocat", "acme/platform"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.RequestReviewers(ctx, "acme/api", 5, nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Comment(ctx, "acme/api", 5, "hi"); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.DeleteBranch(ctx, "acme/api", "fleet/x"); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.DeleteBranch(ctx, "acme/api", "gone"); err != nil {
+		t.Fatalf("missing branch should not fail: %v", err)
+	}
+	limits, err := c.RateLimits(ctx)
+	if err != nil || len(limits) != 2 || limits[0].Remaining != 4000 {
+		t.Fatalf("limits = %+v, %v", limits, err)
+	}
+
+	joined := strings.Join(s.bodies, "\n")
+	for _, want := range []string{`"draft":true`, `"state":"closed"`, `"team_reviewers":["platform"]`, `"reviewers":["octocat"]`, `"labels":["fleet"]`} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("request bodies missing %s", want)
+		}
+	}
+
+	// Every write fails against a repo with no routes.
+	ctx = context.Background()
+	if _, err := c.CreatePR(ctx, "acme/none", NewPR{}); err == nil {
+		t.Fatal("create should fail")
+	}
+	if err := c.UpdatePR(ctx, "acme/none", 1, PRUpdate{Title: &title}); err == nil {
+		t.Fatal("update should fail")
+	}
+	if err := c.AddLabels(ctx, "acme/none", 1, []string{"x"}); err == nil {
+		t.Fatal("labels should fail")
+	}
+	if err := c.RequestReviewers(ctx, "acme/none", 1, []string{"x"}); err == nil {
+		t.Fatal("reviewers should fail")
+	}
+	if err := c.Comment(ctx, "acme/none", 1, "x"); err == nil {
+		t.Fatal("comment should fail")
+	}
+	s.rest["DELETE /repos/acme/none/git/refs/heads/x"] = func(*http.Request, []byte) (any, int) { return map[string]any{"message": "denied"}, 403 }
+	if err := c.DeleteBranch(ctx, "acme/none", "x"); err == nil {
+		t.Fatal("delete should fail")
+	}
+	delete(s.rest, "GET /rate_limit")
+	if _, err := c.RateLimits(ctx); err == nil {
+		t.Fatal("rate limit should fail")
+	}
+}
+
+func TestHelpersAndErrors(t *testing.T) {
+	if _, _, err := SplitRepo("a/b/c"); err == nil {
+		t.Fatal("SplitRepo accepted a/b/c")
+	}
+	users, teams := SplitReviewers([]string{"a", "org/t"})
+	if len(users) != 1 || teams[0] != "t" {
+		t.Fatal("SplitReviewers")
+	}
+	if repoFromAPIURL("x") != "x" || gqlString(`a"b`) != `"a\"b"` {
+		t.Fatal("helpers")
+	}
+	if len(nonNil(nil)) != 0 {
+		t.Fatal("nonNil")
+	}
+	// No token anywhere: construction fails like gh would.
+	t.Setenv("GH_TOKEN", "")
+	t.Setenv("GITHUB_TOKEN", "")
+	t.Setenv("GH_CONFIG_DIR", t.TempDir())
+	if _, err := New(Options{Host: "github.com"}); err == nil {
+		t.Fatal("expected missing token error")
+	}
+}

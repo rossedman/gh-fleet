@@ -1,0 +1,33 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: bump-go-1-27
+description: Move every Go module to Go 1.27
+
+targets:
+  orgs: [acme]
+  include:
+    languages: [Go]
+    files: [go.mod]
+  exclude:
+    repos: [acme/legacy-api]
+
+change:
+  # Raises the go directive (never lowers it) and the toolchain line, and
+  # bumps go-version in workflows that pin one.
+  run: ./scripts/bump-go.sh
+  env:
+    GO_VERSION: "1.27.3"
+  timeout: 2m
+
+pr:
+  title: "build: go 1.27"
+  body: |
+    Updates {{ .Repo.Name }} to Go 1.27: the `go` directive in `go.mod`, and
+    any `go-version:` pinned in GitHub Actions workflows.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  draft: true
+  labels: [fleet]
+
+limits:
+  concurrency: 16

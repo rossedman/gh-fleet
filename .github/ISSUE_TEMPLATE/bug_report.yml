@@ -1,0 +1,45 @@
+name: Bug report
+description: Something in gh fleet does not work as documented
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `gh fleet version`
+      placeholder: gh-fleet v1.2.0 (commit abc1234, built 2026-10-01T00:00:00Z)
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, architecture, `gh --version` and `git --version`
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The commands you ran and the campaign file (remove anything private)
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant output, and the per-repo log from `$XDG_STATE_HOME/gh-fleet/<campaign>/logs/` if a script failed
+      render: text

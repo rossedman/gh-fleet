@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: pin-actions
+description: Pin every third-party GitHub Action to a full commit SHA
+
+targets:
+  orgs: [acme]
+  include:
+    files: [.github/workflows]
+  exclude:
+    topics: [no-fleet]
+
+change:
+  # Resolves each `uses: owner/repo@ref` to the commit SHA with `gh api`
+  # and keeps the ref as a comment, so Dependabot can still update it.
+  run: ./scripts/pin.sh
+  timeout: 5m
+
+pr:
+  title: "ci: pin GitHub Actions to commit SHAs"
+  body: ./pr-body.md
+  labels: [fleet, security]
+  commit:
+    signoff: true
+
+limits:
+  concurrency: 8
+  maxOpenPRs: 200

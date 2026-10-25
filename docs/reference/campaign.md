@@ -1,0 +1,101 @@
+---
+title: Campaign file reference
+---
+
+# Campaign file reference
+
+Every field of a campaign file, generated from the JSON Schema shipped in the binary. Editors that understand `yaml-language-server` validate and complete files written by `gh fleet init`.
+
+A campaign describes one change applied across many repositories: which repos to target, what to run in each, and how to open the pull request.
+
+Schema URL: `https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json`
+
+## Top level
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `apiVersion` (required) | string | `fleet.gh/v1` | Schema version of the campaign file. Must be `fleet.gh/v1`. |
+| `name` (required) | string |  | The campaign's identity. It derives the branch name and the PR marker, so renaming it starts a new campaign. Lowercase letters, digits and dashes. |
+| `description` | string |  | Free-form description, available to the PR body template as `.Campaign.Description`. |
+| `targets` (required) | object |  | Which repositories the campaign touches. Needs `orgs`, `include.repos`, or both. |
+| `change` (required) | object |  | What to run in each repository. |
+| `pr` (required) | object |  | How the pull request is opened. |
+| `limits` | object |  | Safety limits for a run. |
+
+## `targets`
+
+Which repositories the campaign touches. Needs `orgs`, `include.repos`, or both.
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `exclude` | object |  | Repos to drop. Exclusion always wins, even over `include.repos`. |
+| `include` | object |  | Filters a candidate must pass. Keys combine with AND; values within a key combine with OR. |
+| `orgs` | list of string |  | Organizations (or users) whose repositories are candidates. |
+
+## `targets.exclude`
+
+Repos to drop. Exclusion always wins, even over `include.repos`.
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `archived` | boolean | `true` | Skip archived repos. |
+| `forks` | boolean | `true` | Skip forks. |
+| `repos` | list of `owner/name` |  | Repos (`owner/name`) to skip. |
+| `topics` | list of string |  | Skip repos with any of these topics. |
+
+## `targets.include`
+
+Filters a candidate must pass. Keys combine with AND; values within a key combine with OR.
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `files` | list of string |  | Any of these paths (file or directory) exists on the default branch. |
+| `languages` | list of string |  | The repo's primary language is any of these (case-insensitive). |
+| `repos` | list of `owner/name` |  | Repos (`owner/name`) that are always included, bypassing the filters above. |
+| `search` | string |  | A code search query; only repos with a hit match. Scoped to `orgs` automatically. |
+| `topics` | list of string |  | The repo has any of these topics. |
+
+## `change`
+
+What to run in each repository.
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `env` | map of string |  | Extra environment variables for the script. |
+| `run` (required) | string |  | A script path relative to the campaign file, or an inline script. Runs with the repo root as working directory. |
+| `shell` | string | `bash` | Shell used to run the script. |
+| `timeout` | string | `5m` | Maximum run time per repo, as a Go duration (`30s`, `5m`). |
+
+## `pr`
+
+How the pull request is opened.
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `base` | string | "" | Base branch. Empty means the repo's default branch. |
+| `body` | string |  | PR body: a file relative to the campaign file, or inline text. A Go template with `.Repo` and `.Campaign`. |
+| `branch` | string |  | Head branch name. Defaults to `fleet/<name>`. |
+| `commit` | object |  | The commit made in each repo. |
+| `draft` | boolean | `false` | Open PRs as drafts. |
+| `labels` | list of string |  | Labels to add to each PR. |
+| `reviewers` | list of string |  | Users or `org/team` slugs to request review from. |
+| `title` (required) | string |  | PR title. A Go template with `.Repo` and `.Campaign`. |
+
+## `pr.commit`
+
+The commit made in each repo.
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `message` | string |  | Commit message. Defaults to the PR title. A script can override it per repo by writing `$FLEET_OUTPUT/commit-message`. |
+| `signoff` | boolean | `false` | Add a `Signed-off-by` trailer. |
+
+## `limits`
+
+Safety limits for a run.
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `concurrency` | integer | `8` | Repos processed in parallel. `--concurrency` overrides it. Between 1 and 256. |
+| `maxOpenPRs` | integer | `0` | Stop opening new PRs once this many campaign PRs are open. 0 means no limit. At least 0. |
+

@@ -1,0 +1,60 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="brand.css">
+<style>
+  body { background: radial-gradient(900px 500px at 20% 0%, rgba(61,219,217,0.10), transparent 70%), var(--ink); }
+  .grid { mask-image: radial-gradient(ellipse 80% 80% at 50% 40%, #000 20%, transparent 80%); }
+  .abs { position: absolute; inset: 0; padding: 64px 56px; }
+  code, .cmd { font-variant-ligatures: none; }
+  .label { font-size: 15px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); font-weight: 600; }
+  .label b { color: var(--brand); font-weight: 700; }
+  .row { display: flex; align-items: stretch; gap: 0; margin-top: 14px; }
+  .box { flex: 1; background: var(--ink-2); border: 1px solid var(--ink-3); border-radius: 14px; padding: 22px 20px 20px; box-shadow: 0 16px 40px rgba(0,0,0,0.35); min-width: 0; }
+  .box .n { font-family: "JetBrains Mono", monospace; font-size: 13px; color: var(--brand); }
+  .box h3 { font-size: 21px; font-weight: 700; letter-spacing: -0.5px; margin: 4px 0 8px; color: var(--cream); }
+  .box p { font-size: 14.5px; line-height: 1.5; color: var(--mist); }
+  .box code { font-family: "JetBrains Mono", monospace; font-size: 13px; color: var(--brand-2); }
+  .arrow { width: 44px; flex: none; display: flex; align-items: center; justify-content: center; color: var(--brand); }
+  .arrow svg { width: 26px; height: 26px; }
+  .lead { border-color: color-mix(in srgb, var(--brand) 55%, var(--ink-3)); box-shadow: 0 0 0 1px var(--hairline), 0 16px 40px rgba(0,0,0,0.35), 0 0 40px rgba(61,219,217,0.12); }
+  .outs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 14px; }
+  .out { border-radius: 14px; padding: 20px 20px; background: var(--ink-2); border: 1px solid var(--ink-3); border-left: 4px solid var(--c); min-width: 0; }
+  .out .pill { display: inline-block; font-family: "JetBrains Mono", monospace; font-size: 13px; font-weight: 700; color: var(--c); }
+  .out h4 { font-size: 17px; font-weight: 700; color: var(--cream); margin: 6px 0 5px; letter-spacing: -0.3px; }
+  .out p { font-size: 14px; line-height: 1.45; color: var(--mist); }
+  .out code { font-family: "JetBrains Mono", monospace; font-size: 12.5px; color: var(--brand-2); }
+  .src { margin-top: 34px; display: flex; align-items: center; gap: 22px; border-radius: 14px; padding: 16px 22px; border: 1px dashed color-mix(in srgb, var(--brand) 50%, var(--ink-3)); background: color-mix(in srgb, var(--brand) 6%, transparent); }
+  .src h4 { font-size: 18px; color: var(--cream); font-weight: 700; letter-spacing: -0.3px; white-space: nowrap; }
+  .src p { font-size: 14.5px; color: var(--mist); line-height: 1.5; }
+  .src code { font-family: "JetBrains Mono", monospace; font-size: 13px; color: var(--brand-2); }
+  .src .cmd { font-family: "JetBrains Mono", monospace; font-size: 15px; color: var(--ink); background: var(--brand); padding: 7px 14px; border-radius: 8px; font-weight: 700; white-space: nowrap; }
+</style></head>
+<body>
+<div class="grid"></div>
+<div class="abs">
+  <div class="label"><b>gh fleet apply</b> &nbsp;/&nbsp; every target repo, in parallel</div>
+  <div class="row">
+    <div class="box lead"><div class="n">01</div><h3>Campaign</h3><p><code>fleet.yaml</code>: targets, a script, a PR template. The name derives the branch <code>fleet/&lt;name&gt;</code>.</p></div>
+    <div class="arrow"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg></div>
+    <div class="box"><div class="n">02</div><h3>Resolve</h3><p>List the org once (cached 10 min), apply filters, find existing PRs in batches of 50.</p></div>
+    <div class="arrow"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg></div>
+    <div class="box"><div class="n">03</div><h3>Clone</h3><p>Shallow clone of the base branch. An existing campaign branch is rebased onto it.</p></div>
+    <div class="arrow"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg></div>
+    <div class="box"><div class="n">04</div><h3>Run</h3><p>Your script at the repo root, with <code>FLEET_REPO</code> and friends, under a timeout.</p></div>
+    <div class="arrow"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg></div>
+    <div class="box"><div class="n">05</div><h3>Decide</h3><p>Exit code and <code>git status</code> pick one of four outcomes.</p></div>
+  </div>
+
+  <div class="label" style="margin-top:46px">Each repo ends in one of these</div>
+  <div class="outs">
+    <div class="out" style="--c: var(--dim)"><span class="pill">noop</span><h4>Nothing to change</h4><p>Exit 0 and no diff. Nothing is pushed.</p></div>
+    <div class="out" style="--c: var(--bad)"><span class="pill">failed</span><h4>Error kept, others go on</h4><p>Non-zero exit or timeout. <code>retry</code> runs only these.</p></div>
+    <div class="out" style="--c: var(--info)"><span class="pill">pr open</span><h4>Commit, push, PR</h4><p>Push <code>fleet/&lt;name&gt;</code>, then open or update the PR. 1 write per second.</p></div>
+    <div class="out" style="--c: var(--ok)"><span class="pill">merged</span><h4>Done for good</h4><p>Later runs skip the repo.</p></div>
+  </div>
+
+  <div class="src">
+    <span class="cmd">gh fleet status</span>
+    <div><h4>GitHub is the source of truth</h4><p>Reads every PR back by branch and by the hidden <code>&lt;!-- gh-fleet:campaign=&lt;name&gt; --&gt;</code> marker, so it works even with no local state.</p></div>
+  </div>
+</div>
+</body></html>

@@ -1,0 +1,206 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json",
+  "title": "gh fleet campaign",
+  "description": "A campaign describes one change applied across many repositories: which repos to target, what to run in each, and how to open the pull request.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["apiVersion", "name", "targets", "change", "pr"],
+  "properties": {
+    "apiVersion": {
+      "description": "Schema version of the campaign file.",
+      "const": "fleet.gh/v1"
+    },
+    "name": {
+      "description": "The campaign's identity. It derives the branch name and the PR marker, so renaming it starts a new campaign. Lowercase letters, digits and dashes.",
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,62}$"
+    },
+    "description": {
+      "description": "Free-form description, available to the PR body template as `.Campaign.Description`.",
+      "type": "string"
+    },
+    "targets": {
+      "description": "Which repositories the campaign touches. Needs `orgs`, `include.repos`, or both.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "orgs": {
+          "description": "Organizations (or users) whose repositories are candidates.",
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "include": {
+          "description": "Filters a candidate must pass. Keys combine with AND; values within a key combine with OR.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "topics": {
+              "description": "The repo has any of these topics.",
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 }
+            },
+            "languages": {
+              "description": "The repo's primary language is any of these (case-insensitive).",
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 }
+            },
+            "files": {
+              "description": "Any of these paths (file or directory) exists on the default branch.",
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 }
+            },
+            "search": {
+              "description": "A code search query; only repos with a hit match. Scoped to `orgs` automatically.",
+              "type": "string"
+            },
+            "repos": {
+              "description": "Repos (`owner/name`) that are always included, bypassing the filters above.",
+              "type": "array",
+              "items": { "$ref": "#/$defs/repo" }
+            }
+          }
+        },
+        "exclude": {
+          "description": "Repos to drop. Exclusion always wins, even over `include.repos`.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "repos": {
+              "description": "Repos (`owner/name`) to skip.",
+              "type": "array",
+              "items": { "$ref": "#/$defs/repo" }
+            },
+            "archived": {
+              "description": "Skip archived repos.",
+              "type": "boolean",
+              "default": true
+            },
+            "forks": {
+              "description": "Skip forks.",
+              "type": "boolean",
+              "default": true
+            },
+            "topics": {
+              "description": "Skip repos with any of these topics.",
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    },
+    "change": {
+      "description": "What to run in each repository.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["run"],
+      "properties": {
+        "run": {
+          "description": "A script path relative to the campaign file, or an inline script. Runs with the repo root as working directory.",
+          "type": "string",
+          "minLength": 1
+        },
+        "shell": {
+          "description": "Shell used to run the script.",
+          "type": "string",
+          "default": "bash"
+        },
+        "env": {
+          "description": "Extra environment variables for the script.",
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "timeout": {
+          "description": "Maximum run time per repo, as a Go duration (`30s`, `5m`).",
+          "type": "string",
+          "pattern": "^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$",
+          "default": "5m"
+        }
+      }
+    },
+    "pr": {
+      "description": "How the pull request is opened.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title"],
+      "properties": {
+        "title": {
+          "description": "PR title. A Go template with `.Repo` and `.Campaign`.",
+          "type": "string",
+          "minLength": 1
+        },
+        "body": {
+          "description": "PR body: a file relative to the campaign file, or inline text. A Go template with `.Repo` and `.Campaign`.",
+          "type": "string"
+        },
+        "branch": {
+          "description": "Head branch name. Defaults to `fleet/<name>`.",
+          "type": "string"
+        },
+        "base": {
+          "description": "Base branch. Empty means the repo's default branch.",
+          "type": "string",
+          "default": ""
+        },
+        "draft": {
+          "description": "Open PRs as drafts.",
+          "type": "boolean",
+          "default": false
+        },
+        "labels": {
+          "description": "Labels to add to each PR.",
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "reviewers": {
+          "description": "Users or `org/team` slugs to request review from.",
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "commit": {
+          "description": "The commit made in each repo.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "message": {
+              "description": "Commit message. Defaults to the PR title. A script can override it per repo by writing `$FLEET_OUTPUT/commit-message`.",
+              "type": "string"
+            },
+            "signoff": {
+              "description": "Add a `Signed-off-by` trailer.",
+              "type": "boolean",
+              "default": false
+            }
+          }
+        }
+      }
+    },
+    "limits": {
+      "description": "Safety limits for a run.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "concurrency": {
+          "description": "Repos processed in parallel. `--concurrency` overrides it.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 256,
+          "default": 8
+        },
+        "maxOpenPRs": {
+          "description": "Stop opening new PRs once this many campaign PRs are open. 0 means no limit.",
+          "type": "integer",
+          "minimum": 0,
+          "default": 0
+        }
+      }
+    }
+  },
+  "$defs": {
+    "repo": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+    }
+  }
+}

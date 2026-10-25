@@ -1,0 +1,115 @@
+site_name: gh fleet
+site_description: One change, every repo, tracked to merged.
+site_url: https://rossedman.github.io/gh-fleet/
+repo_url: https://github.com/rossedman/gh-fleet
+repo_name: rossedman/gh-fleet
+edit_uri: edit/main/docs/
+copyright: Apache 2.0 licensed
+
+theme:
+  name: material
+  custom_dir: overrides
+  logo: assets/site/logo.svg
+  favicon: assets/site/favicon.svg
+  palette:
+    scheme: slate
+  font:
+    text: Inter
+    code: JetBrains Mono
+  icon:
+    repo: fontawesome/brands/github
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.action.edit
+    - toc.follow
+
+extra_css:
+  - assets/site/landing.css
+  - assets/site/docs.css
+extra_javascript:
+  - assets/site/landing.js
+  - assets/site/docs.js
+
+exclude_docs: |
+  /assets/src/
+  /assets/render.sh
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets:
+      check_paths: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+validation:
+  nav:
+    omitted_files: warn
+    not_found: warn
+    absolute_links: warn
+  links:
+    not_found: warn
+    absolute_links: warn
+    unrecognized_links: warn
+    anchors: warn
+
+nav:
+  - Home: index.md
+  - Get started:
+      - Getting started: getting-started.md
+      - How it works: how-it-works.md
+      - Configuration: configuration.md
+  - Guides:
+      - Targeting repositories: guides/targeting.md
+      - Writing changes: guides/writing-changes.md
+      - Tracking pull requests: guides/tracking-prs.md
+      - Rate limits: guides/rate-limits.md
+      - Exploring with exec: guides/exec.md
+      - Examples: examples.md
+  - Reference:
+      - Campaign file: reference/campaign.md
+      - Commands:
+          - gh fleet: reference/commands/gh_fleet.md
+          - apply: reference/commands/gh_fleet_apply.md
+          - close: reference/commands/gh_fleet_close.md
+          - exec: reference/commands/gh_fleet_exec.md
+          - init: reference/commands/gh_fleet_init.md
+          - list: reference/commands/gh_fleet_list.md
+          - plan: reference/commands/gh_fleet_plan.md
+          - retry: reference/commands/gh_fleet_retry.md
+          - status: reference/commands/gh_fleet_status.md
+          - targets: reference/commands/gh_fleet_targets.md
+          - version: reference/commands/gh_fleet_version.md
+  - Project:
+      - Contributing: contributing.md
+      - Security: security.md
+
+extra:
+  generator: false
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/rossedman/gh-fleet

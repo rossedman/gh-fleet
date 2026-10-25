@@ -1,0 +1,25 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: add-dependabot
+description: Give every service a Dependabot config covering its ecosystems
+
+targets:
+  orgs: [acme]
+  include:
+    topics: [service]
+
+change:
+  # Writes .github/dependabot.yml for the ecosystems it detects. Repos that
+  # already have a config are left alone, so they come out as no-ops.
+  run: ./scripts/dependabot.sh
+  timeout: 1m
+
+pr:
+  title: "build: add Dependabot config"
+  body: |
+    Adds `.github/dependabot.yml` to {{ .Repo.FullName }} with weekly,
+    grouped updates for every package ecosystem found in the repo.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet, dependencies]
+  reviewers: [acme/platform]

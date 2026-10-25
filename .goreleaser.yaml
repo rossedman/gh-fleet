@@ -1,0 +1,81 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+version: 2
+
+project_name: gh-fleet
+
+before:
+  hooks:
+    - go mod tidy
+    - go run ./tools/gendocs
+
+builds:
+  - id: gh-fleet
+    main: .
+    binary: gh-fleet
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/rossedman/gh-fleet/cmd.version={{ .Version }}
+      - -X github.com/rossedman/gh-fleet/cmd.commit={{ .ShortCommit }}
+      - -X github.com/rossedman/gh-fleet/cmd.date={{ .Date }}
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+# gh extension install looks for a raw binary per platform named
+# <repo>_<tag>_<os>-<arch>[.exe], the layout `gh extension create
+# --precompiled=go` produces.
+archives:
+  - id: gh-extension
+    formats: [binary]
+    name_template: "{{ .ProjectName }}_{{ .Tag }}_{{ .Os }}-{{ .Arch }}"
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+signs:
+  - cmd: cosign
+    artifacts: checksum
+    signature: "${artifact}.sigstore.json"
+    args: ["sign-blob", "--bundle=${signature}", "${artifact}", "--yes"]
+
+release:
+  github:
+    owner: rossedman
+    name: gh-fleet
+  extra_files:
+    - glob: internal/campaign/campaign.schema.json
+  footer: |
+    Install or upgrade with `gh extension install rossedman/gh-fleet` or
+    `gh extension upgrade fleet`. Verify downloads as described in
+    [SECURITY.md](https://github.com/rossedman/gh-fleet/blob/main/SECURITY.md#verifying-releases).
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^ci:"
+      - "Merge pull request"
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\(.+\))??!?:.+$'
+      order: 0
+    - title: Bug fixes
+      regexp: '^.*?fix(\(.+\))??!?:.+$'
+      order: 1
+    - title: Performance
+      regexp: '^.*?perf(\(.+\))??!?:.+$'
+      order: 2
+    - title: Dependencies
+      regexp: '^.*?(build|deps)(\(.+\))??!?:.+$'
+      order: 3
+    - title: Other changes
+      order: 999

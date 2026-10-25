@@ -1,0 +1,244 @@
+{% extends "main.html" %}
+
+{% set gh = "https://github.com/rossedman/gh-fleet" %}
+{% set install = "gh extension install rossedman/gh-fleet" %}
+
+{% block tabs %}
+{{ super() }}
+<div class="lp">
+
+  <!-- Hero: who it's for and what it does in one sentence, the install
+       command, two calls to action, and the tool doing its job. -->
+  <section class="lp-hero">
+    <div class="lp-grid" aria-hidden="true"></div>
+    <div class="lp-wrap lp-hero__inner">
+      <div>
+        <img class="lp-hero__logo" src="{{ 'assets/site/logo.svg' | url }}" alt="">
+        <p class="lp-kicker">gh fleet</p>
+        <h1 class="lp-title">One change, every repo,<br><span>tracked to merged.</span></h1>
+        <p class="lp-tagline">A GitHub CLI extension that applies one change across your organization and follows every pull request to the end. <b>Run it again and it updates, never duplicates.</b></p>
+        <div class="lp-install">
+          <span class="lp-install__prompt">$</span>
+          <code>{{ install }}</code>
+          <button class="lp-copy" data-copy="{{ install }}" aria-label="Copy install command">
+            {% include ".icons/material/content-copy.svg" %}
+          </button>
+        </div>
+        <div class="lp-cta">
+          <a class="lp-btn lp-btn--primary" href="{{ 'getting-started/' | url }}">Get started {% include ".icons/material/arrow-right.svg" %}</a>
+          <a class="lp-btn" href="{{ 'how-it-works/' | url }}">{% include ".icons/material/cog-outline.svg" %} How it works</a>
+        </div>
+      </div>
+
+      <div class="lp-term" aria-label="A terminal running gh fleet">
+        <div class="lp-term__bar"><i></i><i></i><i></i><span>pin-actions</span></div>
+        <div class="lp-term__body" data-typing>
+          <div><span class="p">$</span> <span class="c" data-type>gh fleet targets -f fleet.yaml</span></div>
+          <div><span class="d">REPO          MATCHED BY</span></div>
+          <div>acme/api      file:.github/workflows</div>
+          <div>acme/billing  file:.github/workflows</div>
+          <div><span class="d">5 repos (1 skipped)</span></div>
+          <div><span class="p">$</span> <span class="c" data-type>gh fleet apply -f fleet.yaml --yes</span></div>
+          <div><span class="i">pr open</span>  acme/api https://github.com/acme/api/pull/1 <span class="ok">created</span></div>
+          <div><span class="d">noop</span>     acme/worker</div>
+          <div><span class="c">4 pr open · 1 noop · 1 skipped</span></div>
+          <div><span class="p">$</span> <span class="c" data-type>gh fleet status -f fleet.yaml</span></div>
+          <div><span class="c">3 pr open · 1 merged · 1 noop · 1 skipped</span></div>
+          <div><span class="d">API quota: core 4,871/5,000 · graphql 4,962/5,000</span><span class="lp-caret"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <ul class="lp-wrap lp-stats">
+      <li><b>10</b><span>commands, from init to close</span></li>
+      <li><b>50</b><span>repos per batched GraphQL query</span></li>
+      <li><b>1/s</b><span>default writes per second</span></li>
+      <li><b>3</b><span>example campaigns to copy</span></li>
+    </ul>
+  </section>
+
+  <!-- The problem, beside a panel of real output that shows the answer. -->
+  <section class="lp-section" id="problem">
+    <div class="lp-wrap lp-split">
+      <div>
+        <p class="lp-eyebrow">The problem</p>
+        <h2>The script is easy.<br><span>Landing it is the work.</span></h2>
+        <p class="lp-lede">Pinning an action, bumping a Go version or adding a config file takes minutes in one repo. Across an organization it means cloning, branching, pushing, opening PRs, and then watching which ones fail checks, wait for review or never merge. gh fleet runs that loop for you and keeps the ledger.</p>
+        <ul class="lp-points">
+          <li>{% include ".icons/material/check-decagram-outline.svg" %}<span>Re-running <code>apply</code> updates open PRs instead of duplicating them</span></li>
+          <li>{% include ".icons/material/check-decagram-outline.svg" %}<span>One repo failing never stops the others, and <code>retry</code> picks up only those</span></li>
+          <li>{% include ".icons/material/check-decagram-outline.svg" %}<span>GitHub is the source of truth, so <code>status</code> works with no local state</span></li>
+        </ul>
+      </div>
+      <div class="lp-stack">
+        <article class="lp-panel" aria-label="A pull request in the status table">
+          <div class="lp-panel__head">
+            <span class="lp-panel__id">acme/gateway</span><span class="lp-pill lp-pill--info">pr open</span>
+            <span class="lp-panel__meta">PR #1</span>
+          </div>
+          <h3>ci: pin GitHub Actions to commit SHAs</h3>
+          <div class="lp-panel__sub">branch fleet/pin-actions</div>
+          <div class="lp-quote">failure &middot; review required<small>gh fleet status: the one repo that needs a human</small></div>
+          <div class="lp-well"><span class="e">-  - uses: actions/checkout@v4</span>
+<span class="ok">+  - uses: actions/checkout@08eba0b&hellip; # v4</span></div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- Three pillars: the concepts a reader needs, each with a real snippet. -->
+  <section class="lp-section lp-section--alt">
+    <div class="lp-wrap">
+      <p class="lp-eyebrow">Core concepts</p>
+      <h2>Describe it once.<br><span>Preview, apply, follow.</span></h2>
+      <p class="lp-lede lp-lede--center">A campaign is one YAML file: which repos, what to run in each, how to open the PR. Everything else is three verbs.</p>
+      <div class="lp-pillars">
+        <article class="lp-pillar" style="--accent: var(--brand)">
+          <h3>Campaign</h3><div class="when">A file you commit and review</div>
+          <p>Targets, a script and a PR template. The name derives the branch and the hidden PR marker.</p>
+          <pre><code>name: pin-actions
+targets:
+  orgs: [acme]
+  include:
+    files: [.github/workflows]
+change:
+  run: ./scripts/pin.sh
+pr:
+  title: "ci: pin GitHub Actions"</code></pre>
+        </article>
+        <article class="lp-pillar" style="--accent: var(--warn)">
+          <h3>Plan</h3><div class="when">Before anything is pushed</div>
+          <p>Runs the script in a fresh clone of each repo and prints the diff it would send. Repos with no diff are noops.</p>
+          <pre><code>$ gh fleet plan --repo acme/api
+── acme/api
+-  - uses: actions/checkout@v4
++  - uses: actions/checkout@08eb&hellip; # v4
+
+1 changed &middot; 1 skipped</code></pre>
+        </article>
+        <article class="lp-pillar" style="--accent: var(--ok)">
+          <h3>Track</h3><div class="when">Until the last PR merges</div>
+          <p>Status reads every PR back from GitHub: state, checks and review decision, one batched query per 50 repos.</p>
+          <pre><code>$ gh fleet status
+3 pr open &middot; 1 merged
+1 noop &middot; 1 skipped</code></pre>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features: six cards, each a claim with evidence. -->
+  <section class="lp-section">
+    <div class="lp-wrap">
+      <p class="lp-eyebrow">Why gh fleet</p>
+      <h2>Built for volume.<br><span>Not just three repos.</span></h2>
+      <div class="lp-features">
+        {% for icon, title, body in [
+          ("sync", "Safe to re-run", "PRs are found by the fleet/&lt;name&gt; branch and a hidden body marker. A second apply prints unchanged, not a duplicate."),
+          ("eye-outline", "Dry run first", "plan runs your script with FLEET_DRY_RUN=true in fresh clones and shows each diff. Nothing is pushed or written."),
+          ("speedometer", "Polite to the API", "Writes run at 1 per second by default. A secondary rate limit pauses every worker, and 5xx errors retry with backoff up to 5 attempts."),
+          ("source-branch", "GitHub is the ledger", "Delete the local state file and status still reports correctly, because it looks PRs up by branch and marker."),
+          ("shield-check-outline", "Failures stay local", "A repo that fails is recorded with its error and a log file. The others carry on, and retry reruns only the failed ones."),
+          ("tune", "A cap on the blast radius", "limits.maxOpenPRs stops new PRs at a ceiling, concurrency defaults to 8, and apply asks before it pushes unless you pass --yes."),
+        ] %}
+        <article class="lp-card">
+          <div class="lp-icon">{% include ".icons/material/" ~ icon ~ ".svg" %}</div>
+          <h3>{{ title }}</h3>
+          <p>{{ body }}</p>
+        </article>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <!-- Quick start: numbered steps with copyable commands. -->
+  <section class="lp-section lp-section--alt" id="quick-start">
+    <div class="lp-wrap lp-split">
+      <div>
+        <p class="lp-eyebrow">Quick start</p>
+        <h2>From install to a PR<br><span>in five commands.</span></h2>
+        <p class="lp-lede">You need the GitHub CLI signed in with <code>gh auth login</code> and git on your PATH. gh fleet uses gh's authentication and never asks for a token.</p>
+        <a class="lp-btn" href="{{ 'getting-started/' | url }}">{% include ".icons/material/book-open-page-variant-outline.svg" %} Full getting-started guide</a>
+      </div>
+      <ol class="lp-steps">
+        <li>
+          <h4>Install</h4>
+          <pre class="lp-code"><button class="lp-copy" aria-label="Copy">{% include ".icons/material/content-copy.svg" %}</button><code><span class="p">$</span> {{ install }}</code></pre>
+        </li>
+        <li>
+          <h4>Scaffold a campaign</h4>
+          <p>Writes <code>fleet.yaml</code> with every option shown and commented.</p>
+          <pre class="lp-code"><button class="lp-copy" aria-label="Copy">{% include ".icons/material/content-copy.svg" %}</button><code><span class="p">$</span> gh fleet init pin-actions --org acme</code></pre>
+        </li>
+        <li>
+          <h4>See what it will touch</h4>
+          <p>Lists each repo and the filter that matched it.</p>
+          <pre class="lp-code"><button class="lp-copy" aria-label="Copy">{% include ".icons/material/content-copy.svg" %}</button><code><span class="p">$</span> gh fleet targets</code></pre>
+        </li>
+        <li>
+          <h4>Preview one repo</h4>
+          <pre class="lp-code"><button class="lp-copy" aria-label="Copy">{% include ".icons/material/content-copy.svg" %}</button><code><span class="p">$</span> gh fleet plan --repo acme/api</code></pre>
+        </li>
+        <li>
+          <h4>Open the PRs, then follow them</h4>
+          <pre class="lp-code"><button class="lp-copy" aria-label="Copy">{% include ".icons/material/content-copy.svg" %}</button><code><span class="p">$</span> gh fleet apply
+<span class="p">$</span> gh fleet status</code></pre>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- How it works: a diagram rendered from docs/assets/src. -->
+  <section class="lp-section">
+    <div class="lp-wrap">
+      <p class="lp-eyebrow">How it works</p>
+      <h2>Every repo takes the same path.<br><span>Each can end differently.</span></h2>
+      <figure class="lp-figure">
+        <a href="{{ 'assets/how-it-works.png' | url }}"><img width="2560" height="1380" src="{{ 'assets/how-it-works.png' | url }}" alt="A campaign file resolves to target repos. Each repo is cloned, the script runs, and the result is a noop, a failure, or a commit pushed to fleet/name with a pull request opened or updated. Status reads the pull requests back from GitHub." loading="lazy"></a>
+        <figcaption>Tap to open the full-size diagram</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- Docs grid: eight links (full rows). -->
+  <section class="lp-section lp-section--alt">
+    <div class="lp-wrap">
+      <p class="lp-eyebrow">Documentation</p>
+      <h2>Go deeper.</h2>
+      <div class="lp-docs">
+        {% for path, name, blurb in [
+          ("getting-started/", "Getting started", "Install and run a first campaign"),
+          ("configuration/", "Configuration", "The campaign file and CLI settings"),
+          ("guides/targeting/", "Targeting", "Pick repos by topic, language, file or search"),
+          ("guides/writing-changes/", "Writing changes", "The script contract and environment"),
+          ("guides/tracking-prs/", "Tracking PRs", "Status, retry, close and state files"),
+          ("guides/rate-limits/", "Rate limits", "How gh fleet stays inside GitHub's limits"),
+          ("examples/", "Examples", "Three campaigns you can copy"),
+          ("reference/campaign/", "Reference", "Every field and every command"),
+        ] %}
+        <a class="lp-doc" href="{{ path | url }}">
+          <b>{{ name }}</b><span>{{ blurb }}</span>
+          {% include ".icons/material/arrow-right.svg" %}
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <!-- Closing call to action. -->
+  <section class="lp-final">
+    <div class="lp-grid" aria-hidden="true"></div>
+    <div class="lp-wrap">
+      <img class="lp-final__logo" src="{{ 'assets/site/logo.svg' | url }}" alt="">
+      <h2>Make the change once.</h2>
+      <p class="lp-lede lp-lede--center">Free and open source under the Apache 2.0 license.</p>
+      <div class="lp-cta lp-cta--center">
+        <a class="lp-btn lp-btn--primary" href="{{ 'getting-started/' | url }}">Get started {% include ".icons/material/arrow-right.svg" %}</a>
+        <a class="lp-btn" href="{{ gh }}">{% include ".icons/material/source-repository.svg" %} View on GitHub</a>
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}
+
+{% block content %}{% endblock %}

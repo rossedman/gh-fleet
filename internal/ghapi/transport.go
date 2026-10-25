@@ -1,0 +1,354 @@
+package ghapi
+
+import (
+	"bytes"
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"math/rand/v2"
+	"net/http"
+	"strconv"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
+
+	"golang.org/x/time/rate"
+)
+
+// ErrQuotaLow is returned instead of sending a request that would eat into
+// the reserved headroom of the primary rate limit.
+var ErrQuotaLow = errors.New("primary rate limit headroom reached")
+
+// QuotaError says which quota ran low and when it resets.
+type QuotaError struct {
+	Resource  string
+	Remaining int
+	Limit     int
+	Reset     time.Time
+}
+
+// Error describes the quota and its reset time.
+func (e *QuotaError) Error() string {
+	return fmt.Sprintf("%s: %s quota at %d of %d, resets %s", ErrQuotaLow, e.Resource, e.Remaining, e.Limit, e.Reset.Format(time.Kitchen))
+}
+
+// Unwrap makes errors.Is(err, ErrQuotaLow) work.
+func (e *QuotaError) Unwrap() error { return ErrQuotaLow }
+
+// Defaults for Transport.
+const (
+	DefaultWriteRate   = 1.0 // writes per second
+	DefaultMaxAttempts = 5
+	DefaultHeadroom    = 0.10
+	defaultRetryAfter  = 60 * time.Second
+	baseBackoff        = time.Second
+)
+
+// Transport is an http.RoundTripper shared by every worker. It throttles
+// writes, pauses all requests while a secondary rate limit is in effect,
+// retries server errors with exponential backoff and jitter, and refuses
+// requests once primary quota drops into the reserved headroom.
+type Transport struct {
+	// Base sends the request. Defaults to http.DefaultTransport.
+	Base http.RoundTripper
+	// Writes throttles content-creating requests. Nil means no limit.
+	Writes *rate.Limiter
+	// MaxAttempts caps attempts per request. Defaults to 5.
+	MaxAttempts int
+	// Headroom is the fraction of primary quota kept in reserve.
+	Headroom float64
+	// Sleep waits for d or until ctx is done. Defaults to a timer.
+	Sleep func(ctx context.Context, d time.Duration) error
+	// Now returns the current time. Defaults to time.Now.
+	Now func() time.Time
+	// Jitter returns a random duration in [0, d). Defaults to math/rand.
+	Jitter func(d time.Duration) time.Duration
+
+	mu          sync.Mutex
+	pausedUntil time.Time
+	quotas      map[string]RateLimit
+	pauses      atomic.Int64
+	retries     atomic.Int64
+}
+
+// NewTransport returns a Transport with writes limited to writesPerSecond.
+func NewTransport(base http.RoundTripper, writesPerSecond float64) *Transport {
+	t := &Transport{Base: base, MaxAttempts: DefaultMaxAttempts, Headroom: DefaultHeadroom}
+	if writesPerSecond > 0 {
+		t.Writes = rate.NewLimiter(rate.Limit(writesPerSecond), 1)
+	}
+	return t
+}
+
+// Pauses returns how many times a secondary rate limit paused all workers.
+func (t *Transport) Pauses() int { return int(t.pauses.Load()) }
+
+// Retries returns how many server errors were retried.
+func (t *Transport) Retries() int { return int(t.retries.Load()) }
+
+// Quotas returns the last primary quota seen per resource.
+func (t *Transport) Quotas() []RateLimit {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	out := make([]RateLimit, 0, len(t.quotas))
+	for _, q := range t.quotas {
+		out = append(out, q)
+	}
+	return out
+}
+
+// RoundTrip sends req, applying the rate limiting and retry policy.
+func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
+	ctx := req.Context()
+	var body []byte
+	if req.Body != nil {
+		b, err := io.ReadAll(req.Body)
+		_ = req.Body.Close()
+		if err != nil {
+			return nil, err
+		}
+		body = b
+	}
+	write := isWrite(req.Method, req.URL.Path, body)
+	resource := resourceFor(req.URL.Path)
+	attempts := t.MaxAttempts
+	if attempts < 1 {
+		attempts = DefaultMaxAttempts
+	}
+
+	for attempt := 1; ; attempt++ {
+		if err := t.waitForPause(ctx); err != nil {
+			return nil, err
+		}
+		if err := t.checkQuota(ctx, resource); err != nil {
+			return nil, err
+		}
+		if write && t.Writes != nil {
+			if err := t.Writes.Wait(ctx); err != nil {
+				return nil, err
+			}
+		}
+		r := req.Clone(ctx)
+		if body != nil {
+			r.Body = io.NopCloser(bytes.NewReader(body))
+			r.GetBody = func() (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(body)), nil }
+			r.ContentLength = int64(len(body))
+		}
+		resp, err := t.base().RoundTrip(r)
+		if err != nil {
+			return nil, err
+		}
+		t.recordQuota(resp.Header)
+		last := attempt >= attempts
+
+		if wait, ok := secondaryLimit(resp, t.now()); ok && !last {
+			drain(resp)
+			t.pause(wait)
+			continue
+		}
+		if isRetryableStatus(resp.StatusCode) && !last {
+			drain(resp)
+			t.retries.Add(1)
+			d := baseBackoff << (attempt - 1)
+			d += t.jitter(d)
+			if err := t.sleep(ctx, d); err != nil {
+				return nil, err
+			}
+			continue
+		}
+		return resp, nil
+	}
+}
+
+// base returns the underlying RoundTripper.
+func (t *Transport) base() http.RoundTripper {
+	if t.Base != nil {
+		return t.Base
+	}
+	return http.DefaultTransport
+}
+
+// now returns the current time from the injected clock.
+func (t *Transport) now() time.Time {
+	if t.Now != nil {
+		return t.Now()
+	}
+	return time.Now()
+}
+
+// sleep waits using the injected sleeper.
+func (t *Transport) sleep(ctx context.Context, d time.Duration) error {
+	if t.Sleep != nil {
+		return t.Sleep(ctx, d)
+	}
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
+}
+
+// jitter returns a random extra delay below d.
+func (t *Transport) jitter(d time.Duration) time.Duration {
+	if t.Jitter != nil {
+		return t.Jitter(d)
+	}
+	if d <= 0 {
+		return 0
+	}
+	return rand.N(d) //nolint:gosec // jitter does not need a secure source
+}
+
+// pause stops every request until d from now, extending any current pause.
+func (t *Transport) pause(d time.Duration) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	until := t.now().Add(d)
+	if until.After(t.pausedUntil) {
+		t.pausedUntil = until
+	}
+	t.pauses.Add(1)
+}
+
+// waitForPause blocks while a secondary rate limit pause is in effect.
+func (t *Transport) waitForPause(ctx context.Context) error {
+	for {
+		t.mu.Lock()
+		d := t.pausedUntil.Sub(t.now())
+		t.mu.Unlock()
+		if d <= 0 {
+			return nil
+		}
+		if err := t.sleep(ctx, d); err != nil {
+			return err
+		}
+	}
+}
+
+// checkQuota refuses a request when its resource is inside the headroom.
+// Search quotas reset every minute, so for them it waits instead.
+func (t *Transport) checkQuota(ctx context.Context, resource string) error {
+	t.mu.Lock()
+	q, ok := t.quotas[resource]
+	t.mu.Unlock()
+	if !ok || q.Limit == 0 || !q.Reset.After(t.now()) {
+		return nil
+	}
+	search := strings.HasSuffix(resource, "search")
+	reserve := int(float64(q.Limit) * t.Headroom)
+	if search {
+		reserve = 0
+	}
+	if q.Remaining > reserve {
+		return nil
+	}
+	if search {
+		err := t.sleep(ctx, q.Reset.Sub(t.now()))
+		t.mu.Lock()
+		delete(t.quotas, resource)
+		t.mu.Unlock()
+		return err
+	}
+	return &QuotaError{Resource: resource, Remaining: q.Remaining, Limit: q.Limit, Reset: q.Reset}
+}
+
+// recordQuota stores the X-RateLimit headers of a response.
+func (t *Transport) recordQuota(h http.Header) {
+	limit, err1 := strconv.Atoi(h.Get("X-RateLimit-Limit"))
+	remaining, err2 := strconv.Atoi(h.Get("X-RateLimit-Remaining"))
+	reset, err3 := strconv.ParseInt(h.Get("X-RateLimit-Reset"), 10, 64)
+	if err1 != nil || err2 != nil || err3 != nil {
+		return
+	}
+	res := h.Get("X-RateLimit-Resource")
+	if res == "" {
+		res = "core"
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.quotas == nil {
+		t.quotas = map[string]RateLimit{}
+	}
+	t.quotas[res] = RateLimit{Resource: res, Limit: limit, Remaining: remaining, Reset: time.Unix(reset, 0)}
+}
+
+// secondaryLimit reports whether resp is a secondary rate limit and how
+// long to wait before retrying.
+func secondaryLimit(resp *http.Response, now time.Time) (time.Duration, bool) {
+	if resp.StatusCode != http.StatusForbidden && resp.StatusCode != http.StatusTooManyRequests {
+		return 0, false
+	}
+	ra := resp.Header.Get("Retry-After")
+	if ra == "" {
+		return 0, false
+	}
+	if secs, err := strconv.Atoi(ra); err == nil && secs >= 0 {
+		return time.Duration(secs) * time.Second, true
+	}
+	if at, err := http.ParseTime(ra); err == nil {
+		return max(at.Sub(now), 0), true
+	}
+	return defaultRetryAfter, true
+}
+
+// isRetryableStatus reports server errors worth retrying.
+func isRetryableStatus(code int) bool {
+	switch code {
+	case http.StatusInternalServerError, http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout:
+		return true
+	}
+	return false
+}
+
+// isWrite reports whether a request creates or changes content. GraphQL
+// requests count as writes only when they are mutations.
+func isWrite(method, path string, body []byte) bool {
+	switch method {
+	case http.MethodGet, http.MethodHead, http.MethodOptions:
+		return false
+	}
+	if strings.HasSuffix(path, "/graphql") {
+		return isMutation(body)
+	}
+	return true
+}
+
+// isMutation reports whether a GraphQL request body holds a mutation.
+func isMutation(body []byte) bool {
+	i := bytes.Index(body, []byte(`"query"`))
+	if i < 0 {
+		return false
+	}
+	rest := bytes.TrimLeft(body[i+len(`"query"`):], " \t\r\n:")
+	rest = bytes.TrimLeft(rest, `"`)
+	rest = bytes.TrimLeft(rest, ` \t\r\n`)
+	for bytes.HasPrefix(rest, []byte(`\n`)) || bytes.HasPrefix(rest, []byte(`\t`)) {
+		rest = bytes.TrimLeft(rest[2:], " ")
+	}
+	return bytes.HasPrefix(rest, []byte("mutation"))
+}
+
+// resourceFor maps a request path to its rate limit resource name.
+func resourceFor(path string) string {
+	switch {
+	case strings.HasSuffix(path, "/graphql"):
+		return "graphql"
+	case strings.Contains(path, "/search/code"):
+		return "code_search"
+	case strings.Contains(path, "/search/"):
+		return "search"
+	default:
+		return "core"
+	}
+}
+
+// drain discards and closes a response body so the connection is reused.
+func drain(resp *http.Response) {
+	_, _ = io.Copy(io.Discard, resp.Body)
+	_ = resp.Body.Close()
+}

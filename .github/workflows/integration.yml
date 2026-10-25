@@ -1,0 +1,32 @@
+name: integration
+
+# Runs a full campaign against a throwaway org. Manual only: it opens and
+# closes real PRs. Needs the GH_FLEET_TEST_ORG and GH_FLEET_TEST_REPO
+# repository variables and a GH_FLEET_TEST_TOKEN secret with repo scope on
+# that org.
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Let git push with the test token
+        run: gh auth setup-git
+        env:
+          GH_TOKEN: ${{ secrets.GH_FLEET_TEST_TOKEN }}
+      - run: make integration
+        env:
+          GH_TOKEN: ${{ secrets.GH_FLEET_TEST_TOKEN }}
+          GH_FLEET_TEST_ORG: ${{ vars.GH_FLEET_TEST_ORG }}
+          GH_FLEET_TEST_REPO: ${{ vars.GH_FLEET_TEST_REPO }}

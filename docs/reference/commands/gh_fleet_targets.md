@@ -1,0 +1,44 @@
+# gh fleet targets
+
+List the repos a campaign will touch and why each matched
+
+### Synopsis
+
+Resolve the campaign's targets and list every repo it will touch, with the
+filters it matched. Repos without push access are listed as skipped.
+
+Org listings are cached for 10 minutes.
+
+```
+gh fleet targets [campaign] [flags]
+```
+
+### Examples
+
+```
+  gh fleet targets
+  gh fleet targets --json --jq '.targets[].repo | .owner + "/" + .name'
+```
+
+### Options
+
+```
+      --concurrency int    repos processed in parallel (default limits.concurrency, else 8)
+  -f, --file string        campaign file (default ./fleet.yaml)
+  -h, --help               help for targets
+      --jq string          filter JSON output with a jq expression
+      --json               print JSON instead of a table
+      --repo strings       limit to these repos (owner/name, repeatable)
+      --write-rate float   GitHub API writes per second (default 1)
+```
+
+### Options inherited from parent commands
+
+```
+      --config string   config file (default $XDG_CONFIG_HOME/gh-fleet/config.yaml)
+```
+
+### SEE ALSO
+
+* [gh fleet](gh_fleet.md)	 - Apply one change across many repositories and track the PRs
+
