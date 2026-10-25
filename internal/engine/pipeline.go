@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strconv"
+	"time"
 
 	"github.com/rossedman/gh-fleet/internal/campaign"
 	"github.com/rossedman/gh-fleet/internal/ghapi"
@@ -53,6 +54,8 @@ type Pipeline struct {
 	CloseNoop bool
 	// Argv is the command run in Exec mode.
 	Argv []string
+	// ExecTimeout limits Argv in each repo; zero means none.
+	ExecTimeout time.Duration
 	// Scripts holds the compiled script of each starlark step, by index
 	// into change.steps.
 	Scripts map[int]*star.Script
@@ -116,7 +119,7 @@ func (p *Pipeline) Process(ctx context.Context, t target.Target) (state.RepoStat
 	defer closeLog()
 
 	if p.Mode == Exec {
-		spec := runner.Spec{Argv: p.Argv, Env: p.Campaign.Change.Env, Timeout: p.Campaign.Change.Timeout.Std()}
+		spec := runner.Spec{Argv: p.Argv, Env: p.Campaign.Change.Env, Timeout: p.ExecTimeout}
 		res, err := runner.Run(ctx, ws.Dir, spec, p.env(t), logw)
 		rs.Output = string(res.Stdout)
 		if err != nil {

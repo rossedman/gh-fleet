@@ -15,7 +15,7 @@ change:
     # open PR is updated.
     - name: sync files
       starlark: ./change.star
-  timeout: 1m
+      timeout: 1m
 
 pr:
   title: "chore: sync standard repo files"

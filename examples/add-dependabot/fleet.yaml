@@ -14,7 +14,7 @@ change:
     # already have a config are left alone, so they come out as no-ops.
     - name: dependabot config
       starlark: ./change.star
-  timeout: 1m
+      timeout: 1m
 
 pr:
   title: "build: add Dependabot config"

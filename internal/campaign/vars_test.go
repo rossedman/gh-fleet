@@ -208,7 +208,6 @@ func TestSteps(t *testing.T) {
 	base := "apiVersion: fleet.gh/v1\nname: s\ntargets: {orgs: [a]}\npr: {title: x}\n"
 	p := writeCampaign(t, base+`change:
   env: {A: "1", B: "1"}
-  timeout: 2m
   steps:
     - starlark: ./change.star
     - name: tidy
@@ -225,7 +224,7 @@ func TestSteps(t *testing.T) {
 	if c.StarlarkFile(star) == "" || c.ScriptFile(star) != "" || star.Kind() != "starlark" || star.Label(0) != "#1" {
 		t.Fatalf("starlark step = %+v", star)
 	}
-	if star.Shell != "bash" || star.Timeout.Std() != 2*time.Minute {
+	if star.Shell != "bash" || star.Timeout.Std() != DefaultTimeout {
 		t.Fatalf("step defaults = %+v", star)
 	}
 	if run.Kind() != "run" || run.Label(1) != "tidy" || run.Shell != "sh" || run.Timeout.Std() != 10*time.Second {
@@ -239,13 +238,13 @@ func TestSteps(t *testing.T) {
 		t.Fatalf("missing file: %v", err)
 	}
 	for yaml, want := range map[string]string{
-		"change: {timeout: 1m}\n":                         "change: missing property 'steps'",
+		"change: {shell: sh}\n":                           "change: missing property 'steps'",
 		"change: {steps: []}\n":                           "change.steps: ",
 		"change: {steps: [{name: x}]}\n":                  "change.steps.0: needs 'run' or 'starlark'",
 		"change: {steps: [{run: x, starlark: a.star}]}\n": "change.steps.0: set only one of 'run' or 'starlark'",
 		"change: {steps: [{starlark: x.py}]}\n":           "change.steps.0.starlark: must be a .star file",
 		"change: {run: x, steps: [{run: x}]}\n":           "change.run: unknown field",
-		"change: {timeout: soon, steps: [{run: x}]}\n":    "change.timeout: use a Go duration",
+		"change: {timeout: 1m, steps: [{run: x}]}\n":      "change.timeout: unknown field",
 	} {
 		if _, err := Parse([]byte(base+yaml), "f.yaml"); err == nil || !strings.Contains(err.Error(), want) {
 			t.Errorf("%q: err = %v, want %q", yaml, err, want)

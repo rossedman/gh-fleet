@@ -16,14 +16,15 @@ change:
     # changed.
     - name: package.json
       starlark: ./change.star
+      timeout: 1m
     # Refreshes package-lock.json in those directories without installing
     # or running scripts. FLEET_VAR_DIRS comes from the step above.
     - name: lockfiles
       run: ./scripts/lockfiles.sh
+      timeout: 10m
   env:
     PACKAGE: axios
     RANGE: "^1.7.9"
-  timeout: 10m
 
 pr:
   title: "build(deps): axios ^1.7.9"

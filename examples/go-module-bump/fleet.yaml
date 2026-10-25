@@ -16,11 +16,11 @@ change:
     # step, since it needs the Go toolchain.
     - name: go get
       run: ./scripts/go-get.sh
+      timeout: 10m
   env:
     MODULE: golang.org/x/net
     VERSION: v0.33.0
     GOFLAGS: -mod=mod
-  timeout: 10m
 
 pr:
   title: "build(deps): golang.org/x/net v0.33.0"

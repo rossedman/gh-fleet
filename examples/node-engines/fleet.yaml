@@ -15,9 +15,9 @@ change:
     # No shell, no network: it can only touch files in the clone.
     - name: engines
       starlark: ./change.star
+      timeout: 1m
   env:
     NODE: "22"
-  timeout: 1m
 
 pr:
   title: "build: require Node {{ .Vars.node }}"

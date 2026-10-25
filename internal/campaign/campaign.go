@@ -68,12 +68,11 @@ type Exclude struct {
 }
 
 // Change describes what runs in each repository: an ordered list of steps
-// plus the settings every step inherits.
+// plus the shell and environment every step inherits.
 type Change struct {
-	Shell   string            `yaml:"shell,omitempty" json:"shell,omitempty"`
-	Env     map[string]string `yaml:"env,omitempty" json:"env,omitempty"`
-	Timeout Duration          `yaml:"timeout,omitempty" json:"timeout,omitempty"`
-	Steps   []Step            `yaml:"steps" json:"steps"`
+	Shell string            `yaml:"shell,omitempty" json:"shell,omitempty"`
+	Env   map[string]string `yaml:"env,omitempty" json:"env,omitempty"`
+	Steps []Step            `yaml:"steps" json:"steps"`
 }
 
 // Step is one entry of change.steps. Exactly one of Run or Starlark is set.
@@ -85,7 +84,8 @@ type Step struct {
 	Starlark string            `yaml:"starlark,omitempty" json:"starlark,omitempty"`
 	Shell    string            `yaml:"shell,omitempty" json:"shell,omitempty"`
 	Env      map[string]string `yaml:"env,omitempty" json:"env,omitempty"`
-	Timeout  Duration          `yaml:"timeout,omitempty" json:"timeout,omitempty"`
+	// Timeout limits this step in each repo; DefaultTimeout when unset.
+	Timeout Duration `yaml:"timeout,omitempty" json:"timeout,omitempty"`
 }
 
 // Label names the step in logs and errors: its name, or #n counting from
@@ -171,16 +171,13 @@ func (c *Campaign) ApplyDefaults() {
 	if c.Change.Shell == "" {
 		c.Change.Shell = DefaultShell
 	}
-	if c.Change.Timeout == 0 {
-		c.Change.Timeout = Duration(DefaultTimeout)
-	}
 	for i := range c.Change.Steps {
 		st := &c.Change.Steps[i]
 		if st.Shell == "" {
 			st.Shell = c.Change.Shell
 		}
 		if st.Timeout == 0 {
-			st.Timeout = c.Change.Timeout
+			st.Timeout = Duration(DefaultTimeout)
 		}
 	}
 	if c.PR.Branch == "" {

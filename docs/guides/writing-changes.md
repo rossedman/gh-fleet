@@ -18,13 +18,12 @@ change:
       starlark: ./bump.star
     - name: lockfile
       run: npm install --package-lock-only --ignore-scripts
-      timeout: 10m                   # this step only
+      timeout: 10m                   # this step's limit per repo; default 5m
   env:                               # every step
     PACKAGE: axios
-  timeout: 2m                        # default for each step
 ```
 
-Each step is exactly one of `run` (a shell script) or `starlark` (a [Starlark script](starlark.md)). Steps run in the order written, all in the same clone, and each sees the files the steps before it left. `env`, `shell` and `timeout` set on `change` apply to every step; a step's own `env` is added on top, and its own `shell` and `timeout` replace the defaults.
+Each step is exactly one of `run` (a shell script) or `starlark` (a [Starlark script](starlark.md)). Steps run in the order written, all in the same clone, and each sees the files the steps before it left. `env` and `shell` set on `change` apply to every step; a step's own `env` is added on top, and its own `shell` replaces the default. `timeout` belongs to each step.
 
 The first step that fails stops the repo: later steps don't run and the repo is marked `failed` with the step's name in the error. Variables a step sets are visible to the steps after it (see [handing values back](#handing-values-back-to-the-pr)).
 
@@ -108,7 +107,7 @@ Blank lines and lines starting with `#` are ignored. Any other line that isn't `
 
 ## Timeouts and interruption
 
-Each step has a time limit per repo: its own `timeout`, or `change.timeout` (default `5m`). When it expires the step is stopped and the repo is marked `failed`.
+Each step has its own time limit per repo, set with the step's `timeout` (default `5m`). Give slow steps such as a package install a longer one without loosening the rest. When it expires the step is stopped and the repo is marked `failed`.
 
 Press Ctrl-C once and gh fleet stops starting new repos but lets the scripts already running finish, or hit their timeout, so no repo is left half-changed. State is saved. Press it a second time to exit immediately.
 

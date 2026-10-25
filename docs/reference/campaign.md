@@ -67,7 +67,6 @@ What to change in each repository: an ordered list of `steps`, each a shell scri
 | `env` | map of string |  | Environment variables for every step. |
 | `shell` | string | `bash` | Default shell for `run` steps. |
 | `steps` (required) | list of object |  | The steps to run, in order. |
-| `timeout` | string | `5m` | Default maximum run time of each step per repo, as a Go duration (`30s`, `5m`). |
 
 ## `change.steps[]`
 
@@ -80,7 +79,7 @@ One step of the change. Set exactly one of `run` or `starlark`.
 | `run` | string |  | A shell script path relative to the campaign file, or an inline script. Runs with the repo root as working directory. |
 | `shell` | string |  | Shell for this `run` step. Defaults to `change.shell`. |
 | `starlark` | string |  | A Starlark file relative to the campaign file that defines `change(repo)`. It edits files through `repo` with no shell or network access. |
-| `timeout` | string |  | Maximum run time of this step per repo. Defaults to `change.timeout`. |
+| `timeout` | string | `5m` | Maximum run time of this step per repo, as a Go duration (`30s`, `5m`). |
 
 ## `pr`
 

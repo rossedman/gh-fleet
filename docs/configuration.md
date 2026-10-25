@@ -27,7 +27,7 @@ change:
   steps:
     - name: pin
       run: ./scripts/pin.sh
-  timeout: 5m
+      timeout: 5m
 
 pr:
   title: "ci: pin GitHub Actions to commit SHAs"
@@ -51,7 +51,7 @@ Which repositories the campaign touches: the candidates from `orgs` (and any `in
 
 ### `change`
 
-What changes in a fresh clone of each repo: `steps`, run in order in the same clone. Each step is a shell script in `run` (a path relative to the campaign file, or an inline script) or a [Starlark script](guides/starlark.md) in `starlark`, and can have a `name`. `shell` defaults to `bash` and `timeout` to `5m` per step; `env` adds variables. All three can be set on `change` for every step and overridden on one. Variables a step sets reach the steps after it. See [Writing changes](guides/writing-changes.md).
+What changes in a fresh clone of each repo: `steps`, run in order in the same clone. Each step is a shell script in `run` (a path relative to the campaign file, or an inline script) or a [Starlark script](guides/starlark.md) in `starlark`, and can have a `name`. Each step has its own `timeout` (default `5m`). `shell` (default `bash`) and `env` can be set on `change` for every step and on a step for that one. Variables a step sets reach the steps after it. See [Writing changes](guides/writing-changes.md).
 
 ### `pr`
 

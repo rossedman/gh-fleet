@@ -52,7 +52,7 @@ change:
   steps:
     - name: pin
       run: ./scripts/pin.sh
-  timeout: 5m
+      timeout: 5m
 
 pr:
   title: "ci: pin GitHub Actions to commit SHAs"

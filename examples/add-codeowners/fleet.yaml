@@ -25,7 +25,7 @@ change:
     # GitHub reads. The team comes from vars, as repo.vars["team"].
     - name: codeowners
       starlark: ./change.star
-  timeout: 1m
+      timeout: 1m
 
 pr:
   title: "chore: assign {{ .Repo.Name }} to @{{ .Repo.Owner }}/{{ .Vars.team }}"

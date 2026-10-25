@@ -31,10 +31,10 @@ change:
   steps:
     - name: pin
       run: ./scripts/pin.sh
+      timeout: 2m
   shell: bash
   env:
     PIN_MODE: sha
-  timeout: 5m
 
 pr:
   title: "ci: pin GitHub Actions to SHAs"
@@ -86,7 +86,7 @@ func TestLoadSpecExample(t *testing.T) {
 	if c.Name != "pin-actions" || c.Targets.Orgs[0] != "acme" || c.Limits.MaxOpenPRs != 200 {
 		t.Fatalf("unexpected campaign: %+v", c)
 	}
-	if c.Change.Timeout.Std() != 5*time.Minute || c.Change.Env["PIN_MODE"] != "sha" {
+	if c.Change.Steps[0].Timeout.Std() != 2*time.Minute || c.Change.Env["PIN_MODE"] != "sha" {
 		t.Fatalf("change: %+v", c.Change)
 	}
 	if got := c.ScriptFile(c.Change.Steps[0]); got != filepath.Join(filepath.Dir(p), "scripts", "pin.sh") {
@@ -116,7 +116,7 @@ pr: {title: "chore: bump {{ .Repo.Name }}"}
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.PR.Branch != "fleet/bump" || c.Change.Shell != "bash" || c.Change.Timeout.Std() != DefaultTimeout ||
+	if c.PR.Branch != "fleet/bump" || c.Change.Shell != "bash" ||
 		c.Limits.Concurrency != 8 || !*c.Targets.Exclude.Archived || !*c.Targets.Exclude.Forks {
 		t.Fatalf("defaults not applied: %+v", c)
 	}
@@ -159,7 +159,7 @@ targets:
   bogus: 1
 change:
   steps: [{run: "true", timeout: later}]
-  timeout: soon
+  timeout: 5m
 pr:
   title: x
 `,
@@ -168,7 +168,7 @@ pr:
 				"f.yaml:4:9: targets.orgs:",
 				"f.yaml:5:3: targets.bogus: unknown field",
 				"f.yaml:7:34: change.steps.0.timeout: use a Go duration",
-				"f.yaml:8:12: change.timeout: use a Go duration",
+				"f.yaml:8:3: change.timeout: unknown field",
 			},
 		},
 		{

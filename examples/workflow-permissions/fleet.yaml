@@ -14,7 +14,7 @@ change:
     # has no top-level permissions block. Jobs that need more must ask.
     - name: permissions
       starlark: ./change.star
-  timeout: 1m
+      timeout: 1m
 
 pr:
   title: "ci: read-only GITHUB_TOKEN by default"

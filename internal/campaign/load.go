@@ -384,7 +384,6 @@ func schemaErrors(filename string, doc *yaml.Node, ve *jsonschema.ValidationErro
 // field should look like.
 var patternHints = map[string]string{
 	"name":                    "use lowercase letters, digits and dashes, starting with a letter or digit",
-	"change.timeout":          "use a Go duration such as 30s, 5m or 1h",
 	"change.steps.*.timeout":  "use a Go duration such as 30s, 5m or 1h",
 	"change.steps.*.starlark": "must be a .star file",
 }

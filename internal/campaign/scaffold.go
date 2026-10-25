@@ -39,8 +39,8 @@ change:
     - name: change
       run: |                       # or a script next to this file: ./scripts/change.sh
         echo "replace me" >/dev/null
+      timeout: 5m                  # this step's limit per repo
   shell: bash
-  timeout: 5m                      # per step
   # env:
   #   KEY: value
 

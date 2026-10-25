@@ -15,11 +15,11 @@ change:
     # composite actions. Refs pinned to a SHA are left for pin-actions.
     - name: upgrade action
       starlark: ./change.star
+      timeout: 1m
   env:
     ACTION: actions/checkout
     FROM: v3
     TO: v4
-  timeout: 1m
 
 pr:
   title: "ci: actions/checkout v4"

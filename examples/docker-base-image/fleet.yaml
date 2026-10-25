@@ -16,11 +16,11 @@ change:
     # names and --platform flags.
     - name: base image
       starlark: ./change.star
+      timeout: 1m
   env:
     IMAGE: node
     FROM_TAG: "18"
     TO_TAG: "22"
-  timeout: 1m
 
 pr:
   title: "build: Node 22 base images"

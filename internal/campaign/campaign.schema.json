@@ -150,12 +150,6 @@
           "additionalProperties": {
             "type": "string"
           }
-        },
-        "timeout": {
-          "description": "Default maximum run time of each step per repo, as a Go duration (`30s`, `5m`).",
-          "type": "string",
-          "pattern": "^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$",
-          "default": "5m"
         }
       }
     },
@@ -396,9 +390,10 @@
           }
         },
         "timeout": {
-          "description": "Maximum run time of this step per repo. Defaults to `change.timeout`.",
+          "description": "Maximum run time of this step per repo, as a Go duration (`30s`, `5m`).",
           "type": "string",
-          "pattern": "^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$"
+          "pattern": "^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$",
+          "default": "5m"
         }
       },
       "oneOf": [
