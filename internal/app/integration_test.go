@@ -40,7 +40,8 @@ targets:
   include:
     repos: [%s]
 change:
-  run: echo %q > .gh-fleet-integration
+  steps:
+    - run: echo %q > .gh-fleet-integration
 pr:
   title: "test: gh fleet integration {{ .Repo.Name }}"
   body: Opened by the gh fleet integration suite; it closes itself.

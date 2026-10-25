@@ -9,11 +9,15 @@ targets:
     files: [.travis.yml]
 
 change:
-  run: ./scripts/remove.sh
+  steps:
+    # Deletes each path in REMOVE that exists; missing ones are skipped, so a
+    # repo without any of them is a no-op. Directories go recursively.
+    - name: remove
+      starlark: ./change.star
+      timeout: 1m
   env:
-    # Space-separated paths; directories are removed recursively.
+    # Space-separated paths.
     REMOVE: ".travis.yml .travis ci/travis-deploy.sh"
-  timeout: 1m
 
 pr:
   title: "ci: remove Travis CI config"

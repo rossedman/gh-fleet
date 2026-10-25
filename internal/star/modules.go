@@ -267,6 +267,13 @@ func reArgs(b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (
 // reModule is regular expressions in Go's RE2 syntax. Replacements use
 // $1 or ${name} for groups.
 var reModule = newModule("re", map[string]builtin{
+	"escape": func(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+		var s string
+		if err := starlark.UnpackPositionalArgs(b.Name(), args, kwargs, 1, &s); err != nil {
+			return nil, err
+		}
+		return starlark.String(regexp.QuoteMeta(s)), nil
+	},
 	"matches": func(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
 		re, s, err := reArgs(b, args, kwargs)
 		if err != nil {

@@ -9,14 +9,16 @@ targets:
     topics: [no-fleet]
 
 change:
-  # Appends each line of ENTRIES to .gitignore unless it is already there.
-  run: ./scripts/gitignore.sh
+  steps:
+    # Appends each line of ENTRIES to .gitignore unless it is already there.
+    - name: gitignore
+      starlark: ./change.star
+      timeout: 1m
   env:
     ENTRIES: |
       .env
       .env.*
       !.env.example
-  timeout: 1m
 
 pr:
   title: "chore: ignore local .env files"

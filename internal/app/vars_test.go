@@ -19,9 +19,10 @@ targets:
   include:
     topics: [service]
 change:
-  run: |
-    echo "team=$FLEET_VAR_TEAM tier=${FLEET_PROP_TIER:-none} tags=$FLEET_VAR_TAGS" >> README.md
-    echo "note=from script" > "$FLEET_OUTPUT/vars"
+  steps:
+    - run: |
+        echo "team=$FLEET_VAR_TEAM tier=${FLEET_PROP_TIER:-none} tags=$FLEET_VAR_TAGS" >> README.md
+        echo "note=from script" > "$FLEET_OUTPUT/vars"
 pr:
   title: "chore: owners for {{ .Repo.Name }} ({{ .Vars.team }})"
   body: "Ping {{ .Vars.oncall }}. {{ .Vars.note }}."

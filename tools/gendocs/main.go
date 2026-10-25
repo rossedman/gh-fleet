@@ -1,6 +1,7 @@
 // Command gendocs writes the generated reference pages of the docs site:
-// one Markdown page per command from the cobra tree, and the campaign file
-// reference from the embedded JSON Schema, so the docs never drift from
+// one Markdown page per command from the cobra tree, the campaign file
+// reference from the embedded JSON Schema, and the Starlark library
+// reference from the library's docstrings, so the docs never drift from
 // the binary.
 package main
 
@@ -17,6 +18,7 @@ import (
 
 	"github.com/rossedman/gh-fleet/cmd"
 	"github.com/rossedman/gh-fleet/internal/campaign"
+	"github.com/rossedman/gh-fleet/internal/star"
 )
 
 // main writes both references under docs/reference, or the directory given
@@ -53,7 +55,65 @@ func run(out string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(out, "campaign.md"), page, 0o644) //nolint:gosec // docs are public
+	if err := os.WriteFile(filepath.Join(out, "campaign.md"), page, 0o644); err != nil { //nolint:gosec // docs are public
+		return err
+	}
+	lib, err := LibMarkdown()
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(out, "starlark-library.md"), lib, 0o644) //nolint:gosec // docs are public
+}
+
+// LibMarkdown renders the reference for the built-in Starlark library:
+// an index of modules, then each module's functions with their
+// signatures and docstrings.
+func LibMarkdown() ([]byte, error) {
+	var docs []star.LibDoc
+	for _, name := range star.LibModules() {
+		src, err := star.LibSource(name)
+		if err != nil {
+			return nil, err
+		}
+		d, err := star.ParseLibDoc(name, src)
+		if err != nil {
+			return nil, err
+		}
+		docs = append(docs, d)
+	}
+	var b bytes.Buffer
+	b.WriteString("---\ntitle: Starlark library reference\n---\n\n")
+	b.WriteString("# Starlark library reference\n\n")
+	b.WriteString("The helpers built into gh fleet, generated from their docstrings. ")
+	b.WriteString("Load them by module, as in `load(\"" + star.LibPrefix + "files.star\", \"ensure_lines\")`; ")
+	b.WriteString("they need no network and are versioned with the binary. ")
+	b.WriteString("See [Starlark changes](../guides/starlark.md) for how scripts run.\n\n")
+	b.WriteString("| Module | What it does |\n| --- | --- |\n")
+	for _, d := range docs {
+		fmt.Fprintf(&b, "| [`%s%s`](#%s) | %s |\n", star.LibPrefix, d.Name, anchor(d.Name), cell(d.Summary))
+	}
+	b.WriteString("\n")
+	for _, d := range docs {
+		fmt.Fprintf(&b, "## %s\n\n", d.Name)
+		b.WriteString(d.Summary + "\n\n")
+		if d.Body != "" {
+			b.WriteString(d.Body + "\n\n")
+		}
+		names := make([]string, len(d.Funcs))
+		for i, f := range d.Funcs {
+			names[i] = `"` + f.Name + `"`
+		}
+		fmt.Fprintf(&b, "```python\nload(\"%s%s\", %s)\n```\n\n", star.LibPrefix, d.Name, strings.Join(names, ", "))
+		for _, f := range d.Funcs {
+			fmt.Fprintf(&b, "### %s.%s\n\n```python\n%s\n```\n\n%s\n\n", strings.TrimSuffix(d.Name, ".star"), f.Name, f.Signature, f.Doc)
+		}
+	}
+	return append(bytes.TrimRight(b.Bytes(), "\n"), '\n'), nil
+}
+
+// anchor is the heading id mkdocs gives a module section.
+func anchor(name string) string {
+	return strings.ReplaceAll(name, ".", "")
 }
 
 // promoteTitles turns the "## gh fleet x" line cobra writes first into a
@@ -182,7 +242,7 @@ func writeObject(b *bytes.Buffer, title, prefix string, n *schemaNode, defs map[
 		switch {
 		case p.Type == "object" && len(p.Properties) > 0:
 			children = append(children, k)
-		case p.Type == "array" && p.Items != nil && len(p.Items.Properties) > 0:
+		case p.Type == "array" && p.Items != nil && len(resolve(p.Items, defs).Properties) > 0:
 			children = append(children, k+"[]")
 		}
 	}
@@ -195,7 +255,7 @@ func writeObject(b *bytes.Buffer, title, prefix string, n *schemaNode, defs map[
 		child := n.Properties[strings.TrimSuffix(k, "[]")]
 		node := resolve(child, defs)
 		if strings.HasSuffix(k, "[]") {
-			items := *node.Items
+			items := *resolve(node.Items, defs)
 			if items.Description == "" {
 				items.Description = "Each entry of `" + strings.TrimSuffix(path, "[]") + "`."
 			}

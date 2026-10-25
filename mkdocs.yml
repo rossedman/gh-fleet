@@ -93,6 +93,7 @@ nav:
       - Examples: examples.md
   - Reference:
       - Campaign file: reference/campaign.md
+      - Starlark library: reference/starlark-library.md
       - Commands:
           - gh fleet: reference/commands/gh_fleet.md
           - apply: reference/commands/gh_fleet_apply.md

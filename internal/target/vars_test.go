@@ -45,7 +45,7 @@ func TestVarsPrecedence(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "v.csv"), []byte("repo,team\nacme/api,from-file\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	yaml := "apiVersion: fleet.gh/v1\nname: v\ntargets: {orgs: [acme]}\nchange: {run: x}\npr: {title: x}\n" +
+	yaml := "apiVersion: fleet.gh/v1\nname: v\ntargets: {orgs: [acme]}\nchange: {steps: [{run: x}]}\npr: {title: x}\n" +
 		"vars:\n  default: {team: default, node: 22, list: [a]}\n  file: v.csv\n  match:\n" +
 		"    - when: {topics: [web]}\n      set: {team: web, node: 20}\n" +
 		"    - when: {languages: [Go], properties: {tier: 1}}\n      set: {node: 18}\n" +

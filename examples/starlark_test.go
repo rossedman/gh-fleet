@@ -1,43 +1,10 @@
 package examples_test
 
 import (
-	"context"
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/rossedman/gh-fleet/internal/campaign"
-	"github.com/rossedman/gh-fleet/internal/star"
 )
-
-// runStar loads a Starlark campaign and runs its change in dir twice,
-// failing if the second run changes anything, and returns the variables
-// the first run set.
-func runStar(t *testing.T, name, dir string) map[string]any {
-	t.Helper()
-	c, err := campaign.Load(filepath.Join(name, "fleet.yaml"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	s, err := star.Load(context.Background(), c.StarlarkFile(), c.Dir(), star.Options{Env: c.Change.Env})
-	if err != nil {
-		t.Fatal(err)
-	}
-	res, err := s.Run(context.Background(), dir, star.RepoInfo{Owner: "acme", Name: "web"}, nil, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	before := snapshot(t, dir)
-	if _, err := s.Run(context.Background(), dir, star.RepoInfo{Owner: "acme", Name: "web"}, nil, 0); err != nil {
-		t.Fatal(err)
-	}
-	for f, content := range snapshot(t, dir) {
-		if before[f] != content {
-			t.Errorf("%s: second run changed %s", name, f)
-		}
-	}
-	return res.Vars
-}
 
 func TestNodeEngines(t *testing.T) {
 	t.Parallel()
@@ -47,7 +14,7 @@ func TestNodeEngines(t *testing.T) {
 		"packages/edge/package.json":  `{"name": "edge", "engines": {"node": ">=24"}}`,
 		"node_modules/x/package.json": `{"name": "x"}`,
 	})
-	vars := runStar(t, "node-engines", dir)
+	vars := runTwice(t, "node-engines", dir)
 	if got := read(t, filepath.Join(dir, "package.json")); got != "{\n  \"name\": \"web\",\n  \"version\": \"1.0.0\",\n  \"engines\": {\n    \"node\": \">=22\",\n    \"npm\": \">=9\"\n  }\n}\n" {
 		t.Errorf("package.json =\n%s", got)
 	}

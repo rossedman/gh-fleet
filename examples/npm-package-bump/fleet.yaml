@@ -10,13 +10,21 @@ targets:
     search: "axios filename:package.json"
 
 change:
-  # Updates PACKAGE to RANGE in every package.json that lists it, and
-  # refreshes package-lock.json without installing or running scripts.
-  run: ./scripts/npm-bump.sh
+  steps:
+    # Sets PACKAGE to RANGE in every package.json that already lists it,
+    # keeping key order and indentation, and records which directories
+    # changed.
+    - name: package.json
+      starlark: ./change.star
+      timeout: 1m
+    # Refreshes package-lock.json in those directories without installing
+    # or running scripts. FLEET_VAR_DIRS comes from the step above.
+    - name: lockfiles
+      run: ./scripts/lockfiles.sh
+      timeout: 10m
   env:
     PACKAGE: axios
     RANGE: "^1.7.9"
-  timeout: 10m
 
 pr:
   title: "build(deps): axios ^1.7.9"

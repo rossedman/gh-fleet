@@ -67,14 +67,42 @@ type Exclude struct {
 	Properties map[string]StringList `yaml:"properties,omitempty" json:"properties,omitempty"`
 }
 
-// Change describes the script run in each repository.
+// Change describes what runs in each repository: an ordered list of steps
+// plus the shell and environment every step inherits.
 type Change struct {
-	// Starlark is a .star file defining change(repo); it runs before Run.
+	Shell string            `yaml:"shell,omitempty" json:"shell,omitempty"`
+	Env   map[string]string `yaml:"env,omitempty" json:"env,omitempty"`
+	Steps []Step            `yaml:"steps" json:"steps"`
+}
+
+// Step is one entry of change.steps. Exactly one of Run or Starlark is set.
+type Step struct {
+	Name string `yaml:"name,omitempty" json:"name,omitempty"`
+	// Run is an inline shell script or the path of a script file.
+	Run string `yaml:"run,omitempty" json:"run,omitempty"`
+	// Starlark is a .star file defining change(repo).
 	Starlark string            `yaml:"starlark,omitempty" json:"starlark,omitempty"`
-	Run      string            `yaml:"run,omitempty" json:"run,omitempty"`
 	Shell    string            `yaml:"shell,omitempty" json:"shell,omitempty"`
 	Env      map[string]string `yaml:"env,omitempty" json:"env,omitempty"`
-	Timeout  Duration          `yaml:"timeout,omitempty" json:"timeout,omitempty"`
+	// Timeout limits this step in each repo; DefaultTimeout when unset.
+	Timeout Duration `yaml:"timeout,omitempty" json:"timeout,omitempty"`
+}
+
+// Label names the step in logs and errors: its name, or #n counting from
+// one.
+func (s Step) Label(i int) string {
+	if s.Name != "" {
+		return s.Name
+	}
+	return fmt.Sprintf("#%d", i+1)
+}
+
+// Kind returns "starlark" or "run".
+func (s Step) Kind() string {
+	if s.Starlark != "" {
+		return "starlark"
+	}
+	return "run"
 }
 
 // PR describes the pull request opened in each repository.
@@ -143,8 +171,14 @@ func (c *Campaign) ApplyDefaults() {
 	if c.Change.Shell == "" {
 		c.Change.Shell = DefaultShell
 	}
-	if c.Change.Timeout == 0 {
-		c.Change.Timeout = Duration(DefaultTimeout)
+	for i := range c.Change.Steps {
+		st := &c.Change.Steps[i]
+		if st.Shell == "" {
+			st.Shell = c.Change.Shell
+		}
+		if st.Timeout == 0 {
+			st.Timeout = Duration(DefaultTimeout)
+		}
 	}
 	if c.PR.Branch == "" {
 		c.PR.Branch = BranchPrefix + c.Name
@@ -175,15 +209,28 @@ func (c *Campaign) Dir() string {
 	return filepath.Dir(c.Path)
 }
 
-// StarlarkFile returns the absolute path of change.starlark, or "".
-func (c *Campaign) StarlarkFile() string {
-	return c.fileRef(c.Change.Starlark)
+// StarlarkFile returns the absolute path of a step's starlark file, or "".
+func (c *Campaign) StarlarkFile(s Step) string {
+	return c.fileRef(s.Starlark)
 }
 
-// ScriptFile returns the absolute path of change.run when it names a file
-// next to the campaign, or "" when change.run is an inline script.
-func (c *Campaign) ScriptFile() string {
-	return c.fileRef(c.Change.Run)
+// ScriptFile returns the absolute path of a step's run value when it names
+// a file next to the campaign, or "" when it is an inline script.
+func (c *Campaign) ScriptFile(s Step) string {
+	return c.fileRef(s.Run)
+}
+
+// StepEnv returns the environment for a step: change.env overlaid with the
+// step's own env.
+func (c *Campaign) StepEnv(s Step) map[string]string {
+	env := make(map[string]string, len(c.Change.Env)+len(s.Env))
+	for k, v := range c.Change.Env {
+		env[k] = v
+	}
+	for k, v := range s.Env {
+		env[k] = v
+	}
+	return env
 }
 
 // fileRef returns the absolute path of v when it is a single-line value

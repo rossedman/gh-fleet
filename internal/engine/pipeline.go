@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strconv"
+	"time"
 
 	"github.com/rossedman/gh-fleet/internal/campaign"
 	"github.com/rossedman/gh-fleet/internal/ghapi"
@@ -53,8 +54,11 @@ type Pipeline struct {
 	CloseNoop bool
 	// Argv is the command run in Exec mode.
 	Argv []string
-	// Script is the compiled change.starlark, if the campaign has one.
-	Script *star.Script
+	// ExecTimeout limits Argv in each repo; zero means none.
+	ExecTimeout time.Duration
+	// Scripts holds the compiled script of each starlark step, by index
+	// into change.steps.
+	Scripts map[int]*star.Script
 }
 
 // NoopComment is posted on a PR closed because its change already landed.
@@ -115,7 +119,8 @@ func (p *Pipeline) Process(ctx context.Context, t target.Target) (state.RepoStat
 	defer closeLog()
 
 	if p.Mode == Exec {
-		res, err := runner.Run(ctx, ws.Dir, p.spec(), p.env(t), logw)
+		spec := runner.Spec{Argv: p.Argv, Env: p.Campaign.Change.Env, Timeout: p.ExecTimeout}
+		res, err := runner.Run(ctx, ws.Dir, spec, p.env(t), logw)
 		rs.Output = string(res.Stdout)
 		if err != nil {
 			return fail(err)
@@ -246,49 +251,70 @@ func (p *Pipeline) apply(ctx context.Context, t target.Target, ws *workspace.Wor
 	return rs, nil
 }
 
-// runChange runs change.starlark, then change.run, in the clone. It
-// returns the shell script's result and the variables either one set, the
-// shell script's winning.
+// runChange runs change.steps in order in the clone. Variables a step
+// sets are visible to the steps after it, and the last commit message a
+// step writes wins. It returns that commit message and every variable the
+// steps set.
 func (p *Pipeline) runChange(ctx context.Context, dir string, t target.Target, log io.Writer) (runner.Result, map[string]any, error) {
 	extra := map[string]any{}
-	if p.Script != nil {
+	var out runner.Result
+	cur := t
+	for i, st := range p.Campaign.Change.Steps {
+		cur.Vars = maps.Clone(t.Vars)
+		if cur.Vars == nil {
+			cur.Vars = map[string]any{}
+		}
+		maps.Copy(cur.Vars, extra)
+		fmt.Fprintf(log, "## step %s\n", st.Label(i))
+		vars, msg, err := p.runStep(ctx, dir, i, st, cur, log)
+		if err != nil {
+			if len(p.Campaign.Change.Steps) > 1 || st.Name != "" {
+				err = fmt.Errorf("step %s: %w", st.Label(i), err)
+			}
+			return runner.Result{}, nil, err
+		}
+		maps.Copy(extra, vars)
+		if msg != "" {
+			out.CommitMessage = msg
+		}
+	}
+	return out, extra, nil
+}
+
+// runStep runs one step and returns the variables and commit message it
+// set.
+func (p *Pipeline) runStep(ctx context.Context, dir string, i int, st campaign.Step, t target.Target, log io.Writer) (map[string]any, string, error) {
+	if st.Starlark != "" {
+		script := p.Scripts[i]
+		if script == nil {
+			return nil, "", fmt.Errorf("starlark %s was not compiled", st.Starlark)
+		}
 		repo := t.Repo
 		info := star.RepoInfo{
 			Owner: repo.Owner, Name: repo.Name, DefaultBranch: repo.DefaultBranch,
 			Topics: repo.Topics, Language: repo.Language, Properties: repo.Properties, Vars: t.Vars,
 		}
-		r, err := p.Script.Run(ctx, dir, info, log, p.Campaign.Change.Timeout.Std())
+		r, err := script.Run(ctx, dir, info, log, st.Timeout.Std())
 		if err != nil {
-			return runner.Result{}, nil, err
+			return nil, "", err
 		}
-		maps.Copy(extra, r.Vars)
+		return r.Vars, "", nil
 	}
-	if p.Campaign.Change.Run == "" {
-		return runner.Result{}, extra, nil
+	spec := runner.Spec{Shell: st.Shell, Env: p.Campaign.StepEnv(st), Timeout: st.Timeout.Std()}
+	if f := p.Campaign.ScriptFile(st); f != "" {
+		spec.File = f
+	} else {
+		spec.Script = st.Run
 	}
-	res, err := runner.Run(ctx, dir, p.spec(), p.env(t), log)
+	res, err := runner.Run(ctx, dir, spec, p.env(t), log)
 	if err != nil {
-		return res, nil, err
+		return nil, "", err
 	}
+	vars := make(map[string]any, len(res.Vars))
 	for k, v := range res.Vars {
-		extra[k] = v
+		vars[k] = v
 	}
-	return res, extra, nil
-}
-
-// spec builds the runner spec for the current mode.
-func (p *Pipeline) spec() runner.Spec {
-	c := p.Campaign.Change
-	s := runner.Spec{Shell: c.Shell, Env: c.Env, Timeout: c.Timeout.Std()}
-	switch {
-	case p.Mode == Exec:
-		s.Argv = p.Argv
-	case p.Campaign.ScriptFile() != "":
-		s.File = p.Campaign.ScriptFile()
-	default:
-		s.Script = c.Run
-	}
-	return s
+	return vars, res.CommitMessage, nil
 }
 
 // env returns the FLEET_* variables for a repo: the fixed ones, then

@@ -3,13 +3,18 @@
 package examples_test
 
 import (
+	"bytes"
+	"context"
+	"fmt"
+	"maps"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/rossedman/gh-fleet/internal/campaign"
+	"github.com/rossedman/gh-fleet/internal/runner"
+	"github.com/rossedman/gh-fleet/internal/star"
 )
 
 // scratch writes files into a temp dir and returns it.
@@ -28,22 +33,84 @@ func scratch(t *testing.T, files map[string]string) string {
 	return dir
 }
 
-// runScript loads a campaign and runs its script in dir.
-func runScript(t *testing.T, name, dir string, env ...string) {
+// runSteps loads a campaign and runs its steps in order in dir, the way
+// gh fleet does: each step sees the variables earlier steps set. env holds
+// KEY=VALUE pairs: FLEET_REPO names the repo, FLEET_VAR_<NAME> sets a
+// variable, and any other key overrides the campaign's env. It returns
+// the variables the steps set.
+func runSteps(t *testing.T, name, dir string, env ...string) (map[string]any, error) {
 	t.Helper()
 	c, err := campaign.Load(filepath.Join(name, "fleet.yaml"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command(c.Change.Shell, c.ScriptFile())
-	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), env...)
-	for k, v := range c.Change.Env {
-		cmd.Env = append(cmd.Env, k+"="+v)
+	info := star.RepoInfo{Owner: "acme", Name: "web", Vars: map[string]any{}}
+	overrides := map[string]string{}
+	for _, kv := range env {
+		k, v, _ := strings.Cut(kv, "=")
+		switch {
+		case k == "FLEET_REPO":
+			info.Owner, info.Name, _ = strings.Cut(v, "/")
+		case strings.HasPrefix(k, "FLEET_VAR_"):
+			info.Vars[strings.ToLower(strings.TrimPrefix(k, "FLEET_VAR_"))] = v
+		default:
+			overrides[k] = v
+		}
 	}
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("%s: %v\n%s", name, err, out)
+	set := map[string]any{}
+	ctx := context.Background()
+	for _, st := range c.Change.Steps {
+		stepEnv := c.StepEnv(st)
+		maps.Copy(stepEnv, overrides)
+		vars := maps.Clone(info.Vars)
+		maps.Copy(vars, set)
+		if st.Starlark != "" {
+			s, err := star.Load(ctx, c.StarlarkFile(st), c.Dir(), star.Options{Env: stepEnv})
+			if err != nil {
+				t.Fatal(err)
+			}
+			run := info
+			run.Vars = vars
+			res, err := s.Run(ctx, dir, run, nil, 0)
+			if err != nil {
+				return nil, err
+			}
+			maps.Copy(set, res.Vars)
+			continue
+		}
+		spec := runner.Spec{Shell: st.Shell, File: c.ScriptFile(st), Env: stepEnv}
+		if spec.File == "" {
+			spec.Script = st.Run
+		}
+		fleetEnv := []string{"FLEET_REPO=" + info.Owner + "/" + info.Name}
+		for k, v := range vars {
+			fleetEnv = append(fleetEnv, "FLEET_VAR_"+campaign.EnvName(k)+"="+campaign.FormatValue(v))
+		}
+		for _, kv := range env {
+			if k, _, _ := strings.Cut(kv, "="); k == "PATH" {
+				fleetEnv = append(fleetEnv, kv)
+			}
+		}
+		var log bytes.Buffer
+		res, err := runner.Run(ctx, dir, spec, fleetEnv, &log)
+		if err != nil {
+			return nil, fmt.Errorf("%w\n%s", err, log.String())
+		}
+		for k, v := range res.Vars {
+			set[k] = v
+		}
 	}
+	return set, nil
+}
+
+// runScript runs a campaign's steps in dir and fails the test on error.
+func runScript(t *testing.T, name, dir string, env ...string) map[string]any {
+	t.Helper()
+	vars, err := runSteps(t, name, dir, env...)
+	if err != nil {
+		t.Fatalf("%s: %v", name, err)
+	}
+	return vars
 }
 
 // read returns a file's content.
@@ -67,8 +134,13 @@ func TestExamplesLoad(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if c.ScriptFile() == "" && c.StarlarkFile() == "" {
-			t.Errorf("%s: change is neither a script file nor a Starlark file", f)
+		for i, st := range c.Change.Steps {
+			if c.ScriptFile(st) == "" && c.StarlarkFile(st) == "" {
+				t.Errorf("%s: step %s is neither a script file nor a Starlark file", f, st.Label(i))
+			}
+			if st.Name == "" {
+				t.Errorf("%s: step %d has no name", f, i)
+			}
 		}
 		vars := map[string]any{"node": 22, "previous": "unset"}
 		for k, v := range c.Vars.Default {
@@ -125,7 +197,10 @@ func TestPinActions(t *testing.T) {
 func TestAddDependabot(t *testing.T) {
 	t.Parallel()
 	dir := scratch(t, map[string]string{"go.mod": "module x\n", "Dockerfile": "FROM scratch\n", ".github/workflows/ci.yml": "on: push\n"})
-	runScript(t, "add-dependabot", dir)
+	vars := runTwice(t, "add-dependabot", dir)
+	if vars["ecosystems"] != "gomod, docker, github-actions" {
+		t.Errorf("ecosystems = %v", vars["ecosystems"])
+	}
 	got := read(t, filepath.Join(dir, ".github/dependabot.yml"))
 	for _, want := range []string{"package-ecosystem: gomod", "package-ecosystem: docker", "package-ecosystem: github-actions", `prefix: "ci(deps)"`, `prefix: "build(deps)"`} {
 		if !strings.Contains(got, want) {
@@ -155,8 +230,8 @@ func TestBumpGoVersion(t *testing.T) {
 		"tools/go.mod":             "module y\n\ngo 1.28\n",
 		".github/workflows/ci.yml": "      - uses: actions/setup-go@v5\n        with:\n          go-version: '1.22'\n",
 	})
-	runScript(t, "bump-go-version", dir)
-	if got := read(t, filepath.Join(dir, "go.mod")); got != "module x\n\ngo 1.27.3\n\n" {
+	runTwice(t, "bump-go-version", dir)
+	if got := read(t, filepath.Join(dir, "go.mod")); got != "module x\n\ngo 1.27.3\n" {
 		t.Errorf("go.mod = %q", got)
 	}
 	if got := read(t, filepath.Join(dir, "tools/go.mod")); !strings.Contains(got, "go 1.28") {

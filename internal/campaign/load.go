@@ -166,20 +166,23 @@ func (c *Campaign) semanticErrors(filename string, doc *yaml.Node) []FieldError 
 	return out
 }
 
-// checkFiles reports change.run and pr.body values that look like paths
+// checkFiles reports step run and pr.body values that look like paths
 // but do not exist next to the campaign file, and loads vars.file.
 func (c *Campaign) checkFiles(filename string) error {
 	var out []FieldError
-	for _, f := range []struct {
-		path []string
-		v    string
-	}{{[]string{"change", "run"}, c.Change.Run}, {[]string{"pr", "body"}, c.PR.Body}} {
-		if looksLikePath(f.v) && c.fileRef(f.v) == "" {
-			out = append(out, FieldError{File: filename, Path: strings.Join(f.path, "."), Message: fmt.Sprintf("file %q not found next to the campaign file", f.v)})
+	notFound := func(path, v string) {
+		out = append(out, FieldError{File: filename, Path: path, Message: fmt.Sprintf("file %q not found next to the campaign file", v)})
+	}
+	for i, st := range c.Change.Steps {
+		if looksLikePath(st.Run) && c.fileRef(st.Run) == "" {
+			notFound(fmt.Sprintf("change.steps.%d.run", i), st.Run)
+		}
+		if st.Starlark != "" && c.StarlarkFile(st) == "" {
+			notFound(fmt.Sprintf("change.steps.%d.starlark", i), st.Starlark)
 		}
 	}
-	if c.Change.Starlark != "" && c.StarlarkFile() == "" {
-		out = append(out, FieldError{File: filename, Path: "change.starlark", Message: fmt.Sprintf("file %q not found next to the campaign file", c.Change.Starlark)})
+	if looksLikePath(c.PR.Body) && c.fileRef(c.PR.Body) == "" {
+		notFound("pr.body", c.PR.Body)
 	}
 	if err := c.loadVarsFile(); err != nil {
 		out = append(out, FieldError{File: filename, Path: "vars.file", Message: fmt.Sprintf("%s: %v", c.Vars.File, err)})
@@ -315,24 +318,25 @@ func schemaErrors(filename string, doc *yaml.Node, ve *jsonschema.ValidationErro
 			})
 			return
 		}
-		// "Needs one of these keys" fails once per alternative too.
-		if _, ok := e.ErrorKind.(*kind.AnyOf); ok {
-			if missing := requiredAlternatives(e); len(missing) > 0 {
-				add(FieldError{
-					File: filename, Line: parent.Line, Column: parent.Column, Path: path,
-					Message: "needs " + strings.Join(missing, ", ") + ", or both",
-				})
-				return
-			}
-		}
 		if _, ok := e.ErrorKind.(*kind.Pattern); ok {
-			if hint, ok := patternHints[path]; ok {
+			if hint, ok := patternHints[hintKey(e.InstanceLocation)]; ok {
 				add(FieldError{File: filename, Line: parent.Line, Column: parent.Column, Path: path, Message: hint})
 				return
 			}
 		}
 		// "One of these types" fails once per alternative; report it once.
-		if _, ok := e.ErrorKind.(*kind.OneOf); ok {
+		if one, ok := e.ErrorKind.(*kind.OneOf); ok {
+			if len(one.Subschemas) > 1 && len(e.Causes) == 0 {
+				add(FieldError{File: filename, Line: parent.Line, Column: parent.Column, Path: path, Message: "set only one of 'run' or 'starlark'"})
+				return
+			}
+			if missing := requiredAlternatives(e); len(missing) > 0 {
+				add(FieldError{
+					File: filename, Line: parent.Line, Column: parent.Column, Path: path,
+					Message: "needs " + strings.Join(missing, " or "),
+				})
+				return
+			}
 			if got, want, ok := typeAlternatives(e); ok {
 				add(FieldError{
 					File: filename, Line: parent.Line, Column: parent.Column, Path: path,
@@ -379,9 +383,21 @@ func schemaErrors(filename string, doc *yaml.Node, ve *jsonschema.ValidationErro
 // patternHints replace a regular expression in an error with what the
 // field should look like.
 var patternHints = map[string]string{
-	"name":            "use lowercase letters, digits and dashes, starting with a letter or digit",
-	"change.timeout":  "use a Go duration such as 30s, 5m or 1h",
-	"change.starlark": "must be a .star file",
+	"name":                    "use lowercase letters, digits and dashes, starting with a letter or digit",
+	"change.steps.*.timeout":  "use a Go duration such as 30s, 5m or 1h",
+	"change.steps.*.starlark": "must be a .star file",
+}
+
+// hintKey joins a location with list indexes replaced by "*".
+func hintKey(loc []string) string {
+	parts := make([]string, len(loc))
+	for i, seg := range loc {
+		if _, err := strconv.Atoi(seg); err == nil {
+			seg = "*"
+		}
+		parts[i] = seg
+	}
+	return strings.Join(parts, ".")
 }
 
 // requiredAlternatives returns the quoted keys of an anyOf whose every

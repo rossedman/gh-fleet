@@ -121,7 +121,7 @@ func newFixture(t *testing.T, mode Mode, run string) *fixture {
 	env := testutil.GitEnv(t)
 	remote := testutil.NewRemote(t, env, map[string]string{"README.md": "hello\n"})
 	gh := fake.New()
-	camp := &campaign.Campaign{Name: "fx", Change: campaign.Change{Run: run}, PR: campaign.PR{Title: "t {{ .Repo.Name }}", Labels: []string{"fleet"}}}
+	camp := &campaign.Campaign{Name: "fx", Change: campaign.Change{Steps: []campaign.Step{{Run: run}}}, PR: campaign.PR{Title: "t {{ .Repo.Name }}", Labels: []string{"fleet"}}}
 	camp.ApplyDefaults()
 	logs := t.TempDir()
 	f := &fixture{
@@ -267,6 +267,46 @@ func TestPipelinePushRejected(t *testing.T) {
 	}
 	rs, _ := f.pipe.Process(context.Background(), f.target)
 	if rs.Status != state.Failed || !strings.Contains(rs.LastError, "git push") || f.pipe.PRs.OpenCount() != 0 {
+		t.Fatalf("rs = %+v", rs)
+	}
+}
+
+func TestPipelineSteps(t *testing.T) {
+	t.Parallel()
+	f := newFixture(t, Apply, `echo "from=first" > "$FLEET_OUTPUT/vars"; echo "first message" > "$FLEET_OUTPUT/commit-message"; echo a >> README.md`)
+	camp := f.pipe.Campaign
+	camp.PR.Title = "t {{ .Vars.from }} {{ .Vars.seen }}"
+	camp.Change.Steps = append(camp.Change.Steps,
+		campaign.Step{Name: "second", Run: `echo "seen=$FLEET_VAR_FROM" > "$FLEET_OUTPUT/vars"; echo b >> README.md`},
+		campaign.Step{Run: `echo "last message" > "$FLEET_OUTPUT/commit-message"`},
+	)
+	camp.ApplyDefaults()
+	rs, err := f.pipe.Process(context.Background(), f.target)
+	if err != nil || rs.Status != state.PROpen {
+		t.Fatalf("rs = %+v, %v", rs, err)
+	}
+	if p := f.gh.PRs[0]; p.Title != "t first first" {
+		t.Fatalf("title = %q", p.Title)
+	}
+	if got := f.remote.Show("fleet/fx", "README.md"); got != "hello\na\nb" {
+		t.Fatalf("README = %q", got)
+	}
+	if msg := strings.Join(f.remote.Log("fleet/fx"), "\n"); !strings.Contains(msg, "last message") {
+		t.Fatalf("commit message = %q", msg)
+	}
+	if b, _ := os.ReadFile(filepath.Join(f.logs, "acme_api.log")); !strings.Contains(string(b), "## step second") || !strings.Contains(string(b), "## step #3") {
+		t.Fatalf("log does not name steps:\n%s", b)
+	}
+
+	f = newFixture(t, Plan, "echo a >> README.md")
+	f.pipe.Campaign.Change.Steps = append(f.pipe.Campaign.Change.Steps, campaign.Step{Name: "boom", Run: "exit 3"})
+	f.pipe.Campaign.ApplyDefaults()
+	if rs, _ := f.pipe.Process(context.Background(), f.target); rs.Status != state.Failed || !strings.HasPrefix(rs.LastError, "step boom: ") {
+		t.Fatalf("rs = %+v", rs)
+	}
+	f = newFixture(t, Plan, "")
+	f.pipe.Campaign.Change.Steps = []campaign.Step{{Starlark: "x.star"}}
+	if rs, _ := f.pipe.Process(context.Background(), f.target); rs.Status != state.Failed || !strings.Contains(rs.LastError, "not compiled") {
 		t.Fatalf("rs = %+v", rs)
 	}
 }

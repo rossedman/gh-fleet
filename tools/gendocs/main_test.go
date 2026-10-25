@@ -15,7 +15,7 @@ func TestRunWritesEveryPage(t *testing.T) {
 	if err := run(dir); err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"campaign.md", "commands/gh_fleet.md", "commands/gh_fleet_apply.md", "commands/gh_fleet_exec.md"} {
+	for _, name := range []string{"campaign.md", "starlark-library.md", "commands/gh_fleet.md", "commands/gh_fleet_apply.md", "commands/gh_fleet_exec.md"} {
 		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
 			t.Errorf("%s not written", name)
 		}
@@ -42,6 +42,7 @@ func TestSchemaMarkdown(t *testing.T) {
 		"At least 0.",
 		"| `base` | string | \"\" |",
 		"## `pr.commit`",
+		"## `change.steps[]`",
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("reference missing %q", want)
@@ -52,5 +53,28 @@ func TestSchemaMarkdown(t *testing.T) {
 	}
 	if typeOf(&schemaNode{}, nil) != "-" || cell("a|b\nc") != `a\|b c` {
 		t.Fatal("helpers")
+	}
+}
+
+func TestLibMarkdown(t *testing.T) {
+	t.Parallel()
+	b, err := LibMarkdown()
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := string(b)
+	for _, want := range []string{
+		"| [`@fleet//files.star`](#filesstar) |",
+		"## gha.star",
+		"### files.ensure_lines",
+		"ensure_lines(repo, path, lines, header = None)",
+		`load("@fleet//docker.star", "dockerfiles", "bump_base_image")`,
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("library reference missing %q", want)
+		}
+	}
+	if strings.Contains(page, "._lines") {
+		t.Error("private helpers documented")
 	}
 }

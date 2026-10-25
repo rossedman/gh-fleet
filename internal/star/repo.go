@@ -123,7 +123,11 @@ func frozen(v starlark.Value, err error) (starlark.Value, error) {
 func localPath(fn, p string) (string, error) {
 	local := filepath.FromSlash(p)
 	if p == "" || !filepath.IsLocal(local) {
-		return "", fmt.Errorf("%s: %q is not a path inside the repo", fn, p)
+		where := "the repo"
+		if strings.HasPrefix(fn, "campaign.") {
+			where = "the campaign directory"
+		}
+		return "", fmt.Errorf("%s: %q is not a path inside %s", fn, p, where)
 	}
 	// Clean before looking at the first segment, so ./.git and a/../.git
 	// are caught too.

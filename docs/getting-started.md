@@ -49,8 +49,10 @@ targets:
     files: [.github/workflows]
 
 change:
-  run: ./scripts/pin.sh
-  timeout: 5m
+  steps:
+    - name: pin
+      run: ./scripts/pin.sh
+      timeout: 5m
 
 pr:
   title: "ci: pin GitHub Actions to commit SHAs"

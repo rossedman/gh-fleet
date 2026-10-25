@@ -79,9 +79,6 @@ func (a *App) Exec(ctx context.Context, o ExecOptions) error {
 		camp.Vars = loaded.Vars
 	}
 	camp.ApplyDefaults()
-	if o.Timeout > 0 {
-		camp.Change.Timeout = campaign.Duration(o.Timeout)
-	}
 	client, err := a.NewClient(o.WriteRate)
 	if err != nil {
 		return err
@@ -92,7 +89,7 @@ func (a *App) Exec(ctx context.Context, o ExecOptions) error {
 	}
 	p := a.printer(o.Common)
 	progress := a.errPrinter(o.Common)
-	pipe := &engine.Pipeline{Mode: engine.Exec, Campaign: camp, Workspaces: a.workspaces(o.Common), Git: a.Git, Argv: o.Argv}
+	pipe := &engine.Pipeline{Mode: engine.Exec, Campaign: camp, Workspaces: a.workspaces(o.Common), Git: a.Git, Argv: o.Argv, ExecTimeout: o.Timeout}
 	results, fatal := engine.Run(ctx, res.Targets, pipe, engine.Options{
 		Concurrency: concurrency(o.Common, camp),
 		OnResult: func(rs state.RepoState) {

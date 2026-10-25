@@ -10,12 +10,14 @@ targets:
     search: "docs.acme.io"
 
 change:
-  # Replaces FROM with TO, literally (no regex), in every tracked text file.
-  run: ./scripts/replace.sh
+  steps:
+    # Replaces FROM with TO, literally (no regex), in every text file.
+    - name: replace
+      starlark: ./change.star
+      timeout: 2m
   env:
     FROM: "https://docs.acme.io"
     TO: "https://docs.acme.dev"
-  timeout: 2m
 
 pr:
   title: "docs: move links to docs.acme.dev"

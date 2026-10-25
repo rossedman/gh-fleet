@@ -9,10 +9,12 @@ targets:
     topics: [service]
 
 change:
-  # Writes .github/dependabot.yml for the ecosystems it detects. Repos that
-  # already have a config are left alone, so they come out as no-ops.
-  run: ./scripts/dependabot.sh
-  timeout: 1m
+  steps:
+    # Writes .github/dependabot.yml for the ecosystems it detects. Repos that
+    # already have a config are left alone, so they come out as no-ops.
+    - name: dependabot config
+      starlark: ./change.star
+      timeout: 1m
 
 pr:
   title: "build: add Dependabot config"
