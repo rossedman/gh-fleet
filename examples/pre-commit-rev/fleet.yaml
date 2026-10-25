@@ -1,0 +1,29 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: bump-pre-commit-hooks
+description: Move pre-commit-hooks to v5 everywhere
+
+targets:
+  orgs: [acme]
+  include:
+    files: [.pre-commit-config.yaml]
+
+change:
+  steps:
+    # Sets the rev of one hook repository in .pre-commit-config.yaml,
+    # keeping quotes and comments. Repos that don't use it are no-ops.
+    - name: rev
+      starlark: ./change.star
+      timeout: 1m
+  env:
+    HOOKS: https://github.com/pre-commit/pre-commit-hooks
+    REV: v5.0.0
+
+pr:
+  title: "ci: pre-commit-hooks v5.0.0"
+  body: |
+    Updates pre-commit-hooks in {{ .Repo.Name }} from {{ .Vars.previous }}
+    to v5.0.0.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet]

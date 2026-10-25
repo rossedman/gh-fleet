@@ -11,11 +11,17 @@ targets:
 
 change:
   steps:
-    # In every go.mod that requires MODULE: go get MODULE@VERSION, then
-    # go mod tidy. Modules already at or above VERSION are no-ops. A shell
-    # step, since it needs the Go toolchain.
+    # Starlark finds the modules that require MODULE below VERSION.
+    - name: find modules
+      starlark: ./change.star
+      timeout: 1m
+    # The Go toolchain updates them; the step does nothing when none do.
     - name: go get
-      run: ./scripts/go-get.sh
+      run: |
+        set -e
+        for dir in ${FLEET_VAR_DIRS//,/ }; do
+          (cd "$dir" && go get "$MODULE@$VERSION" && go mod tidy)
+        done
       timeout: 10m
   env:
     MODULE: golang.org/x/net

@@ -50,7 +50,11 @@ change:
     - name: package.json
       starlark: ./bump.star        # sets the version, calls repo.set_var("dirs", [...])
     - name: lockfiles
-      run: ./scripts/lockfiles.sh  # reads $FLEET_VAR_DIRS
+      run: |                       # reads $FLEET_VAR_DIRS
+        set -e
+        for dir in ${FLEET_VAR_DIRS//,/ }; do
+          (cd "$dir" && npm install --package-lock-only --ignore-scripts)
+        done
 ```
 
 Variables a step sets, with `repo.set_var` or `$FLEET_OUTPUT/vars`, are visible to every later step: as `repo.vars` in Starlark and `FLEET_VAR_<NAME>` in shell. [`examples/npm-package-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/npm-package-bump) works this way.
@@ -126,12 +130,18 @@ gh fleet ships a library of helpers for the changes campaigns make most. It is e
 | Module | Helpers |
 | --- | --- |
 | `@fleet//files.star` | `ensure_lines`, `remove_lines`, `replace_all`, `write_if_missing`, `sync` |
-| `@fleet//gha.star` | `workflows`, `action_files`, `bump_action`, `set_input`, `ensure_permissions` |
-| `@fleet//docker.star` | `dockerfiles`, `bump_base_image` |
-| `@fleet//gomod.star` | `modules`, `go_version`, `set_go_version` |
+| `@fleet//gha.star` | `workflows`, `action_files`, `bump_action`, `set_input`, `ensure_permissions`, `unpinned`, `pin` |
+| `@fleet//docker.star` | `dockerfiles`, `bump_base_image`, `bump_image` (Compose and Kubernetes YAML) |
+| `@fleet//gomod.star` | `modules`, `go_version`, `set_go_version`, `requires`, `outdated` |
 | `@fleet//npm.star` | `packages`, `read_package`, `write_package`, `set_dependency` |
 | `@fleet//codeowners.star` | `find`, `owners`, `set_owners` |
 | `@fleet//dependabot.star` | `find`, `ecosystems`, `config`, `write_if_missing` |
+| `@fleet//python.star` | `requirements_files`, `set_requirement`, `requires_python`, `set_requires_python` |
+| `@fleet//cargo.star` | `manifests`, `set_dependency`, `rust_version`, `set_rust_version` |
+| `@fleet//terraform.star` | `files`, `set_required_version`, `set_provider_version` |
+| `@fleet//runtime.star` | `version`, `set_version` for `.nvmrc`, `.python-version`, `.tool-versions` and friends |
+| `@fleet//precommit.star` | `revs`, `set_rev` |
+| `@fleet//markdown.star` | `has_section`, `set_section`, `ensure_badge` |
 
 Every helper is idempotent, edits line by line where a YAML round trip would lose comments, and returns what it changed so a script can tell the PR about it:
 

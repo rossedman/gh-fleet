@@ -347,7 +347,7 @@ func TestLibErrors(t *testing.T) {
 		files map[string]string
 		want  string
 	}{
-		"unknown module": {map[string]string{"change.star": "load('@fleet//nope.star', 'x')\n"}, "no built-in module nope.star; have codeowners.star"},
+		"unknown module": {map[string]string{"change.star": "load('@fleet//nope.star', 'x')\n"}, "no built-in module nope.star; have cargo.star, codeowners.star"},
 		"nested":         {map[string]string{"change.star": "load('@fleet//a/b.star', 'x')\n"}, "no built-in module a/b.star"},
 		"bad symbol":     {map[string]string{"change.star": "load('@fleet//files.star', 'nope')\ndef change(repo):\n  pass\n"}, "nope"},
 	} {

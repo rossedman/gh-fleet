@@ -55,7 +55,7 @@ SHELLCHECK ?= shellcheck
 
 lint:
 	gofmt -l . | (! grep .)
-	$(SHELLCHECK) examples/*/scripts/*.sh tools/*.sh
+	$(SHELLCHECK) tools/*.sh
 	$(GOLANGCI) run ./...
 	./tools/check-cmds.sh
 	go run ./tools/doccheck ./...

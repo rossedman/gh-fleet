@@ -90,3 +90,62 @@ def ensure_permissions(repo, permissions = {"contents": "read"}):
         repo.write(path, updated)
         changed.append(path)
     return changed
+
+# A remote action reference: owner/repo, an optional sub-path, then @ref.
+_USES = r"""^(\s*-?\s*uses:\s*["']?)([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)((?:/[^@\s"']*)?)@([^\s"'#]+)(["']?)(.*)$"""
+
+def unpinned(repo):
+    """Returns each remote action used at a ref that is not a commit SHA, as sorted `owner/repo@ref` strings.
+
+    Sub-paths are dropped (`github/codeql-action/init@v3` is listed as
+    `github/codeql-action@v3`), since the ref belongs to the repository.
+    Local actions (`./path`) and `docker://` images are not listed. Pass
+    the list to something that can resolve refs, such as `gh api`, and the
+    results to `pin`.
+    """
+    found = set()
+    for path in action_files(repo):
+        for line in repo.read(path).split("\n"):
+            g = re.groups(_USES, line)
+            if g and not re.matches(r"^[0-9a-f]{40}$", g[3]):
+                found.add(g[1] + "@" + g[3])
+    return sorted(found)
+
+def pin(repo, shas):
+    """Rewrites `uses: owner/repo@ref` to `owner/repo@<sha> # ref` in workflows and local actions.
+
+    `shas` maps `owner/repo@ref`, as `unpinned` lists them, to a full commit
+    SHA. A dict works, and so does a string of space-separated
+    `owner/repo@ref=sha` pairs, which is easy to hand over from a shell
+    step. Refs missing from `shas` are left as they are; the old ref is
+    kept as a comment so Dependabot can still update the pin.
+
+    Returns the paths that changed.
+    """
+    if type(shas) == "string":
+        pairs = {}
+        for item in shas.split():
+            key, _, sha = item.partition("=")
+            pairs[key] = sha
+        shas = pairs
+    for key, sha in shas.items():
+        if not re.matches(r"^[0-9a-f]{40}$", sha):
+            fail("pin: %s resolved to %r, not a commit SHA" % (key, sha))
+    changed = []
+    for path in action_files(repo):
+        content = repo.read(path)
+        out = []
+        for line in content.split("\n"):
+            g = re.groups(_USES, line)
+            if g and g[1] + "@" + g[3] in shas:
+                rest = g[5]
+                comment = " # " + g[3]
+                if re.matches(r"^\s*#", rest):
+                    rest = ""  # replaces an old ref comment
+                line = g[0] + g[1] + g[2] + "@" + shas[g[1] + "@" + g[3]] + g[4] + comment + rest
+            out.append(line)
+        updated = "\n".join(out)
+        if updated != content:
+            repo.write(path, updated)
+            changed.append(path)
+    return changed

@@ -60,8 +60,18 @@ targets:
     topics: [no-fleet]
 change:
   steps:                         # run in order in one clone
-    - run: ./scripts/pin.sh      # a shell script next to this file, or inline
-    # - starlark: ./change.star  # or a sandboxed Starlark edit
+    - name: find refs
+      starlark: ./change.star    # load("@fleet//gha.star", "unpinned")
+    - name: resolve              # shell only where a tool is needed
+      run: |
+        set -e
+        shas=""
+        for ref in ${FLEET_VAR_REFS//,/ }; do
+          shas="$shas $ref=$(gh api "repos/${ref%@*}/commits/${ref#*@}" --jq .sha)"
+        done
+        echo "shas=$shas" >> "$FLEET_OUTPUT/vars"
+    - name: pin
+      starlark: ./pin.star       # load("@fleet//gha.star", "pin")
 pr:
   title: "ci: pin GitHub Actions to commit SHAs"
   body: ./pr-body.md             # a Go template with .Repo and .Campaign
@@ -107,9 +117,11 @@ acme/worker     noop     -                                       -        -
 API quota: core 4,871/5,000 · graphql 4,962/5,000
 ```
 
-[`examples/`](examples/) has fourteen tested campaigns for the changes people
-make most, most of them a few lines of Starlark: syncing standard files, find and replace, dependency and base
-image bumps, action upgrades and SHA pinning, Dependabot, CODEOWNERS,
+[`examples/`](examples/) has twenty-three tested campaigns for the changes people
+make most, each a few lines of Starlark: syncing standard files, find and
+replace, README sections, security policies, Go, npm, Python, Cargo and
+Terraform dependency bumps, Docker and Compose image bumps, runtime versions,
+action upgrades and SHA pinning, pre-commit hooks, Dependabot, CODEOWNERS,
 `.gitignore` entries, read-only workflow tokens, and removing retired config.
 
 ## Commands

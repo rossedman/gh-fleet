@@ -1,0 +1,29 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: python-3-12
+description: Move every Python service to Python 3.12
+
+targets:
+  orgs: [acme]
+  include:
+    languages: [Python]
+
+change:
+  steps:
+    # Updates .python-version, .tool-versions, `requires-python` and the
+    # python-version input of actions/setup-python, wherever each is used.
+    - name: python version
+      starlark: ./change.star
+      timeout: 1m
+  env:
+    PYTHON: "3.12"
+
+pr:
+  title: "build: python 3.12"
+  body: |
+    Moves {{ .Repo.Name }} to Python 3.12: the version files, the
+    `requires-python` floor and the version CI installs.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  draft: true
+  labels: [fleet]

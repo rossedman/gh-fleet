@@ -8,13 +8,73 @@ The helpers built into gh fleet, generated from their docstrings. Load them by m
 
 | Module | What it does |
 | --- | --- |
+| [`@fleet//cargo.star`](#cargostar) | Bump Rust crate dependencies and rust-version in Cargo.toml files. |
 | [`@fleet//codeowners.star`](#codeownersstar) | Find and edit CODEOWNERS files. |
 | [`@fleet//dependabot.star`](#dependabotstar) | Detect package ecosystems and write a Dependabot configuration. |
-| [`@fleet//docker.star`](#dockerstar) | Find Dockerfiles and move base images to a new tag. |
+| [`@fleet//docker.star`](#dockerstar) | Find Dockerfiles and move images to a new tag in Dockerfiles, Compose files and Kubernetes manifests. |
 | [`@fleet//files.star`](#filesstar) | Keep lines in a file, replace text across the repo, and copy files from the campaign directory. |
 | [`@fleet//gha.star`](#ghastar) | Find GitHub Actions workflows, bump action versions, set inputs and add permissions. |
 | [`@fleet//gomod.star`](#gomodstar) | Read and raise the go directive in go.mod files. |
+| [`@fleet//markdown.star`](#markdownstar) | Add or replace sections and badges in Markdown files such as README.md. |
 | [`@fleet//npm.star`](#npmstar) | Find package.json files and edit them as data, keeping key order and indentation. |
+| [`@fleet//precommit.star`](#precommitstar) | Read and bump hook revisions in .pre-commit-config.yaml. |
+| [`@fleet//python.star`](#pythonstar) | Bump pinned Python requirements and the supported Python version. |
+| [`@fleet//runtime.star`](#runtimestar) | Set language versions in version files: .nvmrc, .python-version, .tool-versions and friends. |
+| [`@fleet//terraform.star`](#terraformstar) | Bump Terraform's required_version and provider version constraints. |
+
+## cargo.star
+
+Bump Rust crate dependencies and rust-version in Cargo.toml files.
+
+Edits are line-based, so comments, features and table layout stay as they
+were. Cargo.lock is not touched: follow with a `run` step such as
+`cargo update -p <crate>` when the lockfile is committed.
+
+```python
+load("@fleet//cargo.star", "manifests", "set_dependency", "rust_version", "set_rust_version")
+```
+
+### cargo.manifests
+
+```python
+manifests(repo)
+```
+
+Returns the paths of every Cargo.toml outside target directories.
+
+### cargo.set_dependency
+
+```python
+set_dependency(repo, name, version)
+```
+
+Sets the version of crate `name` wherever a Cargo.toml already depends on it.
+
+Covers `[dependencies]`, `[dev-dependencies]`, `[build-dependencies]`,
+`[workspace.dependencies]` and their `[target.'...'.dependencies]`
+forms, written as `name = "1.0"` or `name = { version = "1.0", ... }`.
+Dependencies given by `path` or `git` alone have no version and are left
+alone.
+
+Returns the paths that changed.
+
+### cargo.rust_version
+
+```python
+rust_version(repo, path = "Cargo.toml")
+```
+
+Returns the `rust-version` of a Cargo.toml, or None.
+
+### cargo.set_rust_version
+
+```python
+set_rust_version(repo, version)
+```
+
+Raises `rust-version` to `version` in every Cargo.toml that sets it, never lowering it.
+
+Returns the paths that changed.
 
 ## codeowners.star
 
@@ -107,10 +167,10 @@ Returns the ecosystems written, or an empty list.
 
 ## docker.star
 
-Find Dockerfiles and move base images to a new tag.
+Find Dockerfiles and move images to a new tag in Dockerfiles, Compose files and Kubernetes manifests.
 
 ```python
-load("@fleet//docker.star", "dockerfiles", "bump_base_image")
+load("@fleet//docker.star", "dockerfiles", "bump_base_image", "bump_image")
 ```
 
 ### docker.dockerfiles
@@ -133,6 +193,21 @@ A variant suffix is kept, so with `from_tag = "18"` and `to_tag = "22"`,
 `node:18-alpine` becomes `node:22-alpine`, while `node:18.2` is not
 touched. `--platform` flags and stage names are kept, and images pinned
 by digest only (`node@sha256:...`) never match.
+
+Returns the paths that changed.
+
+### docker.bump_image
+
+```python
+bump_image(repo, image, from_tag, to_tag, include = ["**/*.yml", "**/*.yaml"], exclude = ["**/node_modules/**"])
+```
+
+Rewrites `image: <image>:<from_tag>` to `<image>:<to_tag>` in YAML files such as docker-compose.yml and Kubernetes manifests.
+
+Matching works like `bump_base_image`: a variant suffix is kept
+(`redis:7-alpine` becomes `redis:8-alpine`), and `redis:7.2` does not
+match `from_tag = "7"`. `image` is the full name as written, including
+any registry, such as `ghcr.io/acme/api`. Quotes are kept.
 
 Returns the paths that changed.
 
@@ -219,7 +294,7 @@ Edits are line-based rather than a YAML round trip, so comments, quoting
 and formatting stay exactly as they were.
 
 ```python
-load("@fleet//gha.star", "workflows", "action_files", "bump_action", "set_input", "ensure_permissions")
+load("@fleet//gha.star", "workflows", "action_files", "bump_action", "set_input", "ensure_permissions", "unpinned", "pin")
 ```
 
 ### gha.workflows
@@ -280,12 +355,42 @@ already set top-level permissions, even broader ones, are left alone.
 
 Returns the paths that changed.
 
+### gha.unpinned
+
+```python
+unpinned(repo)
+```
+
+Returns each remote action used at a ref that is not a commit SHA, as sorted `owner/repo@ref` strings.
+
+Sub-paths are dropped (`github/codeql-action/init@v3` is listed as
+`github/codeql-action@v3`), since the ref belongs to the repository.
+Local actions (`./path`) and `docker://` images are not listed. Pass
+the list to something that can resolve refs, such as `gh api`, and the
+results to `pin`.
+
+### gha.pin
+
+```python
+pin(repo, shas)
+```
+
+Rewrites `uses: owner/repo@ref` to `owner/repo@<sha> # ref` in workflows and local actions.
+
+`shas` maps `owner/repo@ref`, as `unpinned` lists them, to a full commit
+SHA. A dict works, and so does a string of space-separated
+`owner/repo@ref=sha` pairs, which is easy to hand over from a shell
+step. Refs missing from `shas` are left as they are; the old ref is
+kept as a comment so Dependabot can still update the pin.
+
+Returns the paths that changed.
+
 ## gomod.star
 
 Read and raise the go directive in go.mod files.
 
 ```python
-load("@fleet//gomod.star", "modules", "go_version", "set_go_version")
+load("@fleet//gomod.star", "modules", "go_version", "set_go_version", "requires", "outdated")
 ```
 
 ### gomod.modules
@@ -318,6 +423,69 @@ the new version is removed, since the go directive now covers it; a
 newer one is kept.
 
 Returns the paths that changed.
+
+### gomod.requires
+
+```python
+requires(repo, path = "go.mod")
+```
+
+Returns a dict of every module a go.mod requires to its version, single-line and block forms alike.
+
+### gomod.outdated
+
+```python
+outdated(repo, module, version)
+```
+
+Returns the directories of the go.mod files that require `module` below `version`.
+
+The repo root is `.`. Use it to pick where a `run` step should run
+`go get module@version`.
+
+## markdown.star
+
+Add or replace sections and badges in Markdown files such as README.md.
+
+```python
+load("@fleet//markdown.star", "has_section", "set_section", "ensure_badge")
+```
+
+### markdown.has_section
+
+```python
+has_section(repo, path, heading)
+```
+
+Reports whether `path` has a heading with this text, at any level, ignoring case.
+
+### markdown.set_section
+
+```python
+set_section(repo, path, heading, body, level = 2, replace = True)
+```
+
+Makes the section titled `heading` contain `body`.
+
+An existing section, found by heading text at any level, has its
+content replaced up to the next heading of the same or a higher level;
+with `replace = False` it is left as it is. A missing section is
+appended at the end of the file as a level-`level` heading. Headings
+inside code fences are ignored.
+
+Returns True when the file changed.
+
+### markdown.ensure_badge
+
+```python
+ensure_badge(repo, path, badge)
+```
+
+Adds a badge (a line of Markdown such as `[![CI](...)](...)`) under the first heading.
+
+A file that already contains the badge's text anywhere is left alone,
+and a file with no heading gets the badge at the top. Returns True when
+the file changed.
 
 ## npm.star
 
@@ -365,3 +533,163 @@ Sets `name` to `version` in each package.json that already lists it in one of `s
 
 Packages that do not depend on `name` are left alone, so this never
 adds a dependency. Returns the paths that changed.
+
+## precommit.star
+
+Read and bump hook revisions in .pre-commit-config.yaml.
+
+Edits are line-based, so comments and layout stay as they were.
+
+```python
+load("@fleet//precommit.star", "revs", "set_rev")
+```
+
+### precommit.revs
+
+```python
+revs(repo, path = CONFIG)
+```
+
+Returns a dict of each hook repository URL to its `rev`, in file order.
+
+### precommit.set_rev
+
+```python
+set_rev(repo, url, rev, path = CONFIG)
+```
+
+Sets the `rev` of the hook repository `url`, keeping quotes and comments.
+
+`url` matches with or without a trailing `.git`. A config that does
+not use `url` is left alone. Returns True when the file changed.
+
+## python.star
+
+Bump pinned Python requirements and the supported Python version.
+
+Edits are line-based, so comments, ordering and markers in
+requirements files and pyproject.toml stay as they were.
+
+```python
+load("@fleet//python.star", "requirements_files", "set_requirement", "requires_python", "set_requires_python")
+```
+
+### python.requirements_files
+
+```python
+requirements_files(repo)
+```
+
+Returns the paths of every requirements*.txt outside virtualenvs and node_modules.
+
+### python.set_requirement
+
+```python
+set_requirement(repo, name, spec)
+```
+
+Sets the version spec of `name` wherever it is already required.
+
+`spec` is a full PEP 440 specifier such as `==4.2.16` or `>=2.32,<3`.
+It changes requirements*.txt lines and the quoted entries of
+pyproject.toml dependency lists (`"django>=4.2"`), keeping extras such
+as `[socks]`, environment markers and comments. Names match the way pip
+matches them: `Django`, `django` and `DJANGO` are the same package.
+Files that do not mention `name` are left alone.
+
+Returns the paths that changed.
+
+### python.requires_python
+
+```python
+requires_python(repo, path = "pyproject.toml")
+```
+
+Returns the `requires-python` value of a pyproject.toml, or None.
+
+### python.set_requires_python
+
+```python
+set_requires_python(repo, spec, path = "pyproject.toml")
+```
+
+Sets `requires-python` in a pyproject.toml that already has it.
+
+Returns True when the file changed.
+
+## runtime.star
+
+Set language versions in version files: .nvmrc, .python-version, .tool-versions and friends.
+
+```python
+load("@fleet//runtime.star", "version", "set_version")
+```
+
+### runtime.version
+
+```python
+version(repo, runtime)
+```
+
+Returns the version a repo pins for `runtime` (such as "node"), or None.
+
+Dedicated files such as .nvmrc are read before .tool-versions.
+
+### runtime.set_version
+
+```python
+set_version(repo, runtime, version, create = None)
+```
+
+Sets `runtime`'s version in every version file the repo already has.
+
+Updates the dedicated files (.nvmrc and .node-version for node,
+.python-version for python, and so on) and the runtime's line in
+.tool-versions. A repo that pins the runtime nowhere is left alone,
+unless `create` names a file to write, such as ".nvmrc".
+
+Returns the paths that changed.
+
+## terraform.star
+
+Bump Terraform's required_version and provider version constraints.
+
+Edits are line-based, so comments and alignment in .tf files stay as they
+were. .terraform.lock.hcl is not touched; run `terraform init -upgrade`
+in CI or a `run` step to refresh it.
+
+```python
+load("@fleet//terraform.star", "files", "set_required_version", "set_provider_version")
+```
+
+### terraform.files
+
+```python
+files(repo)
+```
+
+Returns the paths of every .tf file outside .terraform directories.
+
+### terraform.set_required_version
+
+```python
+set_required_version(repo, constraint)
+```
+
+Sets every `required_version = "..."` to `constraint`, such as `>= 1.9`.
+
+Returns the paths that changed.
+
+### terraform.set_provider_version
+
+```python
+set_provider_version(repo, source, constraint)
+```
+
+Sets the `version` constraint of the provider whose `source` is `source`, such as `hashicorp/aws`.
+
+Works on `required_providers` entries written on one line
+(`aws = { source = "hashicorp/aws", version = "~> 5.0" }`) or as a block.
+Entries without a `version` are left alone.
+
+Returns the paths that changed.
