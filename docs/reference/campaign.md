@@ -18,7 +18,7 @@ Schema URL: `https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/
 | `name` (required) | string |  | The campaign's identity. It derives the branch name and the PR marker, so renaming it starts a new campaign. Lowercase letters, digits and dashes. |
 | `description` | string |  | Free-form description, available to the PR body template as `.Campaign.Description`. |
 | `targets` (required) | object |  | Which repositories the campaign touches. Needs `orgs`, `include.repos`, or both. |
-| `change` (required) | object |  | What to run in each repository. |
+| `change` (required) | object |  | What to change in each repository: a Starlark script (`starlark`), a shell script (`run`), or both, in that order. At least one is required. |
 | `pr` (required) | object |  | How the pull request is opened. |
 | `vars` | object |  | Per-repo variables, available to PR templates as `.Vars` and to scripts as `FLEET_VAR_<NAME>`. Values are built from `default`, then every matching `match` rule in order, then the repo's row in `file`; later sources win. |
 | `limits` | object |  | Safety limits for a run. |
@@ -60,13 +60,14 @@ Filters a candidate must pass. Keys combine with AND; values within a key combin
 
 ## `change`
 
-What to run in each repository.
+What to change in each repository: a Starlark script (`starlark`), a shell script (`run`), or both, in that order. At least one is required.
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
 | `env` | map of string |  | Extra environment variables for the script. |
-| `run` (required) | string |  | A script path relative to the campaign file, or an inline script. Runs with the repo root as working directory. |
+| `run` | string |  | A shell script path relative to the campaign file, or an inline script. Runs with the repo root as working directory, after `starlark` when both are set. |
 | `shell` | string | `bash` | Shell used to run the script. |
+| `starlark` | string |  | A Starlark file relative to the campaign file that defines `change(repo)`. It edits files through `repo` with no shell or network access, and runs before `run` when both are set. |
 | `timeout` | string | `5m` | Maximum run time per repo, as a Go duration (`30s`, `5m`). |
 
 ## `pr`

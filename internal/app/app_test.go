@@ -805,3 +805,9 @@ func TestHelpers(t *testing.T) {
 		t.Fatal("plural")
 	}
 }
+
+// readFile returns a file's content as a string.
+func readFile(path string) (string, error) {
+	b, err := os.ReadFile(path)
+	return string(b), err
+}

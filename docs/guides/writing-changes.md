@@ -6,6 +6,9 @@ title: Writing changes
 
 The change is a script. gh fleet runs it in a fresh clone of each repo and turns whatever it leaves behind into a commit and a pull request. This guide is the contract between your script and gh fleet.
 
+!!! tip "Prefer Starlark for file edits"
+    A change that only edits files (JSON, YAML, version bumps, adding lines) is often simpler and more portable as a [Starlark change](starlark.md): no shell quirks, no tools to install, and nothing it can do outside the clone. This page covers shell scripts, set with `change.run`.
+
 ## The contract
 
 - The script runs with the **repo root as its working directory**, in a clean, shallow clone of the base branch with the campaign branch checked out.

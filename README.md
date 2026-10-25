@@ -135,6 +135,11 @@ Common flags: `--repo owner/name` (limit to some repos), `--concurrency N`,
   marker in their body, so re-running `apply` updates them, and `status` is
   right even if local state is deleted. Merged PRs are skipped; closed ones are
   left alone unless you pass `--reopen`.
+- **Shell or Starlark.** Write the change as any script, or as a sandboxed
+  [Starlark](https://rossedman.github.io/gh-fleet/guides/starlark/) change
+  that edits files through a `repo` object with JSON, YAML, semver and regex
+  helpers, no shell or network, and helpers shared from other repos by
+  pinned commit.
 - **Per-repo variables.** Give repos different values (owning team, on-call
   channel, target version) from defaults, match rules, a CSV, or the org's
   custom properties. They reach scripts as `FLEET_VAR_*` and PR text as

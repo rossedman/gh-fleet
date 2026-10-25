@@ -18,6 +18,7 @@ import (
 	"github.com/rossedman/gh-fleet/internal/ghapi"
 	"github.com/rossedman/gh-fleet/internal/gitops"
 	"github.com/rossedman/gh-fleet/internal/render"
+	"github.com/rossedman/gh-fleet/internal/star"
 	"github.com/rossedman/gh-fleet/internal/state"
 	"github.com/rossedman/gh-fleet/internal/target"
 	"github.com/rossedman/gh-fleet/internal/ui"
@@ -41,6 +42,10 @@ type App struct {
 	Git        gitops.Git
 	// Confirm asks a yes/no question; only called when Interactive.
 	Confirm func(title string) (bool, error)
+	// LibCache holds Starlark libraries loaded from other repositories.
+	LibCache string
+	// LibURL overrides the clone URL of those libraries (for tests).
+	LibURL func(host, owner, repo string) string
 }
 
 // Default wires the real GitHub client, state dir, cache and git.
@@ -61,6 +66,7 @@ func Default(out, errOut io.Writer, in io.Reader, interactive, color bool) (*App
 		Store:      &state.Store{Dir: stateDir},
 		Cache:      &target.Cache{Dir: filepath.Join(cacheDir, "gh-fleet", "repos")},
 		Workspaces: &workspace.Manager{},
+		LibCache:   filepath.Join(cacheDir, "gh-fleet", "starlark"),
 		Confirm: func(title string) (bool, error) {
 			return ui.Confirm(in, errOut, title)
 		},
@@ -166,6 +172,19 @@ func (a *App) LoadCampaign(c Common) (*campaign.Campaign, error) {
 		}
 		return campaign.Load(campaign.DefaultFile)
 	}
+}
+
+// script compiles and checks a campaign's change.starlark, fetching any
+// libraries it loads. It returns nil when the campaign has none.
+func (a *App) script(ctx context.Context, camp *campaign.Campaign) (*star.Script, error) {
+	if camp.Change.Starlark == "" {
+		return nil, nil
+	}
+	s, err := star.Load(ctx, camp.StarlarkFile(), camp.Dir(), star.Options{CacheDir: a.LibCache, Git: a.Git, RemoteURL: a.LibURL, Env: camp.Change.Env})
+	if err != nil {
+		return nil, fmt.Errorf("change.starlark: %w", err)
+	}
+	return s, nil
 }
 
 // resolve resolves a campaign's targets, applies --repo and works out each

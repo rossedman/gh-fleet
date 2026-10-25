@@ -16,6 +16,7 @@ import (
 	"github.com/rossedman/gh-fleet/internal/gitops"
 	"github.com/rossedman/gh-fleet/internal/pr"
 	"github.com/rossedman/gh-fleet/internal/runner"
+	"github.com/rossedman/gh-fleet/internal/star"
 	"github.com/rossedman/gh-fleet/internal/state"
 	"github.com/rossedman/gh-fleet/internal/target"
 	"github.com/rossedman/gh-fleet/internal/workspace"
@@ -52,6 +53,8 @@ type Pipeline struct {
 	CloseNoop bool
 	// Argv is the command run in Exec mode.
 	Argv []string
+	// Script is the compiled change.starlark, if the campaign has one.
+	Script *star.Script
 }
 
 // NoopComment is posted on a PR closed because its change already landed.
@@ -111,8 +114,8 @@ func (p *Pipeline) Process(ctx context.Context, t target.Target) (state.RepoStat
 	logw, closeLog := p.openLog(repo.FullName())
 	defer closeLog()
 
-	res, err := runner.Run(ctx, ws.Dir, p.spec(), p.env(t), logw)
 	if p.Mode == Exec {
+		res, err := runner.Run(ctx, ws.Dir, p.spec(), p.env(t), logw)
 		rs.Output = string(res.Stdout)
 		if err != nil {
 			return fail(err)
@@ -120,6 +123,7 @@ func (p *Pipeline) Process(ctx context.Context, t target.Target) (state.RepoStat
 		rs.Status = state.Done
 		return rs, nil
 	}
+	res, extra, err := p.runChange(ctx, ws.Dir, t, logw)
 	if err != nil {
 		return fail(err)
 	}
@@ -138,17 +142,17 @@ func (p *Pipeline) Process(ctx context.Context, t target.Target) (state.RepoStat
 			rs.Detail = "updates existing branch"
 		}
 		// Render the PR now, so a missing variable shows up in plan.
-		if _, err := p.content(t, res); err != nil {
+		if _, err := p.content(t, res, extra); err != nil {
 			return fail(err)
 		}
 		return rs, nil
 	}
 
-	return p.apply(ctx, t, ws, res, existing, rs, base)
+	return p.apply(ctx, t, ws, res, extra, existing, rs, base)
 }
 
 // apply commits, pushes and syncs the PR for a repo whose script ran.
-func (p *Pipeline) apply(ctx context.Context, t target.Target, ws *workspace.Workspace, res runner.Result, existing *ghapi.PR, rs state.RepoState, base string) (state.RepoState, error) {
+func (p *Pipeline) apply(ctx context.Context, t target.Target, ws *workspace.Workspace, res runner.Result, extra map[string]any, existing *ghapi.PR, rs state.RepoState, base string) (state.RepoState, error) {
 	repo := t.Repo
 	fail := func(err error) (state.RepoState, error) {
 		rs.Status = state.Failed
@@ -161,7 +165,7 @@ func (p *Pipeline) apply(ctx context.Context, t target.Target, ws *workspace.Wor
 
 	// Render everything before committing, so a template error never
 	// leaves a pushed branch behind.
-	c, err := p.content(t, res)
+	c, err := p.content(t, res, extra)
 	if err != nil {
 		return fail(err)
 	}
@@ -242,6 +246,36 @@ func (p *Pipeline) apply(ctx context.Context, t target.Target, ws *workspace.Wor
 	return rs, nil
 }
 
+// runChange runs change.starlark, then change.run, in the clone. It
+// returns the shell script's result and the variables either one set, the
+// shell script's winning.
+func (p *Pipeline) runChange(ctx context.Context, dir string, t target.Target, log io.Writer) (runner.Result, map[string]any, error) {
+	extra := map[string]any{}
+	if p.Script != nil {
+		repo := t.Repo
+		info := star.RepoInfo{
+			Owner: repo.Owner, Name: repo.Name, DefaultBranch: repo.DefaultBranch,
+			Topics: repo.Topics, Language: repo.Language, Properties: repo.Properties, Vars: t.Vars,
+		}
+		r, err := p.Script.Run(ctx, dir, info, log, p.Campaign.Change.Timeout.Std())
+		if err != nil {
+			return runner.Result{}, nil, err
+		}
+		maps.Copy(extra, r.Vars)
+	}
+	if p.Campaign.Change.Run == "" {
+		return runner.Result{}, extra, nil
+	}
+	res, err := runner.Run(ctx, dir, p.spec(), p.env(t), log)
+	if err != nil {
+		return res, nil, err
+	}
+	for k, v := range res.Vars {
+		extra[k] = v
+	}
+	return res, extra, nil
+}
+
 // spec builds the runner spec for the current mode.
 func (p *Pipeline) spec() runner.Spec {
 	c := p.Campaign.Change
@@ -285,18 +319,16 @@ type prContent struct {
 }
 
 // content renders the PR title, body, commit message, labels and
-// reviewers for a repo. Values the script wrote to $FLEET_OUTPUT/vars
-// override the campaign's variables, and a commit message the script wrote
-// overrides the template.
-func (p *Pipeline) content(t target.Target, res runner.Result) (prContent, error) {
+// reviewers for a repo. extra (values the change set with repo.set_var or
+// wrote to $FLEET_OUTPUT/vars) overrides the campaign's variables, and a
+// commit message the script wrote overrides the template.
+func (p *Pipeline) content(t target.Target, res runner.Result, extra map[string]any) (prContent, error) {
 	repo := t.Repo
 	vars := maps.Clone(t.Vars)
 	if vars == nil {
 		vars = map[string]any{}
 	}
-	for k, v := range res.Vars {
-		vars[k] = v
-	}
+	maps.Copy(vars, extra)
 	data := campaign.RepoData{
 		Owner: repo.Owner, Name: repo.Name, FullName: repo.FullName(), DefaultBranch: repo.DefaultBranch,
 		Topics: repo.Topics, Language: repo.Language, Properties: repo.Properties, Vars: vars,

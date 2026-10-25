@@ -69,10 +69,12 @@ type Exclude struct {
 
 // Change describes the script run in each repository.
 type Change struct {
-	Run     string            `yaml:"run" json:"run"`
-	Shell   string            `yaml:"shell,omitempty" json:"shell,omitempty"`
-	Env     map[string]string `yaml:"env,omitempty" json:"env,omitempty"`
-	Timeout Duration          `yaml:"timeout,omitempty" json:"timeout,omitempty"`
+	// Starlark is a .star file defining change(repo); it runs before Run.
+	Starlark string            `yaml:"starlark,omitempty" json:"starlark,omitempty"`
+	Run      string            `yaml:"run,omitempty" json:"run,omitempty"`
+	Shell    string            `yaml:"shell,omitempty" json:"shell,omitempty"`
+	Env      map[string]string `yaml:"env,omitempty" json:"env,omitempty"`
+	Timeout  Duration          `yaml:"timeout,omitempty" json:"timeout,omitempty"`
 }
 
 // PR describes the pull request opened in each repository.
@@ -171,6 +173,11 @@ func (c *Campaign) Dir() string {
 		return "."
 	}
 	return filepath.Dir(c.Path)
+}
+
+// StarlarkFile returns the absolute path of change.starlark, or "".
+func (c *Campaign) StarlarkFile() string {
+	return c.fileRef(c.Change.Starlark)
 }
 
 // ScriptFile returns the absolute path of change.run when it names a file

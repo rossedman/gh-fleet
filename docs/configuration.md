@@ -49,7 +49,7 @@ Which repositories the campaign touches: the candidates from `orgs` (and any `in
 
 ### `change`
 
-The script run in a fresh clone of each repo. `run` is either a path relative to the campaign file or an inline script; `shell` defaults to `bash`, `timeout` to `5m`, and `env` adds variables. See [Writing changes](guides/writing-changes.md).
+What changes in a fresh clone of each repo: a [Starlark change](guides/starlark.md) in `starlark`, a shell script in `run`, or both, in that order. `run` is either a path relative to the campaign file or an inline script; `shell` defaults to `bash`, `timeout` to `5m`, and `env` adds variables. See [Writing changes](guides/writing-changes.md).
 
 ### `pr`
 

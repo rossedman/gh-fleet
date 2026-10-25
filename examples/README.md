@@ -10,7 +10,7 @@ gh fleet targets
 gh fleet plan --repo your-org/some-repo
 ```
 
-Every script is tested in `examples_test.go` and `library_test.go`, including
+`node-engines` is written in [Starlark](https://rossedman.github.io/gh-fleet/guides/starlark/) instead of shell. Every script is tested in `examples_test.go`, `library_test.go` and `starlark_test.go`, including
 that a second run changes nothing, so re-running a campaign is safe. They run
 on the bash that ships with macOS (3.2) as well as Linux.
 
@@ -30,6 +30,7 @@ on the bash that ships with macOS (3.2) as well as Linux.
 | --- | --- | --- |
 | [`go-module-bump`](go-module-bump/) | `go get module@version` and `go mod tidy` in every module below that version | search plus language targeting, multi-module repos, long timeouts |
 | [`npm-package-bump`](npm-package-bump/) | Sets a package's range in every `package.json` and refreshes the lockfile | lockfile-only installs with scripts disabled |
+| [`node-engines`](node-engines/) | Requires Node 22 in every `package.json`, never lowering a newer requirement | a Starlark change: JSON edited as data with key order kept, values handed back to the PR |
 | [`docker-base-image`](docker-base-image/) | Moves `FROM node:18` to `node:22`, keeping variants and stages | regex rewrites that stay inside Dockerfiles, draft PRs |
 | [`bump-go-version`](bump-go-version/) | Raises the `go` directive and workflow `go-version` pins | `exclude.repos`, never lowering a version |
 | [`add-dependabot`](add-dependabot/) | Writes `.github/dependabot.yml` for the ecosystems a repo uses | detecting what a repo contains |

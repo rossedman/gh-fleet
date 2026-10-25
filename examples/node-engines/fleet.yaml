@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: node-engines
+description: Require Node 22 in every package.json
+
+targets:
+  orgs: [acme]
+  include:
+    files: [package.json]
+
+change:
+  # A Starlark change: it edits package.json as data, keeps its key order,
+  # never lowers a newer requirement, and tells the PR what it replaced.
+  # No shell, no network: it can only touch files in the clone.
+  starlark: ./change.star
+  env:
+    NODE: "22"
+  timeout: 1m
+
+pr:
+  title: "build: require Node {{ .Vars.node }}"
+  body: |
+    Sets `engines.node` to `>={{ .Vars.node }}` in {{ .Repo.Name }}
+    (was `{{ .Vars.previous }}`), so installs on older Node fail early with a
+    clear message instead of at runtime.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet, dependencies]
