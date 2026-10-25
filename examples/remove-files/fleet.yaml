@@ -1,0 +1,25 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: retire-travis
+description: Remove Travis CI config now that everything builds on Actions
+
+targets:
+  orgs: [acme]
+  include:
+    files: [.travis.yml]
+
+change:
+  run: ./scripts/remove.sh
+  env:
+    # Space-separated paths; directories are removed recursively.
+    REMOVE: ".travis.yml .travis ci/travis-deploy.sh"
+  timeout: 1m
+
+pr:
+  title: "ci: remove Travis CI config"
+  body: |
+    Travis CI no longer builds {{ .Repo.Name }}; GitHub Actions does. This
+    removes the leftover Travis files so nobody edits them by mistake.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet, ci]

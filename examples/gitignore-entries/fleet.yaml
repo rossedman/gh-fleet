@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: ignore-env-files
+description: Make sure local env files are never committed
+
+targets:
+  orgs: [acme]
+  exclude:
+    topics: [no-fleet]
+
+change:
+  # Appends each line of ENTRIES to .gitignore unless it is already there.
+  run: ./scripts/gitignore.sh
+  env:
+    ENTRIES: |
+      .env
+      .env.*
+      !.env.example
+  timeout: 1m
+
+pr:
+  title: "chore: ignore local .env files"
+  body: |
+    Adds `.env` patterns to {{ .Repo.Name }}'s `.gitignore` so local
+    secrets can't be committed by accident. `.env.example` stays tracked.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet, security]

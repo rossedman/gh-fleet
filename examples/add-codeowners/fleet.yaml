@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: add-codeowners
+description: Give every service an owning team
+
+targets:
+  orgs: [acme]
+  include:
+    topics: [service]
+
+change:
+  # Writes .github/CODEOWNERS assigning the whole repo to OWNER, unless the
+  # repo already has a CODEOWNERS file in any of the three places GitHub reads.
+  run: ./scripts/codeowners.sh
+  env:
+    OWNER: "@acme/platform"
+  timeout: 1m
+
+pr:
+  title: "chore: add CODEOWNERS"
+  body: |
+    Assigns {{ .Repo.Name }} to @acme/platform so pull requests request a
+    review from the owning team automatically. Edit the file to split
+    ownership by path.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet]
+  reviewers: [acme/platform]

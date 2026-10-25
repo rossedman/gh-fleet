@@ -1,0 +1,29 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: bump-x-net
+description: Patch golang.org/x/net to a fixed release in every Go module
+
+targets:
+  orgs: [acme]
+  include:
+    languages: [Go]
+    search: "golang.org/x/net filename:go.mod"
+
+change:
+  # In every go.mod that requires MODULE: go get MODULE@VERSION, then
+  # go mod tidy. Modules already at or above VERSION are no-ops.
+  run: ./scripts/go-get.sh
+  env:
+    MODULE: golang.org/x/net
+    VERSION: v0.33.0
+    GOFLAGS: -mod=mod
+  timeout: 10m
+
+pr:
+  title: "build(deps): golang.org/x/net v0.33.0"
+  body: |
+    Updates golang.org/x/net in {{ .Repo.Name }} to v0.33.0, which fixes a
+    known vulnerability. Check `govulncheck ./...` after merging.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet, dependencies, security]

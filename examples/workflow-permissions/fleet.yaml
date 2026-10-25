@@ -1,0 +1,27 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: workflow-permissions
+description: Default every workflow's token to read-only
+
+targets:
+  orgs: [acme]
+  include:
+    files: [.github/workflows]
+
+change:
+  # Adds a top-level `permissions: contents: read` to each workflow that
+  # has no top-level permissions block. Jobs that need more must ask for it.
+  run: ./scripts/permissions.sh
+  timeout: 1m
+
+pr:
+  title: "ci: read-only GITHUB_TOKEN by default"
+  body: |
+    Workflows in {{ .Repo.Name }} without a `permissions:` block get the
+    repository's default token permissions, which can include write access.
+    This sets them to `contents: read`. If a job needs more (pushing tags,
+    commenting on PRs), give that job its own `permissions:`.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet, security, ci]
+  draft: true

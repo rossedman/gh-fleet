@@ -1,0 +1,32 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: node-22-images
+description: Move Docker images from Node 18 to Node 22
+
+targets:
+  orgs: [acme]
+  include:
+    files: [Dockerfile]
+    search: "FROM node:18"
+
+change:
+  # Rewrites FROM lines for IMAGE:FROM_TAG to IMAGE:TO_TAG in every
+  # Dockerfile, keeping variants (node:18-alpine -> node:22-alpine), stage
+  # names and --platform flags.
+  run: ./scripts/base-image.sh
+  env:
+    IMAGE: node
+    FROM_TAG: "18"
+    TO_TAG: "22"
+  timeout: 1m
+
+pr:
+  title: "build: Node 22 base images"
+  body: |
+    Node 18 is end of life. This moves every `FROM node:18` image in
+    {{ .Repo.Name }} to Node 22, keeping the same variant. Check the build
+    and any native modules.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet, dependencies]
+  draft: true

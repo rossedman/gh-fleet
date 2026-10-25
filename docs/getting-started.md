@@ -151,4 +151,4 @@ Fix a script, or change the campaign, and run `apply` again to update every open
 - [How it works](how-it-works.md): the path each repo takes.
 - [Writing changes](guides/writing-changes.md): the script contract.
 - [Targeting repositories](guides/targeting.md): topics, languages, files and code search.
-- [Examples](examples.md): three campaigns to copy.
+- [Examples](examples.md): thirteen tested campaigns for common changes.

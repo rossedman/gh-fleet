@@ -49,8 +49,13 @@ fuzz:
 	  done; \
 	done
 
+# shellcheck is preinstalled on GitHub's Ubuntu runners; locally, install it
+# or run `make lint SHELLCHECK="uvx --from shellcheck-py shellcheck"`.
+SHELLCHECK ?= shellcheck
+
 lint:
 	gofmt -l . | (! grep .)
+	$(SHELLCHECK) examples/*/scripts/*.sh tools/*.sh
 	$(GOLANGCI) run ./...
 	./tools/check-cmds.sh
 	go run ./tools/doccheck ./...

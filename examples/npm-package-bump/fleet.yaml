@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: bump-axios
+description: Move axios to 1.x in every package that depends on it
+
+targets:
+  orgs: [acme]
+  include:
+    files: [package.json]
+    search: "axios filename:package.json"
+
+change:
+  # Updates PACKAGE to RANGE in every package.json that lists it, and
+  # refreshes package-lock.json without installing or running scripts.
+  run: ./scripts/npm-bump.sh
+  env:
+    PACKAGE: axios
+    RANGE: "^1.7.9"
+  timeout: 10m
+
+pr:
+  title: "build(deps): axios ^1.7.9"
+  body: |
+    Updates axios in {{ .Repo.Name }} to ^1.7.9. Lockfiles were refreshed
+    with `npm install --package-lock-only --ignore-scripts`.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet, dependencies]

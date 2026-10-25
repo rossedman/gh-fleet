@@ -4,94 +4,65 @@ title: Examples
 
 # Examples
 
-Three complete campaigns you can copy and adapt. Each directory in [`examples/`](https://github.com/rossedman/gh-fleet/tree/main/examples) holds the campaign file, the script it runs and, where the body is long, the PR body. The scripts are tested in `examples_test.go`.
-
-Change `orgs: [acme]` to your organization, then:
+Campaigns for the changes people make most, ready to copy from [`examples/`](https://github.com/rossedman/gh-fleet/tree/main/examples). Each directory
+holds the campaign file and the script it runs (plus a PR body or source
+files where needed). Change `orgs: [acme]` to your organization, then:
 
 ```sh
-cd examples/pin-actions
+cd examples/sync-files
 gh fleet targets
 gh fleet plan --repo your-org/some-repo
 ```
 
+Every script is tested in [`examples_test.go`](https://github.com/rossedman/gh-fleet/blob/main/examples/examples_test.go) and [`library_test.go`](https://github.com/rossedman/gh-fleet/blob/main/examples/library_test.go), including
+that a second run changes nothing, so re-running a campaign is safe. They run
+on the bash that ships with macOS (3.2) as well as Linux.
+
+## Files and text
+
 | Campaign | What it changes | Shows |
 | --- | --- | --- |
-| [`pin-actions`](https://github.com/rossedman/gh-fleet/tree/main/examples/pin-actions) | Pins every `uses:` in `.github/workflows` to a commit SHA, keeping the tag as a comment | a script file, a body file, `files` targeting, `maxOpenPRs`, signed-off commits |
-| [`add-dependabot`](https://github.com/rossedman/gh-fleet/tree/main/examples/add-dependabot) | Writes `.github/dependabot.yml` for the ecosystems a repo uses | topic targeting, an inline body, team reviewers, no-op repos |
-| [`bump-go-version`](https://github.com/rossedman/gh-fleet/tree/main/examples/bump-go-version) | Raises the `go` directive in `go.mod` and `go-version` pins in workflows | language plus file targeting, `exclude.repos`, `env`, draft PRs |
+| [`sync-files`](https://github.com/rossedman/gh-fleet/tree/main/examples/sync-files) | Copies the files under `files/` into every repo, overwriting them | shipping files with a campaign; edit once, re-apply to update every PR |
+| [`find-replace`](https://github.com/rossedman/gh-fleet/tree/main/examples/find-replace) | Replaces a literal string in every tracked text file | code search targeting, `env` parameters, skipping binaries |
+| [`remove-files`](https://github.com/rossedman/gh-fleet/tree/main/examples/remove-files) | Deletes retired files and directories | `files` targeting, a refusal for paths outside the repo |
+| [`gitignore-entries`](https://github.com/rossedman/gh-fleet/tree/main/examples/gitignore-entries) | Appends missing patterns to `.gitignore` | multi-line `env` values, idempotent appends |
+| [`add-codeowners`](https://github.com/rossedman/gh-fleet/tree/main/examples/add-codeowners) | Writes `.github/CODEOWNERS` where none exists | no-op repos, team reviewers |
 
-## pin-actions
+## Dependencies
 
-Resolves each `uses: owner/repo@ref` to a commit SHA with `gh api` and keeps the ref as a comment, so Dependabot can still update it.
+| Campaign | What it changes | Shows |
+| --- | --- | --- |
+| [`go-module-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/go-module-bump) | `go get module@version` and `go mod tidy` in every module below that version | search plus language targeting, multi-module repos, long timeouts |
+| [`npm-package-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/npm-package-bump) | Sets a package's range in every `package.json` and refreshes the lockfile | lockfile-only installs with scripts disabled |
+| [`docker-base-image`](https://github.com/rossedman/gh-fleet/tree/main/examples/docker-base-image) | Moves `FROM node:18` to `node:22`, keeping variants and stages | regex rewrites that stay inside Dockerfiles, draft PRs |
+| [`bump-go-version`](https://github.com/rossedman/gh-fleet/tree/main/examples/bump-go-version) | Raises the `go` directive and workflow `go-version` pins | `exclude.repos`, never lowering a version |
+| [`add-dependabot`](https://github.com/rossedman/gh-fleet/tree/main/examples/add-dependabot) | Writes `.github/dependabot.yml` for the ecosystems a repo uses | detecting what a repo contains |
 
-```yaml
-targets:
-  orgs: [acme]
-  include:
-    files: [.github/workflows]
-  exclude:
-    topics: [no-fleet]
+## CI and security
 
-change:
-  run: ./scripts/pin.sh
-  timeout: 5m
+| Campaign | What it changes | Shows |
+| --- | --- | --- |
+| [`upgrade-action`](https://github.com/rossedman/gh-fleet/tree/main/examples/upgrade-action) | Rewrites `uses: actions/checkout@v3` to `@v4` | exact ref matching (`v3` never matches `v3.5.0`) |
+| [`pin-actions`](https://github.com/rossedman/gh-fleet/tree/main/examples/pin-actions) | Pins every `uses:` to a commit SHA, keeping the tag as a comment | calling `gh api` from a script, a body file, `maxOpenPRs`, signed-off commits |
+| [`workflow-permissions`](https://github.com/rossedman/gh-fleet/tree/main/examples/workflow-permissions) | Adds a read-only top-level `permissions:` to workflows without one | editing YAML with awk so comments and layout survive |
 
-pr:
-  title: "ci: pin GitHub Actions to commit SHAs"
-  body: ./pr-body.md
-  labels: [fleet, security]
-  commit:
-    signoff: true
+## Writing your own
 
-limits:
-  concurrency: 8
-  maxOpenPRs: 200
-```
+The [writing changes guide](guides/writing-changes.md) covers the full script contract.
 
-## add-dependabot
+A change script runs at the repo root of a fresh clone. Exit 0 after changing
+files and gh fleet commits and opens a PR; exit 0 without changes and the repo
+is a no-op; exit non-zero and the repo is marked failed with the last lines of
+output. The scripts here follow a few habits worth copying:
 
-Writes a Dependabot config for the ecosystems it detects. Repos that already have one are left alone, so they come out as `noop`.
-
-```yaml
-targets:
-  orgs: [acme]
-  include:
-    topics: [service]
-
-change:
-  run: ./scripts/dependabot.sh
-  timeout: 1m
-
-pr:
-  title: "build: add Dependabot config"
-  labels: [fleet, dependencies]
-  reviewers: [acme/platform]
-```
-
-## bump-go-version
-
-Raises the `go` directive and the toolchain line (never lowers them), and bumps `go-version` in workflows that pin one. The target version comes from `change.env`.
-
-```yaml
-targets:
-  orgs: [acme]
-  include:
-    languages: [Go]
-    files: [go.mod]
-  exclude:
-    repos: [acme/legacy-api]
-
-change:
-  run: ./scripts/bump-go.sh
-  env:
-    GO_VERSION: "1.27.3"
-  timeout: 2m
-
-pr:
-  title: "build: go 1.27"
-  draft: true
-  labels: [fleet]
-
-limits:
-  concurrency: 16
-```
+- **Make it idempotent.** Check before you change (`grep -q` before
+  appending, compare versions before bumping), so a second run is a no-op.
+- **Take parameters from `env`.** The same script then serves many campaigns:
+  `upgrade-action` handles any action, `docker-base-image` any image.
+- **Prefer literal matches.** `perl -pi -e 's/\Q$ENV{FROM}\E/.../'` and
+  `grep -F` need no escaping; `sed` patterns built from variables break on
+  dots and slashes.
+- **Stay portable.** No `declare -A`, `mapfile` or GNU-only `sed -i`; macOS
+  ships bash 3.2 and BSD tools. Use `sed -i.bak` and remove the backup.
+- **Never run untrusted code.** Package managers get `--ignore-scripts`, and
+  nothing is installed globally.

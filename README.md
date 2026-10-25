@@ -105,8 +105,10 @@ acme/worker     noop     -                                       -        -
 API quota: core 4,871/5,000 · graphql 4,962/5,000
 ```
 
-[`examples/`](examples/) has three complete campaigns: pinning actions to SHAs,
-adding Dependabot, and bumping the Go version.
+[`examples/`](examples/) has thirteen tested campaigns for the changes people
+make most: syncing standard files, find and replace, dependency and base
+image bumps, action upgrades and SHA pinning, Dependabot, CODEOWNERS,
+`.gitignore` entries, read-only workflow tokens, and removing retired config.
 
 ## Commands
 

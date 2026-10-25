@@ -1,0 +1,25 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: sync-standard-files
+description: Keep shared repo files identical everywhere
+
+targets:
+  orgs: [acme]
+  exclude:
+    topics: [no-fleet]
+
+change:
+  # Copies everything under files/ (next to this campaign) into each repo,
+  # overwriting what is there. Edit a file once, re-run apply, and every
+  # open PR is updated.
+  run: ./scripts/sync.sh
+  timeout: 1m
+
+pr:
+  title: "chore: sync standard repo files"
+  body: |
+    Brings the shared files in {{ .Repo.FullName }} in line with the
+    org standard: `.editorconfig` and the pull request template.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet]

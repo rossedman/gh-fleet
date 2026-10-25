@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: move-docs-domain
+description: Point every link at the new docs domain
+
+targets:
+  orgs: [acme]
+  include:
+    # Only repos that mention the old domain; code search keeps this cheap.
+    search: "docs.acme.io"
+
+change:
+  # Replaces FROM with TO, literally (no regex), in every tracked text file.
+  run: ./scripts/replace.sh
+  env:
+    FROM: "https://docs.acme.io"
+    TO: "https://docs.acme.dev"
+  timeout: 2m
+
+pr:
+  title: "docs: move links to docs.acme.dev"
+  body: |
+    `docs.acme.io` is being retired. This replaces every
+    `https://docs.acme.io` link in {{ .Repo.Name }} with
+    `https://docs.acme.dev`; paths are unchanged.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet, docs]
