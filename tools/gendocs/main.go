@@ -80,7 +80,7 @@ func promoteTitles(dir string) error {
 // schemaNode is the subset of JSON Schema the reference renders.
 type schemaNode struct {
 	Description          string                 `json:"description"`
-	Type                 string                 `json:"type"`
+	Type                 schemaType             `json:"type"`
 	Const                any                    `json:"const"`
 	Default              any                    `json:"default"`
 	Pattern              string                 `json:"pattern"`
@@ -94,8 +94,34 @@ type schemaNode struct {
 	Defs                 map[string]*schemaNode `json:"$defs"`
 }
 
+// schemaType is a JSON Schema "type", which may be one name or a list of
+// alternatives; a list is kept as "a or b".
+type schemaType string
+
+// UnmarshalJSON accepts a string or a list of strings.
+func (t *schemaType) UnmarshalJSON(b []byte) error {
+	var one string
+	if json.Unmarshal(b, &one) == nil {
+		*t = schemaType(one)
+		return nil
+	}
+	var many []string
+	if err := json.Unmarshal(b, &many); err != nil {
+		return err
+	}
+	*t = schemaType(strings.Join(many, " or "))
+	return nil
+}
+
+// refTypes names the shared definitions that read better as one phrase
+// than as their structure.
+var refTypes = map[string]string{
+	"#/$defs/propertyFilter": "map of property to value or list",
+	"#/$defs/varMap":         "map of name to value or list",
+}
+
 // order lists top-level keys in the order a campaign file uses them.
-var order = []string{"apiVersion", "name", "description", "targets", "change", "pr", "limits"}
+var order = []string{"apiVersion", "name", "description", "targets", "change", "pr", "vars", "limits"}
 
 // SchemaMarkdown renders the campaign schema as a reference page with one
 // table per object.
@@ -143,14 +169,21 @@ func writeObject(b *bytes.Buffer, title, prefix string, n *schemaNode, defs map[
 		if p == nil {
 			continue
 		}
+		typ, named := refTypes[p.Ref]
 		p = resolve(p, defs)
+		if !named {
+			typ = typeOf(p, defs)
+		}
 		name := "`" + k + "`"
 		if required[k] {
 			name += " (required)"
 		}
-		fmt.Fprintf(b, "| %s | %s | %s | %s |\n", name, typeOf(p, defs), defaultOf(p), cell(describe(p)))
-		if p.Type == "object" && len(p.Properties) > 0 {
+		fmt.Fprintf(b, "| %s | %s | %s | %s |\n", name, typ, defaultOf(p), cell(describe(p)))
+		switch {
+		case p.Type == "object" && len(p.Properties) > 0:
 			children = append(children, k)
+		case p.Type == "array" && p.Items != nil && len(p.Items.Properties) > 0:
+			children = append(children, k+"[]")
 		}
 	}
 	b.WriteString("\n")
@@ -159,7 +192,16 @@ func writeObject(b *bytes.Buffer, title, prefix string, n *schemaNode, defs map[
 		if prefix != "" {
 			path = prefix + "." + k
 		}
-		writeObject(b, k, path, resolve(n.Properties[k], defs), defs, nil)
+		child := n.Properties[strings.TrimSuffix(k, "[]")]
+		node := resolve(child, defs)
+		if strings.HasSuffix(k, "[]") {
+			items := *node.Items
+			if items.Description == "" {
+				items.Description = "Each entry of `" + strings.TrimSuffix(path, "[]") + "`."
+			}
+			node = &items
+		}
+		writeObject(b, k, path, node, defs, nil)
 	}
 }
 
@@ -190,7 +232,7 @@ func typeOf(n *schemaNode, defs map[string]*schemaNode) string {
 	case n.Type == "":
 		return "-"
 	}
-	return n.Type
+	return string(n.Type)
 }
 
 // defaultOf formats a node's default value.

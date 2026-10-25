@@ -1,28 +1,37 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
 apiVersion: fleet.gh/v1
 name: add-codeowners
-description: Give every service an owning team
+description: Give every service its owning team
 
 targets:
   orgs: [acme]
   include:
     topics: [service]
 
+# Each repo's owning team: platform by default, web for frontends, and
+# whatever owners.csv says for the repos it lists.
+vars:
+  default:
+    team: platform
+  match:
+    - when: { topics: [frontend] }
+      set: { team: web }
+  file: ./owners.csv
+
 change:
-  # Writes .github/CODEOWNERS assigning the whole repo to OWNER, unless the
-  # repo already has a CODEOWNERS file in any of the three places GitHub reads.
+  # Writes .github/CODEOWNERS assigning the repo to @<org>/<team>, unless the
+  # repo already has a CODEOWNERS file in any of the three places GitHub
+  # reads. The team arrives as FLEET_VAR_TEAM.
   run: ./scripts/codeowners.sh
-  env:
-    OWNER: "@acme/platform"
   timeout: 1m
 
 pr:
-  title: "chore: add CODEOWNERS"
+  title: "chore: assign {{ .Repo.Name }} to @{{ .Repo.Owner }}/{{ .Vars.team }}"
   body: |
-    Assigns {{ .Repo.Name }} to @acme/platform so pull requests request a
-    review from the owning team automatically. Edit the file to split
-    ownership by path.
+    Assigns {{ .Repo.Name }} to @{{ .Repo.Owner }}/{{ .Vars.team }} so pull
+    requests request a review from the owning team automatically. Edit the
+    file to split ownership by path.
 
     Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
-  labels: [fleet]
-  reviewers: [acme/platform]
+  labels: [fleet, "team:{{ .Vars.team }}"]
+  reviewers: ["{{ .Repo.Owner }}/{{ .Vars.team }}"]

@@ -45,7 +45,7 @@ func (a *App) Plan(ctx context.Context, c Common) error {
 	if err != nil {
 		return err
 	}
-	res, err := a.resolve(ctx, client, camp.Targets, c.Repos, true)
+	res, err := a.resolve(ctx, client, camp, c.Repos, true)
 	if err != nil {
 		return err
 	}
@@ -113,7 +113,7 @@ func (a *App) apply(ctx context.Context, o ApplyOptions, keep func(*state.Campai
 	if err != nil {
 		return err
 	}
-	res, err := a.resolve(ctx, client, camp.Targets, o.Repos, true)
+	res, err := a.resolve(ctx, client, camp, o.Repos, true)
 	if err != nil {
 		return err
 	}

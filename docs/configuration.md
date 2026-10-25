@@ -53,7 +53,7 @@ The script run in a fresh clone of each repo. `run` is either a path relative to
 
 ### `pr`
 
-How each pull request is opened. `title` is required, and `title`, `body` and the commit message are Go templates with `.Repo` (`.Owner`, `.Name`, `.FullName`, `.DefaultBranch`) and `.Campaign` (for example `.Campaign.Name`). A template that refers to a missing field is an error instead of rendering as empty text.
+How each pull request is opened. `title` is required. `title`, `body`, the commit message and every entry of `labels` and `reviewers` are Go templates with `.Repo`, `.Vars` and `.Campaign`; see [variables](#variables). A template that refers to a missing field is an error for that repo instead of rendering as empty text.
 
 `body` is inline text or a file relative to the campaign file. gh fleet always appends the hidden marker to the rendered body, so keep that out of your templates.
 
@@ -66,6 +66,54 @@ How each pull request is opened. `title` is required, and `title`, `body` and th
 | `commit.signoff` | `false` |
 
 `reviewers` takes users or `org/team` slugs and is requested when the PR is created. On later runs `apply` updates an open PR's title and body when they differ and adds any labels it is missing; it never removes labels, re-requests reviewers or changes `draft`.
+
+### Variables
+
+Variables let one campaign say different things to different repos: a different owning team, a different on-call channel, a version that varies by repo. Each repo's variables are built from three sources in the `vars` block, later ones winning:
+
+```yaml
+vars:
+  default:                         # 1. every repo starts with these
+    team: platform
+    node: 22
+    labels: [fleet, node]
+  match:                           # 2. then each rule whose `when` matches, in order
+    - when: { topics: [frontend] }
+      set: { team: web }
+    - when: { repos: [acme/legacy-api] }
+      set: { node: 20 }
+    - when: { properties: { tier: 1 } }
+      set: { team: sre }
+  file: ./owners.csv               # 3. then the repo's row in a data file
+```
+
+`when` takes `repos`, `topics`, `languages` and `properties`, with the same meaning as in `targets.include`: every key that is set must match, and values within a key are alternatives. An empty `when` matches every repo.
+
+`file` is a `.csv`, `.json`, `.yaml` or `.yml` file next to the campaign file. A CSV needs a `repo` column and has one column per variable; an empty cell leaves that variable unset. JSON and YAML map `owner/name` to an object:
+
+```csv
+repo,team,oncall
+acme/api,payments,#payments-oncall
+acme/web,web,#web-oncall
+```
+
+Variable names use letters, digits and underscores, and values are strings, numbers, booleans or lists of those.
+
+**Where they show up:**
+
+| In | Variables | Custom properties | Repo |
+| --- | --- | --- | --- |
+| Scripts | `FLEET_VAR_TEAM` | `FLEET_PROP_TIER` | `FLEET_REPO`, `FLEET_DEFAULT_BRANCH` |
+| PR text | `{{ .Vars.team }}` | `{{ .Repo.Properties.tier }}` | `{{ .Repo.Name }}`, `.Owner`, `.FullName`, `.DefaultBranch`, `.Language`, `.Topics` |
+
+Lists are comma-joined in scripts. In templates, `join` joins a list with any separator (`{{ join .Vars.labels ", " }}`), and `lower` and `upper` change case. A `labels` or `reviewers` entry that renders to a comma-separated list becomes several entries, so `reviewers: ["{{ join .Vars.reviewers \",\" }}"]` requests each of them.
+
+A script can add or override variables for its repo by writing `NAME=value` lines to `$FLEET_OUTPUT/vars`; see [handing values back](guides/writing-changes.md#handing-values-back-to-the-pr).
+
+**Check before you run.** `gh fleet targets` shows every repo's resolved variables, and `--json` includes them along with the custom properties. It also warns when the data file names a repo that isn't a target, which is usually a typo. A template that uses a variable a repo doesn't have fails that repo with `missing variable "oncall" for acme/web`, in `plan` as well as `apply` and before anything is pushed, so nothing goes out half-filled.
+
+!!! warning "Variables are not secrets"
+    Variables end up in PR bodies, logs and the local state file. A secret a script needs belongs in your own environment, which scripts inherit.
 
 ### `limits`
 

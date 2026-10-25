@@ -35,7 +35,7 @@ func (a *App) Close(ctx context.Context, o CloseOptions) error {
 	if err != nil {
 		return err
 	}
-	res, err := a.resolve(ctx, client, camp.Targets, o.Repos, true)
+	res, err := a.resolve(ctx, client, camp, o.Repos, true)
 	if err != nil {
 		return err
 	}

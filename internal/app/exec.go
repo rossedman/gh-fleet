@@ -76,6 +76,7 @@ func (a *App) Exec(ctx context.Context, o ExecOptions) error {
 		}
 		camp.Targets = loaded.Targets
 		camp.Change.Env = loaded.Change.Env
+		camp.Vars = loaded.Vars
 	}
 	camp.ApplyDefaults()
 	if o.Timeout > 0 {
@@ -85,7 +86,7 @@ func (a *App) Exec(ctx context.Context, o ExecOptions) error {
 	if err != nil {
 		return err
 	}
-	res, err := a.resolve(ctx, client, camp.Targets, repos, false)
+	res, err := a.resolve(ctx, client, camp, repos, false)
 	if err != nil {
 		return err
 	}

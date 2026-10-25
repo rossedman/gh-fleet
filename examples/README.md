@@ -22,7 +22,7 @@ on the bash that ships with macOS (3.2) as well as Linux.
 | [`find-replace`](find-replace/) | Replaces a literal string in every tracked text file | code search targeting, `env` parameters, skipping binaries |
 | [`remove-files`](remove-files/) | Deletes retired files and directories | `files` targeting, a refusal for paths outside the repo |
 | [`gitignore-entries`](gitignore-entries/) | Appends missing patterns to `.gitignore` | multi-line `env` values, idempotent appends |
-| [`add-codeowners`](add-codeowners/) | Writes `.github/CODEOWNERS` where none exists | no-op repos, team reviewers |
+| [`add-codeowners`](add-codeowners/) | Writes `.github/CODEOWNERS` naming each repo's team | per-repo variables from defaults, match rules and a CSV, templated reviewers and labels |
 
 ## Dependencies
 

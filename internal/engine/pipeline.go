@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 
 	"github.com/rossedman/gh-fleet/internal/campaign"
@@ -109,7 +111,7 @@ func (p *Pipeline) Process(ctx context.Context, t target.Target) (state.RepoStat
 	logw, closeLog := p.openLog(repo.FullName())
 	defer closeLog()
 
-	res, err := runner.Run(ctx, ws.Dir, p.spec(), p.env(repo), logw)
+	res, err := runner.Run(ctx, ws.Dir, p.spec(), p.env(t), logw)
 	if p.Mode == Exec {
 		rs.Output = string(res.Stdout)
 		if err != nil {
@@ -135,6 +137,10 @@ func (p *Pipeline) Process(ctx context.Context, t target.Target) (state.RepoStat
 		if ws.RemoteSHA != "" {
 			rs.Detail = "updates existing branch"
 		}
+		// Render the PR now, so a missing variable shows up in plan.
+		if _, err := p.content(t, res); err != nil {
+			return fail(err)
+		}
 		return rs, nil
 	}
 
@@ -144,7 +150,6 @@ func (p *Pipeline) Process(ctx context.Context, t target.Target) (state.RepoStat
 // apply commits, pushes and syncs the PR for a repo whose script ran.
 func (p *Pipeline) apply(ctx context.Context, t target.Target, ws *workspace.Workspace, res runner.Result, existing *ghapi.PR, rs state.RepoState, base string) (state.RepoState, error) {
 	repo := t.Repo
-	data := campaign.RepoData{Owner: repo.Owner, Name: repo.Name, FullName: repo.FullName(), DefaultBranch: repo.DefaultBranch}
 	fail := func(err error) (state.RepoState, error) {
 		rs.Status = state.Failed
 		rs.LastError = err.Error()
@@ -154,18 +159,18 @@ func (p *Pipeline) apply(ctx context.Context, t target.Target, ws *workspace.Wor
 		return rs, nil
 	}
 
+	// Render everything before committing, so a template error never
+	// leaves a pushed branch behind.
+	c, err := p.content(t, res)
+	if err != nil {
+		return fail(err)
+	}
 	dirty, err := p.Git.Dirty(ctx, ws.Dir)
 	if err != nil {
 		return fail(err)
 	}
 	if dirty {
-		msg := res.CommitMessage
-		if msg == "" {
-			if msg, err = p.Campaign.RenderCommitMessage(data); err != nil {
-				return fail(err)
-			}
-		}
-		if err := p.Git.CommitAll(ctx, ws.Dir, msg, p.Campaign.PR.Commit.Signoff); err != nil {
+		if err := p.Git.CommitAll(ctx, ws.Dir, c.commit, p.Campaign.PR.Commit.Signoff); err != nil {
 			return fail(err)
 		}
 	}
@@ -214,19 +219,9 @@ func (p *Pipeline) apply(ctx context.Context, t target.Target, ws *workspace.Wor
 	}
 	rs.HeadSHA = head
 
-	title, err := p.Campaign.RenderTitle(data)
-	if err != nil {
-		release()
-		return fail(err)
-	}
-	body, err := p.Campaign.RenderBody(data)
-	if err != nil {
-		release()
-		return fail(err)
-	}
 	d := pr.Desired{
-		Repo: repo.FullName(), Title: title, Body: body, Head: p.Campaign.PR.Branch, Base: base,
-		Draft: p.Campaign.PR.Draft, Labels: p.Campaign.PR.Labels, Reviewers: p.Campaign.PR.Reviewers,
+		Repo: repo.FullName(), Title: c.title, Body: c.body, Head: p.Campaign.PR.Branch, Base: base,
+		Draft: p.Campaign.PR.Draft, Labels: c.labels, Reviewers: c.reviewers,
 	}
 	got, action, err := p.PRs.Sync(ctx, d, existing, p.Reopen)
 	if got.Number != 0 {
@@ -262,14 +257,71 @@ func (p *Pipeline) spec() runner.Spec {
 	return s
 }
 
-// env returns the FLEET_* variables for a repo.
-func (p *Pipeline) env(repo ghapi.Repo) []string {
-	return []string{
+// env returns the FLEET_* variables for a repo: the fixed ones, then
+// FLEET_PROP_<NAME> per custom property and FLEET_VAR_<NAME> per variable,
+// in name order.
+func (p *Pipeline) env(t target.Target) []string {
+	repo := t.Repo
+	env := []string{
 		"FLEET_REPO=" + repo.FullName(),
 		"FLEET_CAMPAIGN=" + p.Campaign.Name,
 		"FLEET_DEFAULT_BRANCH=" + repo.DefaultBranch,
 		"FLEET_DRY_RUN=" + strconv.FormatBool(p.Mode != Apply),
 	}
+	for _, k := range slices.Sorted(maps.Keys(repo.Properties)) {
+		env = append(env, "FLEET_PROP_"+campaign.EnvName(k)+"="+repo.Properties[k])
+	}
+	for _, k := range slices.Sorted(maps.Keys(t.Vars)) {
+		env = append(env, "FLEET_VAR_"+campaign.EnvName(k)+"="+campaign.FormatValue(t.Vars[k]))
+	}
+	return env
+}
+
+// prContent is everything rendered from the campaign's PR templates for
+// one repo.
+type prContent struct {
+	title, body, commit string
+	labels, reviewers   []string
+}
+
+// content renders the PR title, body, commit message, labels and
+// reviewers for a repo. Values the script wrote to $FLEET_OUTPUT/vars
+// override the campaign's variables, and a commit message the script wrote
+// overrides the template.
+func (p *Pipeline) content(t target.Target, res runner.Result) (prContent, error) {
+	repo := t.Repo
+	vars := maps.Clone(t.Vars)
+	if vars == nil {
+		vars = map[string]any{}
+	}
+	for k, v := range res.Vars {
+		vars[k] = v
+	}
+	data := campaign.RepoData{
+		Owner: repo.Owner, Name: repo.Name, FullName: repo.FullName(), DefaultBranch: repo.DefaultBranch,
+		Topics: repo.Topics, Language: repo.Language, Properties: repo.Properties, Vars: vars,
+	}
+	var c prContent
+	var err error
+	if c.title, err = p.Campaign.RenderTitle(data); err != nil {
+		return c, err
+	}
+	if c.body, err = p.Campaign.RenderBody(data); err != nil {
+		return c, err
+	}
+	c.commit = res.CommitMessage
+	if c.commit == "" {
+		if c.commit, err = p.Campaign.RenderCommitMessage(data); err != nil {
+			return c, err
+		}
+	}
+	if c.labels, err = p.Campaign.RenderList("labels", p.Campaign.PR.Labels, data); err != nil {
+		return c, err
+	}
+	if c.reviewers, err = p.Campaign.RenderList("reviewers", p.Campaign.PR.Reviewers, data); err != nil {
+		return c, err
+	}
+	return c, nil
 }
 
 // openLog opens the per-repo log, truncating any previous run's log.

@@ -25,6 +25,9 @@ type Repo struct {
 	Fork          bool     `json:"fork"`
 	CanPush       bool     `json:"canPush"`
 	URL           string   `json:"url,omitempty"`
+	// Properties are the repository's custom property values, set by its
+	// organization (multi-select values are comma-joined).
+	Properties map[string]string `json:"properties,omitempty"`
 }
 
 // FullName returns owner/name.
@@ -111,6 +114,12 @@ type Client interface {
 	DeleteBranch(ctx context.Context, repo, branch string) error
 	// RateLimits returns the remaining primary quota per resource.
 	RateLimits(ctx context.Context) ([]RateLimit, error)
+	// OwnerProperties returns custom property values for every repo of an
+	// organization, keyed by repo full name. Owners without custom
+	// properties (users, or orgs that define none) return an empty map.
+	OwnerProperties(ctx context.Context, owner string) (map[string]map[string]string, error)
+	// RepoProperties returns one repo's custom property values.
+	RepoProperties(ctx context.Context, fullName string) (map[string]string, error)
 }
 
 // SplitRepo splits owner/name, failing on anything else.

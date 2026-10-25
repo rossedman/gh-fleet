@@ -70,10 +70,14 @@ func TestExamplesLoad(t *testing.T) {
 		if c.ScriptFile() == "" {
 			t.Errorf("%s: change.run is not a script file", f)
 		}
-		if _, err := c.RenderBody(campaign.RepoData{Owner: "acme", Name: "api", FullName: "acme/api"}); err != nil {
+		repo := campaign.RepoData{Owner: "acme", Name: "api", FullName: "acme/api", Vars: c.Vars.Default}
+		if _, err := c.RenderBody(repo); err != nil {
 			t.Errorf("%s: %v", f, err)
 		}
-		if _, err := c.RenderTitle(campaign.RepoData{Name: "api"}); err != nil {
+		if _, err := c.RenderTitle(repo); err != nil {
+			t.Errorf("%s: %v", f, err)
+		}
+		if _, err := c.RenderList("reviewers", c.PR.Reviewers, repo); err != nil {
 			t.Errorf("%s: %v", f, err)
 		}
 	}

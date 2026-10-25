@@ -29,6 +29,7 @@ targets:
 | `languages` | its primary language is any of these (case-insensitive) |
 | `files` | any of these paths, files or directories, exists on the default branch |
 | `search` | a code search query has a hit in it, scoped to your `orgs` automatically |
+| `properties` | every listed [custom property](#custom-properties) has one of its values |
 | `repos` | always, bypassing the filters above |
 
 **Different keys combine with AND, and the values within one key with OR.** The example above selects Go repos that have the `service` topic and a `go.mod`. With no filters at all, every non-excluded repo in the org matches.
@@ -46,7 +47,31 @@ targets:
     forks: true
 ```
 
+`exclude.properties` drops repos whose custom property has any of the listed values, for example `properties: {pci: true}`.
+
 **Exclusion always wins**, even over `include.repos`. `archived` and `forks` both default to `true`, so archived repos and forks are skipped unless you set them to `false`.
+
+## Custom properties
+
+Organizations can define [custom properties](https://docs.github.com/en/organizations/managing-organization-settings/managing-custom-properties-for-repositories-in-your-organization) on their repos, such as `team`, `tier` or `pci`. They are often a better handle than topics, because the org controls them and every repo has a value. gh fleet reads them with the org listing, in one paginated call per org, and caches them with it.
+
+```yaml
+targets:
+  orgs: [acme]
+  include:
+    properties:
+      tier: [1, 2]        # any of these values
+      runtime: node       # and this one
+  exclude:
+    properties:
+      lifecycle: deprecated
+```
+
+Each listed property must match one of its values, ignoring case. A multi-select property matches when any selected value is listed. A repo without the property doesn't match. Numbers and booleans can be written bare: `tier: [1, 2]` and `tier: ["1", "2"]` are the same. `gh fleet targets` shows the property that matched, as in `property:tier=1`.
+
+If your token can't read an org's properties, a campaign that filters on them or uses them in PR text fails with that error; any other campaign carries on as if the repos had none.
+
+The same properties reach your script as `FLEET_PROP_<NAME>` and your PR text as `{{ .Repo.Properties.tier }}`; see [variables](../configuration.md#variables).
 
 ## Push access
 

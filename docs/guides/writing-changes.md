@@ -34,6 +34,10 @@ The script inherits your environment (so `gh` authentication works inside it), p
 | `FLEET_DEFAULT_BRANCH` | the repo's default branch |
 | `FLEET_DRY_RUN` | `true` during `plan` and `exec`, `false` during `apply` |
 | `FLEET_OUTPUT` | a temporary directory for files the script hands back to gh fleet |
+| `FLEET_VAR_<NAME>` | each of the repo's [variables](../configuration.md#variables); lists are comma-joined |
+| `FLEET_PROP_<NAME>` | each of the repo's custom properties |
+
+`<NAME>` is the variable or property name in upper case, with anything other than letters, digits and underscores turned into `_`: the property `cost-center` becomes `FLEET_PROP_COST_CENTER`.
 
 `FLEET_DRY_RUN` lets a script skip side effects other than editing files, such as calling an external service. Editing files is always safe: it happens in a throwaway clone.
 
@@ -66,6 +70,23 @@ echo "build: bump go to ${GO_VERSION} in ${FLEET_REPO}" > "$FLEET_OUTPUT/commit-
 
 Set `pr.commit.signoff: true` to add a `Signed-off-by` trailer. Commit signing follows your git configuration.
 
+## Handing values back to the PR
+
+A script can compute values the PR text needs, such as the version it replaced, by writing `NAME=value` lines to `$FLEET_OUTPUT/vars`. They are added to the repo's variables (replacing any with the same name) before the PR title, body, commit message, labels and reviewers are rendered:
+
+```sh
+old=$(sed -n 's/^go //p' go.mod)
+go mod edit -go="$GO_VERSION"
+echo "old_go=$old" >> "$FLEET_OUTPUT/vars"
+```
+
+```yaml
+pr:
+  body: "Moves {{ .Repo.Name }} from Go {{ .Vars.old_go }} to {{ .Vars.go }}."
+```
+
+Blank lines and lines starting with `#` are ignored. Any other line that isn't `NAME=value` fails the repo, so a typo can't slip into a PR.
+
 ## Timeouts and interruption
 
 `change.timeout` (default `5m`) limits each repo's run. When it expires the script is stopped and the repo is marked `failed`.
@@ -80,7 +101,7 @@ Press Ctrl-C once and gh fleet stops starting new repos but lets the scripts alr
 
 ## Pull request text
 
-`pr.title`, `pr.body` and `pr.commit.message` are Go templates. `{{ .Repo.FullName }}`, `{{ .Repo.Name }}` and `{{ .Campaign.Name }}` are the ones used most. A longer body can live in a file next to the campaign file:
+`pr.title`, `pr.body`, `pr.commit.message` and each entry of `pr.labels` and `pr.reviewers` are Go templates. `{{ .Repo.FullName }}`, `{{ .Repo.Name }}`, `{{ .Vars.<name> }}` and `{{ .Campaign.Name }}` are the ones used most; [variables](../configuration.md#variables) lists everything available. A longer body can live in a file next to the campaign file:
 
 ```yaml
 pr:

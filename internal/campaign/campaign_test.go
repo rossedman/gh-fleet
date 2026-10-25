@@ -355,6 +355,8 @@ func FuzzParse(f *testing.F) {
 		"a: &x [*x]\n",
 		"targets: {orgs: [a]}\n",
 		"1: 2\n",
+		varsCampaign("vars:\n  default: {a: 1, b: [x, 2]}\n  match:\n    - when: {properties: {tier: 1}}\n      set: {a: 2}\n"),
+		varsCampaign("vars:\n  default:\n    bad-name: 1\n"),
 	}
 	for _, s := range seeds {
 		f.Add([]byte(s))

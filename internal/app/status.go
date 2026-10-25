@@ -33,7 +33,7 @@ func (a *App) Status(ctx context.Context, c Common) error {
 	if err != nil {
 		return err
 	}
-	res, err := a.resolve(ctx, client, camp.Targets, c.Repos, true)
+	res, err := a.resolve(ctx, client, camp, c.Repos, true)
 	if err != nil {
 		return err
 	}

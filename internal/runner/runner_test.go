@@ -86,3 +86,25 @@ func TestTail(t *testing.T) {
 		t.Fatal("message without tail")
 	}
 }
+
+func TestScriptVars(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	res, err := Run(context.Background(), dir, Spec{Script: `printf '# comment\n\nOLD_GO=1.22\nurl=https://x/?a=b\r\n' > "$FLEET_OUTPUT/vars"`}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Vars["OLD_GO"] != "1.22" || res.Vars["url"] != "https://x/?a=b" || len(res.Vars) != 2 {
+		t.Fatalf("vars = %v", res.Vars)
+	}
+	_, err = Run(context.Background(), dir, Spec{Script: `echo 'bad line' > "$FLEET_OUTPUT/vars"`}, nil, nil)
+	if err == nil || !strings.Contains(err.Error(), `$FLEET_OUTPUT/vars line 1: want NAME=value, got "bad line"`) {
+		t.Fatalf("err = %v", err)
+	}
+	if res, err := Run(context.Background(), dir, Spec{Script: "true"}, nil, nil); err != nil || res.Vars != nil {
+		t.Fatalf("no file: %v %v", res.Vars, err)
+	}
+	if _, err := Run(context.Background(), dir, Spec{Script: `mkdir "$FLEET_OUTPUT/vars"`}, nil, nil); err == nil {
+		t.Fatal("unreadable vars file accepted")
+	}
+}

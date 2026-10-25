@@ -7,6 +7,7 @@ package fake
 import (
 	"context"
 	"fmt"
+	"maps"
 	"slices"
 	"sort"
 	"strings"
@@ -96,6 +97,7 @@ func (c *Client) ListOwnerRepos(ctx context.Context, owner string) ([]ghapi.Repo
 	var out []ghapi.Repo
 	for _, r := range c.Repos {
 		if strings.EqualFold(r.Owner, owner) {
+			r.Properties = nil // GitHub serves these separately
 			out = append(out, r)
 		}
 	}
@@ -117,6 +119,7 @@ func (c *Client) GetRepo(ctx context.Context, fullName string) (ghapi.Repo, erro
 	if !ok {
 		return ghapi.Repo{}, fmt.Errorf("get %s: not found", fullName)
 	}
+	r.Properties = nil
 	return r, nil
 }
 
@@ -319,6 +322,32 @@ func (c *Client) DeleteBranch(ctx context.Context, repo, branch string) error {
 	}
 	c.DeletedBranches = append(c.DeletedBranches, repo+":"+branch)
 	return nil
+}
+
+// OwnerProperties returns the Properties of every repo owned by owner.
+func (c *Client) OwnerProperties(ctx context.Context, owner string) (map[string]map[string]string, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if err := c.call(ctx, "OwnerProperties", owner); err != nil {
+		return nil, err
+	}
+	out := map[string]map[string]string{}
+	for name, r := range c.Repos {
+		if strings.EqualFold(r.Owner, owner) && len(r.Properties) > 0 {
+			out[name] = maps.Clone(r.Properties)
+		}
+	}
+	return out, nil
+}
+
+// RepoProperties returns one repo's Properties.
+func (c *Client) RepoProperties(ctx context.Context, fullName string) (map[string]string, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if err := c.call(ctx, "RepoProperties", fullName); err != nil {
+		return nil, err
+	}
+	return maps.Clone(c.Repos[fullName].Properties), nil
 }
 
 // RateLimits returns Limits.

@@ -18,6 +18,15 @@ import (
 type Target struct {
 	Repo    ghapi.Repo `json:"repo"`
 	Reasons []string   `json:"reasons"`
+	// Vars are the repo's campaign variables, set by SetVars.
+	Vars map[string]any `json:"vars,omitempty"`
+}
+
+// SetVars resolves every target's variables from a campaign's vars block.
+func (r *Result) SetVars(v *campaign.Vars) {
+	for i := range r.Targets {
+		r.Targets[i].Vars = Vars(v, r.Targets[i].Repo)
+	}
 }
 
 // Skipped is a repo that matched but cannot be changed.
@@ -78,6 +87,10 @@ type Resolver struct {
 	// AllowReadOnly keeps repos without push access as targets, for
 	// commands that only read.
 	AllowReadOnly bool
+	// RequireProperties makes a failure to read custom properties an
+	// error. Without it, repos whose properties can't be read (for example
+	// with a token that lacks access) simply have none.
+	RequireProperties bool
 }
 
 // Resolve lists candidates, applies every filter and returns the targets
@@ -100,6 +113,9 @@ func (rs *Resolver) Resolve(ctx context.Context, t campaign.Targets) (*Result, e
 		}
 		r, err := rs.Client.GetRepo(ctx, name)
 		if err != nil {
+			return nil, err
+		}
+		if r.Properties, err = rs.Client.RepoProperties(ctx, r.FullName()); err != nil && rs.RequireProperties {
 			return nil, err
 		}
 		candidates[strings.ToLower(r.FullName())] = r
@@ -159,7 +175,8 @@ func (rs *Resolver) Resolve(ctx context.Context, t campaign.Targets) (*Result, e
 	return res, nil
 }
 
-// listOwner lists an owner's repos through the cache.
+// listOwner lists an owner's repos, with their custom properties, through
+// the cache.
 func (rs *Resolver) listOwner(ctx context.Context, owner string) ([]ghapi.Repo, error) {
 	if rs.Cache != nil {
 		if repos, ok := rs.Cache.Get(owner); ok {
@@ -170,7 +187,16 @@ func (rs *Resolver) listOwner(ctx context.Context, owner string) ([]ghapi.Repo, 
 	if err != nil {
 		return nil, err
 	}
-	if rs.Cache != nil {
+	props, err := rs.Client.OwnerProperties(ctx, owner)
+	if err != nil && rs.RequireProperties {
+		return nil, err
+	}
+	for i := range repos {
+		repos[i].Properties = props[repos[i].FullName()]
+	}
+	// A listing without the properties it should have is not cached, so a
+	// later campaign that needs them fetches them again.
+	if rs.Cache != nil && err == nil {
 		rs.Cache.Put(owner, repos)
 	}
 	return repos, nil
@@ -187,8 +213,13 @@ type Cache struct {
 	Now func() time.Time
 }
 
+// cacheVersion changes whenever cached listings gain fields, so older
+// entries are refetched instead of read without them.
+const cacheVersion = 2
+
 // cacheEntry is the on-disk form of one listing.
 type cacheEntry struct {
+	Version int          `json:"version"`
 	Fetched time.Time    `json:"fetched"`
 	Repos   []ghapi.Repo `json:"repos"`
 }
@@ -213,7 +244,7 @@ func (c *Cache) Get(owner string) ([]ghapi.Repo, bool) {
 		return nil, false
 	}
 	var e cacheEntry
-	if json.Unmarshal(b, &e) != nil {
+	if json.Unmarshal(b, &e) != nil || e.Version != cacheVersion {
 		return nil, false
 	}
 	ttl := c.TTL
@@ -228,7 +259,7 @@ func (c *Cache) Get(owner string) ([]ghapi.Repo, bool) {
 
 // Put stores a listing. Failures are ignored: the cache is an optimization.
 func (c *Cache) Put(owner string, repos []ghapi.Repo) {
-	b, err := json.Marshal(cacheEntry{Fetched: c.now(), Repos: repos})
+	b, err := json.Marshal(cacheEntry{Version: cacheVersion, Fetched: c.now(), Repos: repos})
 	if err != nil {
 		return
 	}

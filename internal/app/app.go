@@ -168,16 +168,18 @@ func (a *App) LoadCampaign(c Common) (*campaign.Campaign, error) {
 	}
 }
 
-// resolve resolves targets and applies --repo.
-func (a *App) resolve(ctx context.Context, client ghapi.Client, t campaign.Targets, repos []string, requirePush bool) (*target.Result, error) {
-	rs := &target.Resolver{Client: client, Cache: a.Cache, AllowReadOnly: !requirePush}
-	res, err := rs.Resolve(ctx, t)
+// resolve resolves a campaign's targets, applies --repo and works out each
+// target's variables.
+func (a *App) resolve(ctx context.Context, client ghapi.Client, camp *campaign.Campaign, repos []string, requirePush bool) (*target.Result, error) {
+	rs := &target.Resolver{Client: client, Cache: a.Cache, AllowReadOnly: !requirePush, RequireProperties: camp.UsesProperties()}
+	res, err := rs.Resolve(ctx, camp.Targets)
 	if err != nil {
 		return nil, err
 	}
 	if err := res.Limit(repos); err != nil {
 		return nil, err
 	}
+	res.SetVars(&camp.Vars)
 	return res, nil
 }
 

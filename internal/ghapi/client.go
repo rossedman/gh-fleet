@@ -547,6 +547,82 @@ func (c *GitHub) DeleteBranch(ctx context.Context, repo, branch string) error {
 	return nil
 }
 
+// restProperty is one custom property value as REST returns it.
+type restProperty struct {
+	Name  string `json:"property_name"`
+	Value any    `json:"value"`
+}
+
+// propertyMap flattens REST property values into strings. Multi-select
+// values are comma-joined and unset values are left out.
+func propertyMap(props []restProperty) map[string]string {
+	out := map[string]string{}
+	for _, p := range props {
+		switch v := p.Value.(type) {
+		case nil:
+		case string:
+			out[p.Name] = v
+		case []any:
+			parts := make([]string, 0, len(v))
+			for _, e := range v {
+				parts = append(parts, fmt.Sprint(e))
+			}
+			out[p.Name] = strings.Join(parts, ",")
+		default:
+			out[p.Name] = fmt.Sprint(v)
+		}
+	}
+	return out
+}
+
+// isNotFound reports whether err is an HTTP 404 from the API.
+func isNotFound(err error) bool {
+	var he *api.HTTPError
+	return errors.As(err, &he) && he.StatusCode == http.StatusNotFound
+}
+
+// OwnerProperties pages through an organization's custom property values.
+// A 404 (a user account, or no access to properties) means none.
+func (c *GitHub) OwnerProperties(ctx context.Context, owner string) (map[string]map[string]string, error) {
+	out := map[string]map[string]string{}
+	for page := 1; ; page++ {
+		var resp []struct {
+			FullName   string         `json:"repository_full_name"`
+			Properties []restProperty `json:"properties"`
+		}
+		path := fmt.Sprintf("orgs/%s/properties/values?per_page=100&page=%d", url.PathEscape(owner), page)
+		if err := c.rest.DoWithContext(ctx, http.MethodGet, path, nil, &resp); err != nil {
+			if isNotFound(err) {
+				return out, nil
+			}
+			return nil, fmt.Errorf("custom properties of %s: %w", owner, err)
+		}
+		for _, r := range resp {
+			if m := propertyMap(r.Properties); len(m) > 0 {
+				out[r.FullName] = m
+			}
+		}
+		if len(resp) < 100 {
+			return out, nil
+		}
+	}
+}
+
+// RepoProperties returns one repo's custom property values.
+func (c *GitHub) RepoProperties(ctx context.Context, fullName string) (map[string]string, error) {
+	if _, _, err := SplitRepo(fullName); err != nil {
+		return nil, err
+	}
+	var resp []restProperty
+	if err := c.rest.DoWithContext(ctx, http.MethodGet, "repos/"+fullName+"/properties/values", nil, &resp); err != nil {
+		if isNotFound(err) {
+			return map[string]string{}, nil
+		}
+		return nil, fmt.Errorf("custom properties of %s: %w", fullName, err)
+	}
+	return propertyMap(resp), nil
+}
+
 // RateLimits reports the core, GraphQL and search quotas.
 func (c *GitHub) RateLimits(ctx context.Context) ([]RateLimit, error) {
 	var resp struct {
