@@ -86,6 +86,7 @@ nav:
   - Guides:
       - Targeting repositories: guides/targeting.md
       - Writing changes: guides/writing-changes.md
+      - Starlark changes: guides/starlark.md
       - Tracking pull requests: guides/tracking-prs.md
       - Rate limits: guides/rate-limits.md
       - Exploring with exec: guides/exec.md

@@ -124,15 +124,17 @@
       }
     },
     "change": {
-      "description": "What to run in each repository.",
+      "description": "What to change in each repository: a Starlark script (`starlark`), a shell script (`run`), or both, in that order. At least one is required.",
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "run"
-      ],
       "properties": {
+        "starlark": {
+          "description": "A Starlark file relative to the campaign file that defines `change(repo)`. It edits files through `repo` with no shell or network access, and runs before `run` when both are set.",
+          "type": "string",
+          "pattern": "\\.star$"
+        },
         "run": {
-          "description": "A script path relative to the campaign file, or an inline script. Runs with the repo root as working directory.",
+          "description": "A shell script path relative to the campaign file, or an inline script. Runs with the repo root as working directory, after `starlark` when both are set.",
           "type": "string",
           "minLength": 1
         },
@@ -154,7 +156,19 @@
           "pattern": "^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$",
           "default": "5m"
         }
-      }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "run"
+          ]
+        },
+        {
+          "required": [
+            "starlark"
+          ]
+        }
+      ]
     },
     "pr": {
       "description": "How the pull request is opened.",

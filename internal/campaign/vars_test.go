@@ -201,3 +201,29 @@ func TestUsesProperties(t *testing.T) {
 		}
 	}
 }
+
+func TestStarlarkChange(t *testing.T) {
+	t.Parallel()
+	base := "apiVersion: fleet.gh/v1\nname: s\ntargets: {orgs: [a]}\npr: {title: x}\n"
+	p := writeCampaign(t, base+"change: {starlark: ./change.star}\n", map[string]string{"change.star": "def change(repo):\n  pass\n"})
+	c, err := Load(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.StarlarkFile() == "" || c.ScriptFile() != "" || c.Change.Run != "" {
+		t.Fatalf("change = %+v", c.Change)
+	}
+	p = writeCampaign(t, base+"change:\n  starlark: ./missing.star\n", nil)
+	if _, err := Load(p); err == nil || !strings.Contains(err.Error(), `:6:13: change.starlark: file "./missing.star" not found`) {
+		t.Fatalf("missing file: %v", err)
+	}
+	for yaml, want := range map[string]string{
+		"change: {timeout: 1m}\n":           "change: needs 'run', 'starlark', or both",
+		"change: {starlark: x.py}\n":        "change.starlark: must be a .star file",
+		"change: {run: x, timeout: soon}\n": "change.timeout: use a Go duration",
+	} {
+		if _, err := Parse([]byte(base+yaml), "f.yaml"); err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("%q: err = %v, want %q", yaml, err, want)
+		}
+	}
+}

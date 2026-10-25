@@ -41,6 +41,10 @@ func (a *App) Plan(ctx context.Context, c Common) error {
 	if err != nil {
 		return err
 	}
+	script, err := a.script(ctx, camp)
+	if err != nil {
+		return err
+	}
 	client, err := a.NewClient(c.WriteRate)
 	if err != nil {
 		return err
@@ -52,7 +56,7 @@ func (a *App) Plan(ctx context.Context, c Common) error {
 	p := a.printer(c)
 	progress := a.errPrinter(c)
 	pipe := &engine.Pipeline{
-		Mode: engine.Plan, Campaign: camp, Workspaces: a.workspaces(c), Git: a.Git,
+		Mode: engine.Plan, Campaign: camp, Workspaces: a.workspaces(c), Git: a.Git, Script: script,
 		LogPath: func(repo string) string { return a.Store.LogPath(camp.Name, repo) },
 	}
 	results, fatal := engine.Run(ctx, res.Targets, pipe, engine.Options{
@@ -109,6 +113,10 @@ func (a *App) apply(ctx context.Context, o ApplyOptions, keep func(*state.Campai
 	if err != nil {
 		return err
 	}
+	script, err := a.script(ctx, camp)
+	if err != nil {
+		return err
+	}
 	client, err := a.NewClient(o.WriteRate)
 	if err != nil {
 		return err
@@ -151,7 +159,7 @@ func (a *App) apply(ctx context.Context, o ApplyOptions, keep func(*state.Campai
 		return err
 	}
 	pipe := &engine.Pipeline{
-		Mode: engine.Apply, Campaign: camp, Workspaces: a.workspaces(o.Common), Git: a.Git, PRs: prs,
+		Mode: engine.Apply, Campaign: camp, Workspaces: a.workspaces(o.Common), Git: a.Git, PRs: prs, Script: script,
 		LogPath: func(repo string) string { return a.Store.LogPath(camp.Name, repo) },
 		Reopen:  o.Reopen, CloseNoop: o.CloseNoop,
 	}

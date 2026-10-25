@@ -17,6 +17,10 @@ func (a *App) Targets(ctx context.Context, c Common) error {
 	if err != nil {
 		return err
 	}
+	// Check the change script now, so a broken one shows up before plan.
+	if _, err := a.script(ctx, camp); err != nil {
+		return err
+	}
 	client, err := a.NewClient(c.WriteRate)
 	if err != nil {
 		return err

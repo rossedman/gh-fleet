@@ -178,6 +178,9 @@ func (c *Campaign) checkFiles(filename string) error {
 			out = append(out, FieldError{File: filename, Path: strings.Join(f.path, "."), Message: fmt.Sprintf("file %q not found next to the campaign file", f.v)})
 		}
 	}
+	if c.Change.Starlark != "" && c.StarlarkFile() == "" {
+		out = append(out, FieldError{File: filename, Path: "change.starlark", Message: fmt.Sprintf("file %q not found next to the campaign file", c.Change.Starlark)})
+	}
 	if err := c.loadVarsFile(); err != nil {
 		out = append(out, FieldError{File: filename, Path: "vars.file", Message: fmt.Sprintf("%s: %v", c.Vars.File, err)})
 	}
@@ -312,6 +315,22 @@ func schemaErrors(filename string, doc *yaml.Node, ve *jsonschema.ValidationErro
 			})
 			return
 		}
+		// "Needs one of these keys" fails once per alternative too.
+		if _, ok := e.ErrorKind.(*kind.AnyOf); ok {
+			if missing := requiredAlternatives(e); len(missing) > 0 {
+				add(FieldError{
+					File: filename, Line: parent.Line, Column: parent.Column, Path: path,
+					Message: "needs " + strings.Join(missing, ", ") + ", or both",
+				})
+				return
+			}
+		}
+		if _, ok := e.ErrorKind.(*kind.Pattern); ok {
+			if hint, ok := patternHints[path]; ok {
+				add(FieldError{File: filename, Line: parent.Line, Column: parent.Column, Path: path, Message: hint})
+				return
+			}
+		}
 		// "One of these types" fails once per alternative; report it once.
 		if _, ok := e.ErrorKind.(*kind.OneOf); ok {
 			if got, want, ok := typeAlternatives(e); ok {
@@ -355,6 +374,30 @@ func schemaErrors(filename string, doc *yaml.Node, ve *jsonschema.ValidationErro
 		return out[i].Column < out[j].Column
 	})
 	return &ValidationError{Errors: out}
+}
+
+// patternHints replace a regular expression in an error with what the
+// field should look like.
+var patternHints = map[string]string{
+	"name":            "use lowercase letters, digits and dashes, starting with a letter or digit",
+	"change.timeout":  "use a Go duration such as 30s, 5m or 1h",
+	"change.starlark": "must be a .star file",
+}
+
+// requiredAlternatives returns the quoted keys of an anyOf whose every
+// branch failed only because a key was missing, or nil.
+func requiredAlternatives(e *jsonschema.ValidationError) []string {
+	var out []string
+	for _, c := range e.Causes {
+		r, ok := c.ErrorKind.(*kind.Required)
+		if !ok || len(c.Causes) > 0 {
+			return nil
+		}
+		for _, m := range r.Missing {
+			out = append(out, "'"+m+"'")
+		}
+	}
+	return out
 }
 
 // findKey returns the first mapping key node named key, depth first, and

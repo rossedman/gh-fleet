@@ -69,6 +69,8 @@ target.
 | `engine.Run` | the worker pool every command runs on | `BenchmarkEngineConcurrency{1,8,32}` | |
 | `ghapi.Transport.RoundTrip` | rate limiting, pauses and retries for every API call | | |
 | `engine.Pipeline.Process` | decides when to commit, push, open, update or close a PR | | |
+| `star.localPath` | the sandbox boundary: every path a Starlark script passes to `repo` | | `FuzzLocalPath` |
+| `star.Script.Run` | runs untrusted-by-default campaign code against a clone | | |
 
 ## Integration tests
 

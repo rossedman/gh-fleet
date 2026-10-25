@@ -59,18 +59,22 @@ func read(t *testing.T, path string) string {
 func TestExamplesLoad(t *testing.T) {
 	t.Parallel()
 	dirs, _ := filepath.Glob("*/fleet.yaml")
-	if len(dirs) != 13 {
-		t.Fatalf("want 13 examples, got %v", dirs)
+	if len(dirs) != 14 {
+		t.Fatalf("want 14 examples, got %v", dirs)
 	}
 	for _, f := range dirs {
 		c, err := campaign.Load(f)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if c.ScriptFile() == "" {
-			t.Errorf("%s: change.run is not a script file", f)
+		if c.ScriptFile() == "" && c.StarlarkFile() == "" {
+			t.Errorf("%s: change is neither a script file nor a Starlark file", f)
 		}
-		repo := campaign.RepoData{Owner: "acme", Name: "api", FullName: "acme/api", Vars: c.Vars.Default}
+		vars := map[string]any{"node": 22, "previous": "unset"}
+		for k, v := range c.Vars.Default {
+			vars[k] = v
+		}
+		repo := campaign.RepoData{Owner: "acme", Name: "api", FullName: "acme/api", Vars: vars}
 		if _, err := c.RenderBody(repo); err != nil {
 			t.Errorf("%s: %v", f, err)
 		}
