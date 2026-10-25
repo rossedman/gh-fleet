@@ -66,9 +66,9 @@ vuln:
 docs:
 	go run ./tools/gendocs
 
-# Fails when docs/reference/ is stale.
+# Fails when docs/reference/ or the generated mkdocs.yml nav is stale.
 docs-check: docs
-	git diff --exit-code -- docs/reference
+	git diff --exit-code -- docs/reference mkdocs.yml
 	@test -z "$$(git ls-files --others --exclude-standard -- docs/reference)" || { echo "untracked generated docs:"; git ls-files --others --exclude-standard -- docs/reference; exit 1; }
 
 docs-serve: docs

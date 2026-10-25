@@ -18,24 +18,26 @@ import (
 
 	"github.com/rossedman/gh-fleet/cmd"
 	"github.com/rossedman/gh-fleet/internal/campaign"
-	"github.com/rossedman/gh-fleet/internal/star"
 )
 
-// main writes both references under docs/reference, or the directory given
-// as the first argument.
+// main writes the references under docs/reference, or the directory
+// given as the first argument, and keeps the Starlark library's entries in
+// the mkdocs.yml nav in step with its modules.
 func main() {
-	out := "docs/reference"
+	out, nav := "docs/reference", "mkdocs.yml"
 	if len(os.Args) > 1 {
-		out = os.Args[1]
+		out, nav = os.Args[1], ""
 	}
-	if err := run(out); err != nil {
+	if err := run(out, nav, "examples"); err != nil {
 		fmt.Fprintln(os.Stderr, "gendocs:", err)
 		os.Exit(1) //nolint:revive // main may exit
 	}
 }
 
-// run generates every page into out.
-func run(out string) error {
+// run generates every page into out. nav is the mkdocs.yml to update, or
+// "" to leave it; examples is the directory of example campaigns that
+// library pages link to.
+func run(out, nav, examples string) error {
 	cmdDir := filepath.Join(out, "commands")
 	if err := os.RemoveAll(cmdDir); err != nil {
 		return err
@@ -58,62 +60,7 @@ func run(out string) error {
 	if err := os.WriteFile(filepath.Join(out, "campaign.md"), page, 0o644); err != nil { //nolint:gosec // docs are public
 		return err
 	}
-	lib, err := LibMarkdown()
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(filepath.Join(out, "starlark-library.md"), lib, 0o644) //nolint:gosec // docs are public
-}
-
-// LibMarkdown renders the reference for the built-in Starlark library:
-// an index of modules, then each module's functions with their
-// signatures and docstrings.
-func LibMarkdown() ([]byte, error) {
-	var docs []star.LibDoc
-	for _, name := range star.LibModules() {
-		src, err := star.LibSource(name)
-		if err != nil {
-			return nil, err
-		}
-		d, err := star.ParseLibDoc(name, src)
-		if err != nil {
-			return nil, err
-		}
-		docs = append(docs, d)
-	}
-	var b bytes.Buffer
-	b.WriteString("---\ntitle: Starlark library reference\n---\n\n")
-	b.WriteString("# Starlark library reference\n\n")
-	b.WriteString("The helpers built into gh fleet, generated from their docstrings. ")
-	b.WriteString("Load them by module, as in `load(\"" + star.LibPrefix + "files.star\", \"ensure_lines\")`; ")
-	b.WriteString("they need no network and are versioned with the binary. ")
-	b.WriteString("See [Starlark changes](../guides/starlark.md) for how scripts run.\n\n")
-	b.WriteString("| Module | What it does |\n| --- | --- |\n")
-	for _, d := range docs {
-		fmt.Fprintf(&b, "| [`%s%s`](#%s) | %s |\n", star.LibPrefix, d.Name, anchor(d.Name), cell(d.Summary))
-	}
-	b.WriteString("\n")
-	for _, d := range docs {
-		fmt.Fprintf(&b, "## %s\n\n", d.Name)
-		b.WriteString(d.Summary + "\n\n")
-		if d.Body != "" {
-			b.WriteString(d.Body + "\n\n")
-		}
-		names := make([]string, len(d.Funcs))
-		for i, f := range d.Funcs {
-			names[i] = `"` + f.Name + `"`
-		}
-		fmt.Fprintf(&b, "```python\nload(\"%s%s\", %s)\n```\n\n", star.LibPrefix, d.Name, strings.Join(names, ", "))
-		for _, f := range d.Funcs {
-			fmt.Fprintf(&b, "### %s.%s\n\n```python\n%s\n```\n\n%s\n\n", strings.TrimSuffix(d.Name, ".star"), f.Name, f.Signature, f.Doc)
-		}
-	}
-	return append(bytes.TrimRight(b.Bytes(), "\n"), '\n'), nil
-}
-
-// anchor is the heading id mkdocs gives a module section.
-func anchor(name string) string {
-	return strings.ReplaceAll(name, ".", "")
+	return writeLib(out, nav, examples)
 }
 
 // promoteTitles turns the "## gh fleet x" line cobra writes first into a

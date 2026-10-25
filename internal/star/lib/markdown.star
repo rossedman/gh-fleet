@@ -26,19 +26,71 @@ def _find(lines, heading):
     return None
 
 def has_section(repo, path, heading):
-    """Reports whether `path` has a heading with this text, at any level, ignoring case."""
+    """Reports whether a Markdown file has a heading with this text.
+
+    Headings of any level match, case is ignored, and headings inside code
+    fences don't count.
+
+    Args:
+        path: the Markdown file.
+        heading: the heading text, without `#`.
+    Returns:
+        True when the section exists.
+    Example:
+        before README.md:
+            # api
+
+            ## Usage
+
+            Run it.
+        call:
+            has_section(repo, "README.md", "usage")
+        returns:
+            True
+    """
     return _find(repo.read(path, default = "").split("\n"), heading) != None
 
 def set_section(repo, path, heading, body, level = 2, replace = True):
-    """Makes the section titled `heading` contain `body`.
+    """Makes the section under a heading contain the given text.
 
-    An existing section, found by heading text at any level, has its
-    content replaced up to the next heading of the same or a higher level;
-    with `replace = False` it is left as it is. A missing section is
-    appended at the end of the file as a level-`level` heading. Headings
-    inside code fences are ignored.
+    An existing section, found by heading text at any level, has its content
+    replaced up to the next heading of the same or a higher level. A missing
+    section is appended at the end of the file. Headings inside code fences
+    are ignored.
 
-    Returns True when the file changed.
+    Args:
+        path: the Markdown file; created if needed.
+        heading: the heading text, without `#`.
+        body: the section's content.
+        level: the heading level for a new section.
+        replace: when False, an existing section is left as it is.
+    Returns:
+        True when the file changed.
+    Example:
+        before README.md:
+            # api
+
+            Intro.
+
+            ## License
+
+            MIT
+        call:
+            set_section(repo, "README.md", "Security", "Report issues to security@acme.dev.")
+        after README.md:
+            # api
+
+            Intro.
+
+            ## License
+
+            MIT
+
+            ## Security
+
+            Report issues to security@acme.dev.
+        returns:
+            True
     """
     content = repo.read(path, default = "")
     lines = content.split("\n")
@@ -58,11 +110,33 @@ def set_section(repo, path, heading, body, level = 2, replace = True):
     return True
 
 def ensure_badge(repo, path, badge):
-    """Adds a badge (a line of Markdown such as `[![CI](...)](...)`) under the first heading.
+    """Adds a badge under the first heading of a Markdown file.
 
-    A file that already contains the badge's text anywhere is left alone,
-    and a file with no heading gets the badge at the top. Returns True when
-    the file changed.
+    The badge joins any badges already there. A file that already contains
+    the badge's text is left alone, and a file with no heading gets the badge
+    at the top.
+
+    Args:
+        path: the Markdown file.
+        badge: one line of Markdown, such as `[![CI](.../badge.svg)](...)`.
+    Returns:
+        True when the file changed; False when the badge was there or the
+        file does not exist.
+    Example:
+        before README.md:
+            # api
+
+            Intro.
+        call:
+            ensure_badge(repo, "README.md", "[![CI](https://github.com/acme/api/actions/workflows/ci.yml/badge.svg)](https://github.com/acme/api/actions)")
+        after README.md:
+            # api
+
+            [![CI](https://github.com/acme/api/actions/workflows/ci.yml/badge.svg)](https://github.com/acme/api/actions)
+
+            Intro.
+        returns:
+            True
     """
     content = repo.read(path, default = None)
     if content == None or badge in content:

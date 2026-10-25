@@ -394,27 +394,3 @@ func TestCampaignValue(t *testing.T) {
 		t.Fatal("read from a missing campaign directory")
 	}
 }
-
-// TestLibDocumented checks that every module and public function in the
-// built-in library has a docstring, since the reference is built from them.
-func TestLibDocumented(t *testing.T) {
-	t.Parallel()
-	for _, name := range LibModules() {
-		src, err := LibSource(name)
-		if err != nil {
-			t.Fatal(err)
-		}
-		doc, err := ParseLibDoc(name, src)
-		if err != nil {
-			t.Fatalf("%s: %v", name, err)
-		}
-		if doc.Summary == "" {
-			t.Errorf("%s has no module docstring", name)
-		}
-		for _, fn := range doc.Funcs {
-			if fn.Doc == "" {
-				t.Errorf("%s: %s has no docstring", name, fn.Name)
-			}
-		}
-	}
-}

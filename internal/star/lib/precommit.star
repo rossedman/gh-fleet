@@ -13,7 +13,28 @@ def _unquote(v):
     return v.strip("\"'")
 
 def revs(repo, path = CONFIG):
-    """Returns a dict of each hook repository URL to its `rev`, in file order."""
+    """Reads the revision each hook repository is pinned to.
+
+    Args:
+        path: the pre-commit config to read.
+    Returns:
+        A dict of repository URL to `rev`, in file order.
+    Example:
+        before .pre-commit-config.yaml:
+            repos:
+              - repo: https://github.com/pre-commit/pre-commit-hooks
+                rev: v4.6.0
+                hooks:
+                  - id: check-yaml
+              - repo: https://github.com/psf/black
+                rev: "24.4.0"
+                hooks:
+                  - id: black
+        call:
+            revs(repo)
+        returns:
+            {"https://github.com/pre-commit/pre-commit-hooks": "v4.6.0", "https://github.com/psf/black": "24.4.0"}
+    """
     out = {}
     current = None
     for line in repo.read(path, default = "").splitlines():
@@ -28,10 +49,34 @@ def revs(repo, path = CONFIG):
     return out
 
 def set_rev(repo, url, rev, path = CONFIG):
-    """Sets the `rev` of the hook repository `url`, keeping quotes and comments.
+    """Pins a hook repository to a new revision, keeping quotes and comments.
 
-    `url` matches with or without a trailing `.git`. A config that does
-    not use `url` is left alone. Returns True when the file changed.
+    The URL matches with or without a trailing `.git`. A config that does
+    not use the repository is left alone.
+
+    Args:
+        url: the hook repository URL.
+        rev: the new revision, such as `v5.0.0`.
+        path: the pre-commit config to edit.
+    Returns:
+        True when the file changed.
+    Example:
+        before .pre-commit-config.yaml:
+            repos:
+              - repo: https://github.com/psf/black
+                rev: "24.4.0"  # formatter
+                hooks:
+                  - id: black
+        call:
+            set_rev(repo, "https://github.com/psf/black", "24.10.0")
+        after .pre-commit-config.yaml:
+            repos:
+              - repo: https://github.com/psf/black
+                rev: "24.10.0"  # formatter
+                hooks:
+                  - id: black
+        returns:
+            True
     """
     content = repo.read(path, default = None)
     if content == None:
