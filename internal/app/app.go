@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -79,8 +80,11 @@ type Common struct {
 	Campaign string
 	// File is the campaign file (--file); defaults to ./fleet.yaml.
 	File string
-	// Repos limits a run to these repos (--repo).
+	// Repos limits a run to these repos (--repo and --repo-file).
 	Repos []string
+	// Exclude drops these repos from the targets (--exclude and
+	// --exclude-file), on top of the campaign's exclude.repos.
+	Exclude []string
 	// Concurrency overrides limits.concurrency when positive.
 	Concurrency int
 	// WriteRate is API writes per second (--write-rate).
@@ -154,6 +158,16 @@ func (a *App) errPrinter(c Common) render.Printer {
 // LoadCampaign finds and loads the campaign named by c: --file, then a
 // positional path, then a campaign name in local state, then ./fleet.yaml.
 func (a *App) LoadCampaign(c Common) (*campaign.Campaign, error) {
+	camp, err := a.loadCampaign(c)
+	if err != nil {
+		return nil, err
+	}
+	camp.Targets.Exclude.Repos = append(camp.Targets.Exclude.Repos, c.Exclude...)
+	return camp, nil
+}
+
+// loadCampaign finds and parses the campaign c names.
+func (a *App) loadCampaign(c Common) (*campaign.Campaign, error) {
 	switch {
 	case c.File != "":
 		return campaign.Load(c.File)
@@ -211,6 +225,8 @@ func (a *App) resolve(ctx context.Context, client ghapi.Client, camp *campaign.C
 	if err != nil {
 		return nil, err
 	}
+	// A repo both listed and excluded is left out, not an error.
+	repos = slices.DeleteFunc(slices.Clone(repos), func(r string) bool { return excludedName(camp, r) })
 	if err := res.Limit(repos); err != nil {
 		return nil, err
 	}

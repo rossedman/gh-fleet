@@ -146,7 +146,7 @@ func (a *App) Merge(ctx context.Context, o MergeOptions) error {
 	}
 	if len(o.Repos) == 0 {
 		for _, r := range st.Sorted() {
-			if !seen[r.Repo] && r.PRNumber > 0 {
+			if !seen[r.Repo] && r.PRNumber > 0 && !excludedName(camp, r.Repo) {
 				names = append(names, r.Repo)
 			}
 		}

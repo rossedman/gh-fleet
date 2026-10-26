@@ -230,3 +230,51 @@ func TestEveryCommandDocumented(t *testing.T) {
 		}
 	}
 }
+
+func TestRepoFiles(t *testing.T) {
+	e := setup(t)
+	if _, _, err := execute(t, "init", "add-file", "--org", "acme", "--file", e.file); err != nil {
+		t.Fatal(err)
+	}
+	list := filepath.Join(e.dir, "repos.txt")
+	empty := filepath.Join(e.dir, "empty.txt")
+	_ = os.WriteFile(list, []byte("# targets\nhttps://github.com/acme/api\n"), 0o600)
+	_ = os.WriteFile(empty, []byte("# none yet\n"), 0o600)
+	count := "--jq=.targets | length"
+	for _, tt := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"--repo-file", list}, "1"},
+		{[]string{"--repo-file", list, "--exclude", "acme/api"}, "0"},
+		{[]string{"--exclude-file", list}, "0"},
+		{[]string{"--exclude-file", empty}, "1"},
+	} {
+		out, _, err := execute(t, append([]string{"targets", "-f", e.file, count}, tt.args...)...)
+		if err != nil || strings.TrimSpace(out) != tt.want {
+			t.Errorf("%v: %q, %v", tt.args, out, err)
+		}
+	}
+
+	rootCmd.SetIn(strings.NewReader("acme/api\n"))
+	t.Cleanup(func() { rootCmd.SetIn(nil) })
+	out, _, err := execute(t, "targets", "-f", e.file, count, "--exclude-file", "-")
+	if err != nil || strings.TrimSpace(out) != "0" {
+		t.Errorf("stdin: %q, %v", out, err)
+	}
+
+	for _, tt := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"--repo-file", empty}, "--repo-file lists no repos"},
+		{[]string{"--repo-file", filepath.Join(e.dir, "missing")}, "missing"},
+		{[]string{"--exclude-file", filepath.Join(e.dir, "missing")}, "missing"},
+		{[]string{"--repo-file", "-", "--exclude-file", "-"}, "only one of --repo-file and --exclude-file can read stdin"},
+		{[]string{"--repo-file", e.file}, "is not owner/name"},
+	} {
+		if _, _, err := execute(t, append([]string{"plan", "-f", e.file}, tt.args...)...); err == nil || !strings.Contains(err.Error(), tt.want) {
+			t.Errorf("%v: err = %v, want %q", tt.args, err, tt.want)
+		}
+	}
+}

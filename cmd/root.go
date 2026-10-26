@@ -140,8 +140,17 @@ func isTerminal(f *os.File) bool {
 func addCampaignFlags(cmd *cobra.Command) {
 	cmd.Flags().StringP("file", "f", "", "campaign file (default ./fleet.yaml)")
 	cmd.Flags().StringSlice("repo", nil, "limit to these repos (owner/name, repeatable)")
+	addRepoFileFlags(cmd, "limit to the repos listed in this file, one per line (- for stdin, repeatable)")
 	cmd.Flags().Int("concurrency", 0, "repos processed in parallel (default limits.concurrency, else 8)")
 	cmd.Flags().Float64("write-rate", 1, "GitHub API writes per second")
+}
+
+// addRepoFileFlags adds --repo-file, with the given help, and the
+// exclusion flags.
+func addRepoFileFlags(cmd *cobra.Command, repoFileHelp string) {
+	cmd.Flags().StringSlice("repo-file", nil, repoFileHelp)
+	cmd.Flags().StringSlice("exclude", nil, "leave out these repos (owner/name, repeatable)")
+	cmd.Flags().StringSlice("exclude-file", nil, "leave out the repos listed in this file, one per line (- for stdin, repeatable)")
 }
 
 // addOutputFlags adds --json and --jq.
@@ -160,8 +169,9 @@ func addWriteFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolP("yes", "y", false, "skip the confirmation prompt")
 }
 
-// common reads the shared flags through viper.
-func common(args []string) app.Common {
+// common reads the shared flags through viper, and the repo lists named
+// by --repo-file and --exclude-file.
+func common(cmd *cobra.Command, args []string) (app.Common, error) {
 	c := app.Common{
 		File:         viper.GetString("file"),
 		Repos:        viper.GetStringSlice("repo"),
@@ -175,7 +185,35 @@ func common(args []string) app.Common {
 	if len(args) > 0 {
 		c.Campaign = args[0]
 	}
-	return c
+	files, excludeFiles := viper.GetStringSlice("repo-file"), viper.GetStringSlice("exclude-file")
+	if countStdin(files)+countStdin(excludeFiles) > 1 {
+		return c, errors.New("only one of --repo-file and --exclude-file can read stdin")
+	}
+	listed, err := app.ReadRepoFiles(files, cmd.InOrStdin())
+	if err != nil {
+		return c, err
+	}
+	if len(files) > 0 && len(listed) == 0 {
+		return c, errors.New("--repo-file lists no repos")
+	}
+	c.Repos = append(c.Repos, listed...)
+	excluded, err := app.ReadRepoFiles(excludeFiles, cmd.InOrStdin())
+	if err != nil {
+		return c, err
+	}
+	c.Exclude = append(viper.GetStringSlice("exclude"), excluded...)
+	return c, nil
+}
+
+// countStdin counts the - entries in paths.
+func countStdin(paths []string) int {
+	n := 0
+	for _, p := range paths {
+		if p == "-" {
+			n++
+		}
+	}
+	return n
 }
 
 // run builds the App and calls f with it.
