@@ -1,0 +1,29 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: swift-log-1-6
+description: Move Swift packages to swift-log 1.6 and tools version 5.10
+
+targets:
+  orgs: [acme]
+  include:
+    languages: [Swift]
+    files: [Package.swift]
+
+change:
+  steps:
+    # Sets swift-log to 1.6.1, keeping each manifest's kind of requirement
+    # (from:, exact:, upToNextMinor), and raises swift-tools-version to 5.10.
+    - name: swift-package-bump
+      starlark: ./change.star
+      timeout: 1m
+  env:
+    URL: https://github.com/apple/swift-log
+    VERSION: "1.6.1"
+
+pr:
+  title: "build(deps): swift-log 1.6.1"
+  body: |
+    Updates swift-log in {{ .Repo.Name }} to 1.6.1.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet, dependencies]

@@ -8,7 +8,8 @@ Read and edit any JSON file, keeping key order and indentation.
 
 For files such as renovate.json, tsconfig.json without comments,
 .eslintrc.json and composer.json. Keys are addressed with dots, such as
-`compilerOptions.strict`. Files with comments (JSONC) can't be decoded and
+`compilerOptions.strict`; for a key that itself contains dots or slashes,
+pass the path as a list, such as `["require", "laravel/framework"]`. Files with comments (JSONC) can't be decoded and
 fail the run.
 
 ```python
@@ -56,7 +57,7 @@ read(repo, "renovate.json")["extends"]
     {"extends": ["config:base"], "schedule": ["weekly"]}
     ```
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/jsonfile.star#L13)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/jsonfile.star#L20)
 
 ## write
 
@@ -110,7 +111,7 @@ write(repo, ".eslintrc.json", config)
     }
     ```
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/jsonfile.star#L37)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/jsonfile.star#L44)
 
 ## get
 
@@ -146,7 +147,7 @@ get(repo, "tsconfig.json", "compilerOptions.target")
     {"compilerOptions": {"strict": false, "target": "ES2020"}}
     ```
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/jsonfile.star#L73)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/jsonfile.star#L80)
 
 ## set
 
@@ -203,7 +204,7 @@ set(repo, "tsconfig.json", "compilerOptions.strict", True)
 
 **Used in:** [`renovate-preset`](https://github.com/rossedman/gh-fleet/tree/main/examples/renovate-preset)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/jsonfile.star#L97)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/jsonfile.star#L104)
 
 ## delete
 
@@ -257,4 +258,4 @@ delete(repo, "package.json", "scripts.postinstall")
     }
     ```
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/jsonfile.star#L143)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/jsonfile.star#L150)

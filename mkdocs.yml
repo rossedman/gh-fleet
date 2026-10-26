@@ -99,17 +99,21 @@ nav:
           - android.star: reference/starlark/android.md
           - ansible.star: reference/starlark/ansible.md
           - argocd.star: reference/starlark/argocd.md
+          - bazel.star: reference/starlark/bazel.md
+          - buf.star: reference/starlark/buf.md
           - buildkite.star: reference/starlark/buildkite.md
           - cargo.star: reference/starlark/cargo.md
           - changelog.star: reference/starlark/changelog.md
           - circleci.star: reference/starlark/circleci.md
           - cmake.star: reference/starlark/cmake.md
+          - cocoapods.star: reference/starlark/cocoapods.md
           - codeowners.star: reference/starlark/codeowners.md
           - dependabot.star: reference/starlark/dependabot.md
           - devcontainer.star: reference/starlark/devcontainer.md
           - docker.star: reference/starlark/docker.md
           - dotnet.star: reference/starlark/dotnet.md
           - editorconfig.star: reference/starlark/editorconfig.md
+          - elixir.star: reference/starlark/elixir.md
           - files.star: reference/starlark/files.md
           - flux.star: reference/starlark/flux.md
           - gha.star: reference/starlark/gha.md
@@ -129,12 +133,15 @@ nav:
           - markdown.star: reference/starlark/markdown.md
           - maven.star: reference/starlark/maven.md
           - npm.star: reference/starlark/npm.md
+          - php.star: reference/starlark/php.md
           - precommit.star: reference/starlark/precommit.md
           - python.star: reference/starlark/python.md
           - refs.star: reference/starlark/refs.md
           - renovate.star: reference/starlark/renovate.md
           - ruby.star: reference/starlark/ruby.md
           - runtime.star: reference/starlark/runtime.md
+          - sbt.star: reference/starlark/sbt.md
+          - swift.star: reference/starlark/swift.md
           - terraform.star: reference/starlark/terraform.md
           - terragrunt.star: reference/starlark/terragrunt.md
           - toml.star: reference/starlark/toml.md

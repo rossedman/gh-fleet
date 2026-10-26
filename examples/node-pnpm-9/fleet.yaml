@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: pnpm-9
+description: Move pnpm projects to pnpm 9 and strict engines
+
+targets:
+  orgs: [acme]
+  include:
+    files: [pnpm-lock.yaml]
+
+change:
+  steps:
+    # Sets packageManager (used by Corepack) to pnpm 9 where a package sets
+    # one, and turns on engine-strict in .npmrc so installs fail on the wrong
+    # Node version.
+    - name: node-pnpm-9
+      starlark: ./change.star
+      timeout: 1m
+  env:
+    PNPM: pnpm@9.12.0
+
+pr:
+  title: "build: pnpm 9"
+  body: |
+    Moves {{ .Repo.Name }} to {{ .Vars.pnpm }}.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet, dependencies]

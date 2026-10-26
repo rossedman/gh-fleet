@@ -121,3 +121,79 @@ def set_dependency(repo, name, version, sections = SECTIONS):
             write_package(repo, path, pkg)
             changed.append(path)
     return changed
+
+def set_package_manager(repo, spec, path = "package.json"):
+    """Sets the `packageManager` field Corepack uses, such as `pnpm@9.12.0`, where a package already has one.
+
+    Args:
+        spec: the package manager and version, such as `pnpm@9.12.0` or
+            `yarn@4.5.0`.
+        path: the package.json to edit.
+    Returns:
+        True when the file changed.
+    Example:
+        before package.json:
+            {
+              "name": "web",
+              "packageManager": "pnpm@8.15.4"
+            }
+        call:
+            set_package_manager(repo, "pnpm@9.12.0")
+        after package.json:
+            {
+              "name": "web",
+              "packageManager": "pnpm@9.12.0"
+            }
+        returns:
+            True
+    """
+    if not repo.exists(path):
+        return False
+    pkg = read_package(repo, path)
+    if "packageManager" not in pkg or pkg["packageManager"] == spec:
+        return False
+    pkg["packageManager"] = spec
+    return write_package(repo, path, pkg)
+
+def set_npmrc(repo, key, value, path = ".npmrc"):
+    """Sets a `key=value` setting in .npmrc, adding it, or the file, when missing.
+
+    Args:
+        key: the setting, such as `engine-strict` or `save-exact`.
+        value: the value, such as `true`.
+        path: the .npmrc to edit.
+    Returns:
+        True when the file changed.
+    Example:
+        before .npmrc:
+            # registry for @acme packages
+            @acme:registry=https://npm.pkg.github.com
+            save-exact=false
+        call:
+            set_npmrc(repo, "save-exact", "true")
+            set_npmrc(repo, "engine-strict", "true")
+        after .npmrc:
+            # registry for @acme packages
+            @acme:registry=https://npm.pkg.github.com
+            save-exact=true
+            engine-strict=true
+        returns:
+            True
+    """
+    if type(value) == "bool":
+        value = "true" if value else "false"
+    value = str(value)
+    content = repo.read(path, default = "")
+    lines = content.split("\n") if content else []
+    if lines and lines[-1] == "":
+        lines = lines[:-1]
+    for i, line in enumerate(lines):
+        g = re.groups(r"^(\s*" + re.escape(key) + r"\s*=\s*)(.*?)\s*$", line)
+        if g:
+            if g[1] == value:
+                return False
+            lines[i] = g[0] + value
+            repo.write(path, "\n".join(lines) + "\n")
+            return True
+    repo.write(path, "\n".join(lines + [key + "=" + value]) + "\n")
+    return True

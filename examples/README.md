@@ -47,6 +47,14 @@ campaign is safe.
 | [`jvm-dependency-bump`](jvm-dependency-bump/) | Moves jackson-databind to 2.17.2 in Maven poms and Gradle builds | `maven.set_dependency` following `${property}` references, `gradle.set_dependency` including `version.ref` |
 | [`android-target-sdk`](android-target-sdk/) | Raises compileSdk and targetSdk to 35 in every Android module | `android.set_sdk` on Groovy, Kotlin DSL and catalogs, never lowering |
 | [`ruby-rails-bump`](ruby-rails-bump/) | Moves the Rails requirement to `~> 7.2` and re-locks only rails | `ruby.set_gem`, then a one-line `bundle lock` step |
+| [`php-laravel-11`](php-laravel-11/) | Moves Laravel apps to Laravel 11 and PHP 8.2, then updates the lock for laravel only | `php.set_require` and `php.set_php`, then a one-line `composer update` |
+| [`sbt-scala-bump`](sbt-scala-bump/) | Moves Scala 2.13 builds to 2.13.15 and sbt 1.10.2, keeping cross-built Scala 3 | `sbt.set_scala_version` with `from_version`, and `sbt.set_sbt_version` |
+| [`bazel-module-bump`](bazel-module-bump/) | Moves Bazel to 7.4.1 and rules_go and gazelle to new versions | `bazel.set_version` and `bazel.set_dep` on multi-line calls |
+| [`swift-package-bump`](swift-package-bump/) | Moves swift-log to 1.6.1 and raises swift-tools-version | `swift.set_package` keeping the kind of requirement |
+| [`cocoapods-ios-15`](cocoapods-ios-15/) | Raises iOS apps to iOS 15 and Alamofire 5.9 | `cocoapods.set_platform` (never lowering) and `cocoapods.set_pod` |
+| [`elixir-phoenix`](elixir-phoenix/) | Moves Phoenix apps to 1.7.14 on Elixir 1.17 and OTP 27 | `elixir.set_dep`, `elixir.set_elixir` and `runtime.set_version` |
+| [`buf-plugins`](buf-plugins/) | Moves Buf remote plugins for Go to current versions | `buf.set_plugin_version` |
+| [`node-pnpm-9`](node-pnpm-9/) | Moves pnpm projects to pnpm 9 and turns on engine-strict | `npm.set_package_manager` and `npm.set_npmrc` |
 | [`terraform-provider-bump`](terraform-provider-bump/) | Moves the AWS provider to `~> 5.0` and raises `required_version` | `terraform.set_provider_version` on block and one-line entries |
 | [`terragrunt-module-ref`](terragrunt-module-ref/) | Moves every `?ref=` of a shared Terraform modules repo to v2.0.0 | `terragrunt.set_source_ref` with a `*` source, `.tf` and `terragrunt.hcl` alike |
 | [`ansible-collections`](ansible-collections/) | Sets a collection's version in every `requirements.yml` | `ansible.set_version`, adding a missing `version` |

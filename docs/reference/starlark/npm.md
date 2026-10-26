@@ -11,7 +11,7 @@ the Starlark step with a `run` step such as
 `npm install --package-lock-only --ignore-scripts`.
 
 ```python
-load("@fleet//npm.star", "packages", "read_package", "write_package", "set_dependency")
+load("@fleet//npm.star", "packages", "read_package", "write_package", "set_dependency", "set_package_manager", "set_npmrc")
 ```
 
 | Function | What it does |
@@ -20,6 +20,8 @@ load("@fleet//npm.star", "packages", "read_package", "write_package", "set_depen
 | [`read_package`](#read_package) | Reads a package.json as a dict whose keys keep the file's order. |
 | [`write_package`](#write_package) | Writes a dict as a package.json, keeping the file's indentation. |
 | [`set_dependency`](#set_dependency) | Sets a dependency's version range in every package.json that already lists it. |
+| [`set_package_manager`](#set_package_manager) | Sets the `packageManager` field Corepack uses, such as `pnpm@9.12.0`, where a package already has one. |
+| [`set_npmrc`](#set_npmrc) | Sets a `key=value` setting in .npmrc, adding it, or the file, when missing. |
 
 ## packages
 
@@ -222,3 +224,106 @@ set_dependency(repo, "axios", "^1.7.9")
 **Used in:** [`changelog-entry`](https://github.com/rossedman/gh-fleet/tree/main/examples/changelog-entry), [`npm-package-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/npm-package-bump)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/npm.star#L78)
+
+## set_package_manager
+
+```python
+set_package_manager(repo, spec, path = "package.json")
+```
+
+Sets the `packageManager` field Corepack uses, such as `pnpm@9.12.0`, where a package already has one.
+
+**Arguments**
+
+| Name | Description |
+| --- | --- |
+| `repo` | The repo passed to `change(repo)`. |
+| `spec` | The package manager and version, such as `pnpm@9.12.0` or `yarn@4.5.0`. |
+| `path` | The package.json to edit. |
+
+**Returns:** True when the file changed.
+
+**Example**
+
+```python
+set_package_manager(repo, "pnpm@9.12.0")
+# returns True
+```
+
+=== "Before"
+
+    `package.json`
+
+    ```json
+    {
+      "name": "web",
+      "packageManager": "pnpm@8.15.4"
+    }
+    ```
+
+=== "After"
+
+    `package.json`
+
+    ```json
+    {
+      "name": "web",
+      "packageManager": "pnpm@9.12.0"
+    }
+    ```
+
+**Used in:** [`node-pnpm-9`](https://github.com/rossedman/gh-fleet/tree/main/examples/node-pnpm-9)
+
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/npm.star#L125)
+
+## set_npmrc
+
+```python
+set_npmrc(repo, key, value, path = ".npmrc")
+```
+
+Sets a `key=value` setting in .npmrc, adding it, or the file, when missing.
+
+**Arguments**
+
+| Name | Description |
+| --- | --- |
+| `repo` | The repo passed to `change(repo)`. |
+| `key` | The setting, such as `engine-strict` or `save-exact`. |
+| `value` | The value, such as `true`. |
+| `path` | The .npmrc to edit. |
+
+**Returns:** True when the file changed.
+
+**Example**
+
+```python
+set_npmrc(repo, "save-exact", "true")
+set_npmrc(repo, "engine-strict", "true")
+# returns True
+```
+
+=== "Before"
+
+    `.npmrc`
+
+    ```text
+    # registry for @acme packages
+    @acme:registry=https://npm.pkg.github.com
+    save-exact=false
+    ```
+
+=== "After"
+
+    `.npmrc`
+
+    ```text
+    # registry for @acme packages
+    @acme:registry=https://npm.pkg.github.com
+    save-exact=true
+    engine-strict=true
+    ```
+
+**Used in:** [`node-pnpm-9`](https://github.com/rossedman/gh-fleet/tree/main/examples/node-pnpm-9)
+
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/npm.star#L158)

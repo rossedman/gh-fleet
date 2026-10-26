@@ -8,6 +8,9 @@ RUNTIMES = {
     "go": ([".go-version"], "golang"),
     "java": ([".java-version"], "java"),
     "terraform": ([".terraform-version"], "terraform"),
+    "elixir": ([], "elixir"),
+    "erlang": ([], "erlang"),
+    "rust": ([], "rust"),
 }
 
 def _runtime(name):
@@ -21,7 +24,8 @@ def version(repo, runtime):
     Dedicated files such as .nvmrc are read before .tool-versions.
 
     Args:
-        runtime: one of `node`, `python`, `ruby`, `go`, `java` or `terraform`.
+        runtime: one of `node`, `python`, `ruby`, `go`, `java`, `terraform`,
+            `elixir`, `erlang` or `rust`.
     Returns:
         The version as written, or None when nothing pins it.
     Example:
@@ -53,7 +57,8 @@ def set_version(repo, runtime, version, create = None):
     `create` is set.
 
     Args:
-        runtime: one of `node`, `python`, `ruby`, `go`, `java` or `terraform`.
+        runtime: one of `node`, `python`, `ruby`, `go`, `java`, `terraform`,
+            `elixir`, `erlang` or `rust`.
         version: the version to pin, such as `22` or `3.12.7`.
         create: a file to write, such as `.nvmrc`, when nothing pins the
             runtime yet.

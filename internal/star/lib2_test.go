@@ -312,7 +312,7 @@ func TestLibMoreErrors(t *testing.T) {
 	t.Parallel()
 	for name, tt := range map[string]struct{ script, want string }{
 		"pin not a sha":   {"load('@fleet//gha.star', 'pin')\ndef change(repo):\n  pin(repo, {'a/b@v1': 'main'})\n", `a/b@v1 resolved to "main"`},
-		"unknown runtime": {"load('@fleet//runtime.star', 'version')\ndef change(repo):\n  version(repo, 'cobol')\n", `unknown runtime "cobol"; have go, java, node`},
+		"unknown runtime": {"load('@fleet//runtime.star', 'version')\ndef change(repo):\n  version(repo, 'cobol')\n", `unknown runtime "cobol"; have elixir, erlang, go`},
 	} {
 		if _, _, _, err := run(t, tt.script, nil, RepoInfo{}); err == nil || !strings.Contains(err.Error(), tt.want) {
 			t.Errorf("%s: err = %v, want %q", name, err, tt.want)
