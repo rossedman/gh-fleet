@@ -1,6 +1,7 @@
 package star
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -9,6 +10,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/bmatcuk/doublestar/v4"
 	"go.starlark.net/starlark"
@@ -161,7 +163,22 @@ func (r *repo) read(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple
 	if err != nil {
 		return nil, fmt.Errorf("%s: %s: %w", b.Name(), path, unwrapPath(err))
 	}
+	if usesCRLF(data) {
+		data = bytes.ReplaceAll(data, []byte("\r\n"), []byte("\n"))
+	}
 	return starlark.String(data), nil
+}
+
+// usesCRLF reports whether a text file ends its lines with \r\n, as files
+// checked out on Windows do. Scripts see such a file with \n line endings,
+// and writes put the \r\n back, so every edit keeps the file's endings
+// without each helper handling them.
+func usesCRLF(b []byte) bool {
+	crlf := bytes.Count(b, []byte("\r\n"))
+	if crlf == 0 || bytes.IndexByte(b, 0) >= 0 || !utf8.Valid(b) {
+		return false
+	}
+	return crlf*2 >= bytes.Count(b, []byte("\n"))
 }
 
 // write replaces a file's content, creating it and its directories as
@@ -202,7 +219,16 @@ func (r *repo) writeFile(th *starlark.Thread, fn, path string, edit func(old []b
 	default:
 		return fmt.Errorf("%s: %s: %w", fn, path, unwrapPath(err))
 	}
-	data := edit(old)
+	// A CRLF file is edited as \n text and written back with \r\n.
+	crlf := usesCRLF(old)
+	base := old
+	if crlf {
+		base = bytes.ReplaceAll(old, []byte("\r\n"), []byte("\n"))
+	}
+	data := edit(base)
+	if crlf {
+		data = bytes.ReplaceAll(bytes.ReplaceAll(data, []byte("\r\n"), []byte("\n")), []byte("\n"), []byte("\r\n"))
+	}
 	if old != nil && string(old) == string(data) {
 		return nil
 	}

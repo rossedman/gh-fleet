@@ -70,7 +70,7 @@ get(repo, "deploy.yaml", "spec.template.metadata.labels.app")
 
 **Used in:** [`helm-image-tag`](https://github.com/rossedman/gh-fleet/tree/main/examples/helm-image-tag)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/yamlpath.star#L154)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/yamlpath.star#L161)
 
 ## values
 
@@ -111,7 +111,7 @@ values(repo, ".github/workflows/ci.yml", "jobs.*.runs-on")
 
 **Used in:** [`runner-label`](https://github.com/rossedman/gh-fleet/tree/main/examples/runner-label)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/yamlpath.star#L182)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/yamlpath.star#L189)
 
 ## set
 
@@ -174,7 +174,7 @@ set(repo, "deploy.yaml", "spec.revisionHistoryLimit", 5)
 
 **Used in:** [`runner-label`](https://github.com/rossedman/gh-fleet/tree/main/examples/runner-label)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/yamlpath.star#L212)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/yamlpath.star#L219)
 
 ## get_in
 
@@ -204,7 +204,7 @@ get_in("kind: Deployment\nmetadata:\n  name: api\n", "metadata.name")
 # returns "api"
 ```
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/yamlpath.star#L300)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/yamlpath.star#L308)
 
 ## set_in
 
@@ -231,7 +231,7 @@ set_in("metadata:\n  name: api\n", "metadata.labels.team", "payments")
 # returns "metadata:\n  name: api\n  labels:\n    team: payments\n"
 ```
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/yamlpath.star#L323)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/yamlpath.star#L331)
 
 ## set_sibling
 
@@ -300,7 +300,7 @@ set_sibling(repo, "requirements.yml", "name", "ansible.posix", "version", "1.6.0
         version: 1.6.0
     ```
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/yamlpath.star#L340)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/yamlpath.star#L348)
 
 ## delete
 
@@ -350,4 +350,4 @@ delete(repo, ".github/workflows/ci.yml", "jobs.test.continue-on-error")
         steps: []
     ```
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/yamlpath.star#L448)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/yamlpath.star#L456)

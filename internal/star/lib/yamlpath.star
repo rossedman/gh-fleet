@@ -82,7 +82,9 @@ def _entries(lines):
                 continue
             if s == "---":
                 break
-            if len(lines[j]) - len(lines[j].lstrip(" ")) <= e["indent"]:
+            col = len(lines[j]) - len(lines[j].lstrip(" "))
+            # A list may sit at its key's own indent ("key:" then "- a").
+            if col < e["indent"] or col == e["indent"] and not (e["value"] == "" and (s == "-" or s.startswith("- "))):
                 break
             end = j
         e["end"] = end
@@ -140,8 +142,13 @@ def _format_scalar(value, old = ""):
         return "'" + value.replace("'", "''") + "'"
     if old[:1] == '"':
         return json.encode(value)
-    plain = re.matches(r"^[A-Za-z0-9_./@+][A-Za-z0-9_./@+: -]*$", value) and not value.endswith(" ") and not value.endswith(":") and ": " not in value
-    special = value.lower() in ("true", "false", "yes", "no", "on", "off", "null", "~", "y", "n") or re.matches(r"^[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?$", value)
+    plain = re.matches(r"^[A-Za-z0-9_./+][A-Za-z0-9_./@+: -]*$", value) and not value.endswith(" ") and not value.endswith(":") and ": " not in value
+    # Strings a YAML 1.1 or 1.2 parser reads as something else: booleans,
+    # null, and numbers in any form (1_000, 0x1F, 0o17, 1:30, .inf).
+    special = value.lower() in ("true", "false", "yes", "no", "on", "off", "null", "~", "y", "n") or re.matches(
+        r"^[-+]?([0-9][0-9_]*(\.[0-9_]*)?|\.[0-9][0-9_]*)([eE][-+]?[0-9]+)?$|^[-+]?0([xX][0-9a-fA-F_]+|[oO][0-7_]+|[bB][01_]+)$|^[-+]?[0-9][0-9_]*(:[0-5]?[0-9])+(\.[0-9_]*)?$|^[-+]?\.(inf|Inf|INF|nan|NaN|NAN)$",
+        value,
+    )
     return value if plain and not special else json.encode(value)
 
 def _load(repo, path):
@@ -280,7 +287,8 @@ def _set_text(content, key, value, where):
             at = _doc_end(lines)
             while at > 0 and lines[at - 1].strip() == "":
                 at -= 1
-            indent = 0
+            roots = [e for e in entries if len(e["path"]) == 1]
+            indent = roots[0]["indent"] if roots else 0
         else:
             at = parent["end"] + 1
             children = [e for e in entries if len(e["path"]) == depth + 1 and e["path"][:depth] == parts[:depth]]

@@ -172,4 +172,4 @@ delete(repo, "pyproject.toml", "tool.black", "experimental-string-processing")
     line-length = 100
     ```
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/toml.star#L228)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/toml.star#L232)

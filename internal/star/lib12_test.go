@@ -1,6 +1,9 @@
 package star
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // TestLibRealRepoFixes covers what running the examples against real
 // repositories turned up.
@@ -95,5 +98,44 @@ def change(repo):
 		},
 	} {
 		runLib(t, name, tc)
+	}
+}
+
+// TestYAMLFuzzFindings covers what FuzzYAMLSet found in yamlpath.set.
+func TestYAMLFuzzFindings(t *testing.T) {
+	t.Parallel()
+	for name, tc := range map[string]libCase{
+		"values YAML would misread are quoted": {
+			repo: map[string]string{"a.yaml": "a: 1\n"},
+			script: `load("@fleet//yamlpath.star", "set")
+def change(repo):
+    for k, v in [("team", "@acme/platform"), ("n", "1_000"), ("hex", "0x1F"), ("time", "1:30"), ("inf", ".inf"), ("ver", "1.2.3"), ("scope", "acme@2")]:
+        set(repo, "a.yaml", k, v)
+`,
+			want: map[string]string{"a.yaml": "a: 1\nteam: \"@acme/platform\"\n\"n\": \"1_000\"\nhex: \"0x1F\"\ntime: \"1:30\"\ninf: \".inf\"\nver: 1.2.3\nscope: acme@2\n"},
+		},
+		"new keys follow an indented root": {
+			repo: map[string]string{"a.yaml": "  name: web\n  spec:\n    x: 1\n"},
+			script: `load("@fleet//yamlpath.star", "set")
+def change(repo):
+    set(repo, "a.yaml", "kind", "Thing")
+`,
+			want: map[string]string{"a.yaml": "  name: web\n  spec:\n    x: 1\n  kind: Thing\n"},
+		},
+	} {
+		runLib(t, name, tc)
+	}
+	// A key holding a list at its own indent holds a nested value.
+	_, _, _, err := run(t, "load('@fleet//yamlpath.star', 'set')\ndef change(repo):\n  set(repo, 'a.yaml', 'ignore', 'x')\n", map[string]string{"a.yaml": "ignore:\n- a\n- b\nother: 1\n"}, RepoInfo{})
+	if err == nil || !strings.Contains(err.Error(), "ignore in a.yaml holds a nested value") {
+		t.Errorf("compact list: %v", err)
+	}
+	// FuzzTOMLSet: a key named like an existing table would make the file
+	// invalid, so set refuses.
+	for table, key := range map[string]string{"": "tool", "tool": "ruff"} {
+		_, _, _, err = run(t, "load('@fleet//toml.star', 'set')\ndef change(repo):\n  set(repo, 'p.toml', '"+table+"', '"+key+"', 1)\n", map[string]string{"p.toml": "[tool.ruff.lint]\nselect = []\n"}, RepoInfo{})
+		if err == nil || !strings.Contains(err.Error(), "is a table, not a value") {
+			t.Errorf("[%s] %s: %v", table, key, err)
+		}
 	}
 }
