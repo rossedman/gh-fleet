@@ -41,6 +41,7 @@ This reference is generated from the library's docstrings, and every example on 
 | [`cmake.star`](starlark/cmake.md) | Bump CMake's minimum version and FetchContent dependency tags. | 4 |
 | [`cocoapods.star`](starlark/cocoapods.md) | Bump CocoaPods pod versions and the platform version in Podfiles. | 3 |
 | [`codeowners.star`](starlark/codeowners.md) | Find and edit CODEOWNERS files. | 3 |
+| [`codeql.star`](starlark/codeql.md) | Set up CodeQL code scanning: add a workflow, add languages and move the action. | 5 |
 | [`dependabot.star`](starlark/dependabot.md) | Detect package ecosystems, write a Dependabot configuration, and edit existing ones. | 6 |
 | [`devcontainer.star`](starlark/devcontainer.md) | Edit Dev Container configs: images, feature versions and top-level settings. | 7 |
 | [`docker.star`](starlark/docker.md) | Find Dockerfiles and move images to a new tag in Dockerfiles, Compose files and Kubernetes manifests. | 3 |
@@ -80,6 +81,8 @@ This reference is generated from the library's docstrings, and every example on 
 | [`ruby.star`](starlark/ruby.md) | Bump gem versions, the Ruby version and Bundler, and set RuboCop's target Ruby. | 6 |
 | [`runtime.star`](starlark/runtime.md) | Set language versions in version files: .nvmrc, .python-version, .tool-versions and friends. | 2 |
 | [`sbt.star`](starlark/sbt.md) | Bump sbt, Scala, library dependencies and sbt plugins. | 5 |
+| [`scanignore.star`](starlark/scanignore.md) | Manage scanner ignore files: .trivyignore, .semgrepignore and .gitleaksignore. | 4 |
+| [`scorecard.star`](starlark/scorecard.md) | Set up OpenSSF Scorecard: add the workflow, move the action and add the README badge. | 4 |
 | [`serverless.star`](starlark/serverless.md) | Move Serverless Framework services to a new Lambda runtime. | 2 |
 | [`skaffold.star`](starlark/skaffold.md) | Bump Helm chart versions deployed by Skaffold. | 2 |
 | [`swift.star`](starlark/swift.md) | Bump Swift Package Manager dependencies and the swift-tools-version. | 3 |
@@ -93,14 +96,19 @@ This reference is generated from the library's docstrings, and every example on 
 | Function | What it does |
 | --- | --- |
 | [`gha.action_files`](starlark/gha.md#action_files) | Lists the workflows and every local action's metadata file. |
+| [`scanignore.add`](starlark/scanignore.md#add) | Adds entries to a scanner's ignore file, creating it if needed. |
+| [`scorecard.add_badge`](starlark/scorecard.md#add_badge) | Adds the OpenSSF Scorecard badge to the README, below its first heading. |
 | [`github.add_contact_link`](starlark/github.md#add_contact_link) | Adds a contact link to the new-issue page, unless one with this URL exists. |
 | [`changelog.add_entry`](starlark/changelog.md#add_entry) | Adds a bullet under the Unreleased release, in a section such as Changed or Security. |
 | [`eslint.add_extends`](starlark/eslint.md#add_extends) | Adds a preset to `extends` unless it is already there. |
 | [`devcontainer.add_feature`](starlark/devcontainer.md#add_feature) | Adds a feature to a config that doesn't have it yet, in any version. |
+| [`codeql.add_language`](starlark/codeql.md#add_language) | Adds a language to every CodeQL workflow that doesn't analyze it yet. |
 | [`renovate.add_package_rule`](starlark/renovate.md#add_package_rule) | Appends a rule to `packageRules` unless an identical rule is already there. |
 | [`renovate.add_preset`](starlark/renovate.md#add_preset) | Adds a preset to `extends` unless it is already there. |
 | [`github.add_release_category`](starlark/github.md#add_release_category) | Adds a category to the release notes GitHub generates, unless one with this title exists. |
 | [`dependabot.add_update`](starlark/dependabot.md#add_update) | Adds an update entry to an existing Dependabot config, unless one covers that ecosystem and directory. |
+| [`codeql.add_workflow`](starlark/codeql.md#add_workflow) | Writes a CodeQL workflow, unless the repo already runs CodeQL. |
+| [`scorecard.add_workflow`](starlark/scorecard.md#add_workflow) | Writes the Scorecard workflow, unless the repo already runs Scorecard. |
 | [`argocd.applications`](starlark/argocd.md#applications) | Lists the YAML files that define Argo CD Applications or ApplicationSets. |
 | [`cdk.apps`](starlark/cdk.md#apps) | Lists the repo's CDK apps. |
 | [`gradle.build_files`](starlark/gradle.md#build_files) | Lists the build scripts and version catalogs. |
@@ -138,6 +146,7 @@ This reference is generated from the library's docstrings, and every example on 
 | [`markdown.ensure_badge`](starlark/markdown.md#ensure_badge) | Adds a badge under the first heading of a Markdown file. |
 | [`files.ensure_lines`](starlark/files.md#ensure_lines) | Appends each of `lines` that a file does not already contain. |
 | [`gha.ensure_permissions`](starlark/gha.md#ensure_permissions) | Adds a top-level `permissions` block to each workflow that has none. |
+| [`scanignore.entries`](starlark/scanignore.md#entries) | Lists the entries in a scanner's ignore file. |
 | [`devcontainer.features`](starlark/devcontainer.md#features) | Lists the features a config installs, with their versions. |
 | [`cmake.files`](starlark/cmake.md#files) | Lists the repo's CMake files. |
 | [`devcontainer.files`](starlark/devcontainer.md#files) | Lists the repo's Dev Container configs. |
@@ -169,6 +178,7 @@ This reference is generated from the library's docstrings, and every example on 
 | [`flux.helm_releases`](starlark/flux.md#helm_releases) | Lists the YAML files that define Flux HelmReleases. |
 | [`github.issue_templates`](starlark/github.md#issue_templates) | Lists the repo's issue templates and forms. |
 | [`jenkins.jenkinsfiles`](starlark/jenkins.md#jenkinsfiles) | Lists the repo's Jenkinsfiles. |
+| [`codeql.languages`](starlark/codeql.md#languages) | Lists the languages CodeQL analyzes, across every CodeQL workflow. |
 | [`jenkins.libraries`](starlark/jenkins.md#libraries) | Lists the shared libraries Jenkinsfiles load, with their versions. |
 | [`make.makefiles`](starlark/make.md#makefiles) | Lists the repo's Makefiles. |
 | [`cargo.manifests`](starlark/cargo.md#manifests) | Lists the repo's Cargo manifests. |
@@ -194,10 +204,12 @@ This reference is generated from the library's docstrings, and every example on 
 | [`maven.poms`](starlark/maven.md#poms) | Lists the repo's pom.xml files. |
 | [`dotnet.projects`](starlark/dotnet.md#projects) | Lists the project files and shared MSBuild props files. |
 | [`elixir.projects`](starlark/elixir.md#projects) | Lists the repo's mix.exs files. |
+| [`scanignore.prune_expired`](starlark/scanignore.md#prune_expired) | Removes .trivyignore entries whose expiry date has passed. |
 | [`buildkite.queues`](starlark/buildkite.md#queues) | Lists the agent queues pipelines target. |
 | [`devcontainer.read`](starlark/devcontainer.md#read) | Reads a Dev Container config, ignoring comments and trailing commas. |
 | [`jsonfile.read`](starlark/jsonfile.md#read) | Reads a JSON file into a value whose dict keys keep the file's order. |
 | [`npm.read_package`](starlark/npm.md#read_package) | Reads a package.json as a dict whose keys keep the file's order. |
+| [`scanignore.remove`](starlark/scanignore.md#remove) | Removes entries from a scanner's ignore file. |
 | [`files.remove_lines`](starlark/files.md#remove_lines) | Removes every line equal to one of `lines`, after trimming whitespace. |
 | [`renovate.remove_preset`](starlark/renovate.md#remove_preset) | Removes a preset from `extends`, such as a retired `config:base`. |
 | [`gha.rename_branch`](starlark/gha.md#rename_branch) | Renames a branch in workflow triggers and branch checks, as when `master` becomes `main`. |
@@ -302,7 +314,9 @@ This reference is generated from the library's docstrings, and every example on 
 | [`make.set_var`](starlark/make.md#set_var) | Sets every assignment to a variable, in every Makefile that has one. |
 | [`ansible.set_version`](starlark/ansible.md#set_version) | Sets the version of a role or collection wherever a requirements file lists it. |
 | [`bazel.set_version`](starlark/bazel.md#set_version) | Sets the Bazel version in .bazelversion, when the repo pins one. |
+| [`codeql.set_version`](starlark/codeql.md#set_version) | Moves every `github/codeql-action` action (`init`, `analyze`, `upload-sarif`...) to a new version. |
 | [`runtime.set_version`](starlark/runtime.md#set_version) | Sets a runtime's version in every version file the repo already has. |
+| [`scorecard.set_version`](starlark/scorecard.md#set_version) | Moves `ossf/scorecard-action` to a new version. |
 | [`azure_pipelines.set_vm_image`](starlark/azure_pipelines.md#set_vm_image) | Sets `vmImage` on every pool that uses a Microsoft-hosted image. |
 | [`gomod.set_work_go_version`](starlark/gomod.md#set_work_go_version) | Raises the `go` directive in go.work, never lowering it. |
 | [`gradle.set_wrapper_version`](starlark/gradle.md#set_wrapper_version) | Points the Gradle wrapper at a new version, never lowering it. |
@@ -315,6 +329,8 @@ This reference is generated from the library's docstrings, and every example on 
 | [`yamlpath.values`](starlark/yamlpath.md#values) | Reads every scalar whose key path matches a pattern with `*` wildcards. |
 | [`bazel.version`](starlark/bazel.md#version) | Reads the Bazel version pinned in .bazelversion. |
 | [`runtime.version`](starlark/runtime.md#version) | Reads the version a repo pins for a runtime. |
+| [`scorecard.workflow`](starlark/scorecard.md#workflow) | Finds the workflow that runs Scorecard. |
+| [`codeql.workflows`](starlark/codeql.md#workflows) | Lists the workflows that run CodeQL. |
 | [`gha.workflows`](starlark/gha.md#workflows) | Lists the repo's workflow files. |
 | [`gradle.wrapper_version`](starlark/gradle.md#wrapper_version) | Reads the Gradle version the wrapper downloads. |
 | [`jsonfile.write`](starlark/jsonfile.md#write) | Writes a value as JSON, using the indentation the file already has. |

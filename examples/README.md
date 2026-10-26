@@ -109,6 +109,9 @@ campaign is safe.
 | [`bitbucket-pipes`](bitbucket-pipes/) | Moves the aws-s3-deploy pipe and Node images in Bitbucket Pipelines | `bitbucket.bump_pipe` and `bump_image`, listing pipes first |
 | [`drone-golang`](drone-golang/) | Moves Drone and Woodpecker steps to Go 1.23 | `drone.bump_image` on both CI systems |
 | [`branch-rename`](branch-rename/) | Updates workflow branch filters and `refs/heads/` checks after `master` becomes `main` | `gha.rename_branch` |
+| [`codeql-setup`](codeql-setup/) | Adds a CodeQL workflow for the repo's language, or adds `actions` to an existing one and moves it to v4 | `codeql.add_workflow`, `add_language` and `set_version` with `repo.language` |
+| [`scorecard-rollout`](scorecard-rollout/) | Adds the OpenSSF Scorecard workflow and README badge | `scorecard.add_workflow` and `add_badge` |
+| [`trivy-ignore-prune`](trivy-ignore-prune/) | Removes expired `.trivyignore` entries and lists the findings that came back | a shell step for the date, then `scanignore.prune_expired` |
 
 ## Deployments
 
