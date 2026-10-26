@@ -116,6 +116,6 @@ set_image(repo, "ghcr.io/acme/api", new_tag = "2.4.0")
         newTag: "7"
     ```
 
-**Used in:** [`kustomize-image`](https://github.com/rossedman/gh-fleet/tree/main/examples/kustomize-image)
+**Used in:** [`kustomize-image`](../examples/kustomize-image.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/kustomize.star#L26)

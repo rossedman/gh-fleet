@@ -60,7 +60,7 @@ get(repo, "pyproject.toml", "tool.ruff", "line-length")
     target-version = "py39"
     ```
 
-**Used in:** [`ruff-config`](https://github.com/rossedman/gh-fleet/tree/main/examples/ruff-config)
+**Used in:** [`ruff-config`](../examples/ruff-config.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/toml.star#L123)
 
@@ -123,7 +123,7 @@ set(repo, "pyproject.toml", "tool.ruff.lint", "select", ["E", "F", "I"])
     select = ["E", "F", "I"]
     ```
 
-**Used in:** [`ruff-config`](https://github.com/rossedman/gh-fleet/tree/main/examples/ruff-config)
+**Used in:** [`ruff-config`](../examples/ruff-config.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/toml.star#L156)
 

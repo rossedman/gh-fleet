@@ -144,7 +144,7 @@ set_minimum_version(repo, "3.20")
     project(app)
     ```
 
-**Used in:** [`cmake-minimum`](https://github.com/rossedman/gh-fleet/tree/main/examples/cmake-minimum)
+**Used in:** [`cmake-minimum`](../examples/cmake-minimum.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/cmake.star#L48)
 
@@ -202,6 +202,6 @@ set_fetchcontent_tag(repo, "googletest", "v1.15.2")
     )
     ```
 
-**Used in:** [`cmake-minimum`](https://github.com/rossedman/gh-fleet/tree/main/examples/cmake-minimum)
+**Used in:** [`cmake-minimum`](../examples/cmake-minimum.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/cmake.star#L80)

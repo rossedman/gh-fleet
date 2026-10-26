@@ -132,7 +132,7 @@ set_package(repo, "Newtonsoft.Json", "13.0.3")
     </Project>
     ```
 
-**Used in:** [`dotnet-8`](https://github.com/rossedman/gh-fleet/tree/main/examples/dotnet-8)
+**Used in:** [`dotnet-8`](../examples/dotnet-8.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/dotnet.star#L41)
 
@@ -209,7 +209,7 @@ set_target_framework(repo, "net8.0", from_framework = "net6.0")
     </Project>
     ```
 
-**Used in:** [`dotnet-8`](https://github.com/rossedman/gh-fleet/tree/main/examples/dotnet-8)
+**Used in:** [`dotnet-8`](../examples/dotnet-8.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/dotnet.star#L106)
 
@@ -299,6 +299,6 @@ set_sdk_version(repo, "8.0.400")
     }
     ```
 
-**Used in:** [`dotnet-8`](https://github.com/rossedman/gh-fleet/tree/main/examples/dotnet-8)
+**Used in:** [`dotnet-8`](../examples/dotnet-8.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/dotnet.star#L190)

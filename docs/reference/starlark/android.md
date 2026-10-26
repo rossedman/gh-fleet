@@ -118,7 +118,7 @@ set_sdk(repo, compile = 35, target = 35)
     }
     ```
 
-**Used in:** [`android-target-sdk`](https://github.com/rossedman/gh-fleet/tree/main/examples/android-target-sdk)
+**Used in:** [`android-target-sdk`](../examples/android-target-sdk.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/android.star#L56)
 

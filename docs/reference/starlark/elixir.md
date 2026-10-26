@@ -123,7 +123,7 @@ set_dep(repo, "ecto_sql", "~> 3.12")
     end
     ```
 
-**Used in:** [`elixir-phoenix`](https://github.com/rossedman/gh-fleet/tree/main/examples/elixir-phoenix)
+**Used in:** [`elixir-phoenix`](../examples/elixir-phoenix.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/elixir.star#L30)
 
@@ -181,6 +181,6 @@ set_elixir(repo, "~> 1.17")
     end
     ```
 
-**Used in:** [`elixir-phoenix`](https://github.com/rossedman/gh-fleet/tree/main/examples/elixir-phoenix)
+**Used in:** [`elixir-phoenix`](../examples/elixir-phoenix.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/elixir.star#L75)

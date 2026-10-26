@@ -50,7 +50,7 @@ find(repo)
     * @acme/docs
     ```
 
-**Used in:** [`add-codeowners`](https://github.com/rossedman/gh-fleet/tree/main/examples/add-codeowners)
+**Used in:** [`add-codeowners`](../examples/add-codeowners.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/codeowners.star#L5)
 
@@ -137,6 +137,6 @@ set_owners(repo, "*", "acme/payments")
     /docs/ @acme/writers
     ```
 
-**Used in:** [`add-codeowners`](https://github.com/rossedman/gh-fleet/tree/main/examples/add-codeowners)
+**Used in:** [`add-codeowners`](../examples/add-codeowners.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/codeowners.star#L57)

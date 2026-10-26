@@ -1,8 +1,8 @@
 // Command gendocs writes the generated reference pages of the docs site:
 // one Markdown page per command from the cobra tree, the campaign file
-// reference from the embedded JSON Schema, and the Starlark library
-// reference from the library's docstrings, so the docs never drift from
-// the binary.
+// reference from the embedded JSON Schema, the Starlark library reference
+// from the library's docstrings, and a page per example campaign showing
+// its files and test cases, so the docs never drift from the code.
 package main
 
 import (
@@ -35,8 +35,8 @@ func main() {
 }
 
 // run generates every page into out. nav is the mkdocs.yml to update, or
-// "" to leave it; examples is the directory of example campaigns that
-// library pages link to.
+// "" to leave it; examples is the directory of example campaigns, which
+// get a page each and which library pages link to.
 func run(out, nav, examples string) error {
 	cmdDir := filepath.Join(out, "commands")
 	if err := os.RemoveAll(cmdDir); err != nil {
@@ -60,7 +60,14 @@ func run(out, nav, examples string) error {
 	if err := os.WriteFile(filepath.Join(out, "campaign.md"), page, 0o644); err != nil { //nolint:gosec // docs are public
 		return err
 	}
-	return writeLib(out, nav, examples)
+	used, err := usedIn(examples)
+	if err != nil {
+		return err
+	}
+	if err := writeLib(out, nav, used); err != nil {
+		return err
+	}
+	return writeExamples(out, nav, examples, used)
 }
 
 // promoteTitles turns the "## gh fleet x" line cobra writes first into a

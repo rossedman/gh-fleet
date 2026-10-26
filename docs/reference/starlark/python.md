@@ -131,7 +131,7 @@ set_requirement(repo, "django", "==4.2.16")
     dependencies = ["django==4.2.16"]
     ```
 
-**Used in:** [`python-requirement-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/python-requirement-bump)
+**Used in:** [`python-requirement-bump`](../examples/python-requirement-bump.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/python.star#L48)
 
@@ -215,6 +215,6 @@ set_requires_python(repo, ">=3.12")
     requires-python = ">=3.12"
     ```
 
-**Used in:** [`python-version`](https://github.com/rossedman/gh-fleet/tree/main/examples/python-version)
+**Used in:** [`python-version`](../examples/python-version.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/python.star#L113)

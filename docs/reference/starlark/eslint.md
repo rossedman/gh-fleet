@@ -54,7 +54,7 @@ find(repo)
     export default []
     ```
 
-**Used in:** [`prettier-eslint`](https://github.com/rossedman/gh-fleet/tree/main/examples/prettier-eslint)
+**Used in:** [`prettier-eslint`](../examples/prettier-eslint.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/eslint.star#L15)
 
@@ -120,7 +120,7 @@ set_rule(repo, "no-console", "error", {"allow": ["warn", "error"]})
     }
     ```
 
-**Used in:** [`prettier-eslint`](https://github.com/rossedman/gh-fleet/tree/main/examples/prettier-eslint)
+**Used in:** [`prettier-eslint`](../examples/prettier-eslint.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/eslint.star#L50)
 

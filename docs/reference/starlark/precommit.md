@@ -57,7 +57,7 @@ revs(repo)
           - id: black
     ```
 
-**Used in:** [`pre-commit-rev`](https://github.com/rossedman/gh-fleet/tree/main/examples/pre-commit-rev)
+**Used in:** [`pre-commit-rev`](../examples/pre-commit-rev.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/precommit.star#L15)
 
@@ -114,6 +114,6 @@ set_rev(repo, "https://github.com/psf/black", "24.10.0")
           - id: black
     ```
 
-**Used in:** [`pre-commit-rev`](https://github.com/rossedman/gh-fleet/tree/main/examples/pre-commit-rev)
+**Used in:** [`pre-commit-rev`](../examples/pre-commit-rev.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/precommit.star#L51)

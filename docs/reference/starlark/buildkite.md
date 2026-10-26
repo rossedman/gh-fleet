@@ -107,7 +107,7 @@ plugins(repo)
               login: true
     ```
 
-**Used in:** [`buildkite-plugin-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/buildkite-plugin-bump)
+**Used in:** [`buildkite-plugin-bump`](../examples/buildkite-plugin-bump.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/buildkite.star#L32)
 
@@ -165,7 +165,7 @@ bump_plugin(repo, "docker-compose", "v5.4.1")
               run: app
     ```
 
-**Used in:** [`buildkite-plugin-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/buildkite-plugin-bump)
+**Used in:** [`buildkite-plugin-bump`](../examples/buildkite-plugin-bump.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/buildkite.star#L60)
 
@@ -260,7 +260,7 @@ set_queue(repo, "linux-small", from_queue = "default")
         agents: { queue: "deploy" }
     ```
 
-**Used in:** [`buildkite-agents`](https://github.com/rossedman/gh-fleet/tree/main/examples/buildkite-agents)
+**Used in:** [`buildkite-agents`](../examples/buildkite-agents.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/buildkite.star#L120)
 
@@ -321,6 +321,6 @@ set_step_defaults(repo, {"timeout_in_minutes": 20})
       - wait
     ```
 
-**Used in:** [`buildkite-agents`](https://github.com/rossedman/gh-fleet/tree/main/examples/buildkite-agents)
+**Used in:** [`buildkite-agents`](../examples/buildkite-agents.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/buildkite.star#L166)

@@ -50,6 +50,22 @@ limits:
   maxOpenPRs: 200
 ```
 
+The two Starlark steps it names sit next to it. They do the editing; the shell step between them only resolves tags to commits with `gh api`:
+
+=== "change.star"
+
+    ```python
+    --8<-- "examples/pin-actions/change.star"
+    ```
+
+=== "pin.star"
+
+    ```python
+    --8<-- "examples/pin-actions/pin.star"
+    ```
+
+Every [example](examples.md) has a page with its campaign file, its Starlark and its test cases.
+
 ### Identity
 
 `apiVersion` must be `fleet.gh/v1`. `name` is the campaign's identity: it derives the branch (`fleet/<name>`), the hidden marker in each PR body, and the name of the local state file. **Renaming a campaign starts a new one**, and the old PRs are no longer found. Use lowercase letters, digits and dashes.

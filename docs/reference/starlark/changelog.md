@@ -117,6 +117,6 @@ add_entry(repo, "Bump golang.org/x/net to v0.33.0.", section = "Security")
     - Dark mode.
     ```
 
-**Used in:** [`changelog-entry`](https://github.com/rossedman/gh-fleet/tree/main/examples/changelog-entry)
+**Used in:** [`changelog-entry`](../examples/changelog-entry.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/changelog.star#L28)

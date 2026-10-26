@@ -126,7 +126,7 @@ set_require(repo, "laravel/framework", "^11.0")
     }
     ```
 
-**Used in:** [`php-laravel-11`](https://github.com/rossedman/gh-fleet/tree/main/examples/php-laravel-11)
+**Used in:** [`php-laravel-11`](../examples/php-laravel-11.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/php.star#L29)
 
@@ -191,6 +191,6 @@ set_php(repo, "^8.2", platform = "8.2.0")
     }
     ```
 
-**Used in:** [`php-laravel-11`](https://github.com/rossedman/gh-fleet/tree/main/examples/php-laravel-11)
+**Used in:** [`php-laravel-11`](../examples/php-laravel-11.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/php.star#L78)

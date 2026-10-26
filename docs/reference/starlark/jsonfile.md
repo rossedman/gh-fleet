@@ -206,7 +206,7 @@ set(repo, "tsconfig.json", "compilerOptions.strict", True)
     }
     ```
 
-**Used in:** [`renovate-preset`](https://github.com/rossedman/gh-fleet/tree/main/examples/renovate-preset)
+**Used in:** [`renovate-preset`](../examples/renovate-preset.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/jsonfile.star#L111)
 

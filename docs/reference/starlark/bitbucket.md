@@ -55,7 +55,7 @@ pipes(repo)
               - pipe: atlassian/slack-notify:2.0.0
     ```
 
-**Used in:** [`bitbucket-pipes`](https://github.com/rossedman/gh-fleet/tree/main/examples/bitbucket-pipes)
+**Used in:** [`bitbucket-pipes`](../examples/bitbucket-pipes.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/bitbucket.star#L12)
 
@@ -107,7 +107,7 @@ bump_pipe(repo, "atlassian/aws-s3-deploy", "1.6.1")
           S3_BUCKET: acme-web
     ```
 
-**Used in:** [`bitbucket-pipes`](https://github.com/rossedman/gh-fleet/tree/main/examples/bitbucket-pipes)
+**Used in:** [`bitbucket-pipes`](../examples/bitbucket-pipes.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/bitbucket.star#L37)
 
@@ -161,6 +161,6 @@ bump_image(repo, "node", "18", "22")
             image: python:3.10
     ```
 
-**Used in:** [`bitbucket-pipes`](https://github.com/rossedman/gh-fleet/tree/main/examples/bitbucket-pipes)
+**Used in:** [`bitbucket-pipes`](../examples/bitbucket-pipes.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/bitbucket.star#L64)

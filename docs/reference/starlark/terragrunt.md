@@ -50,7 +50,7 @@ Lists every module source pinned with `?ref=`.
     }
     ```
 
-**Used in:** [`terragrunt-module-ref`](https://github.com/rossedman/gh-fleet/tree/main/examples/terragrunt-module-ref)
+**Used in:** [`terragrunt-module-ref`](../examples/terragrunt-module-ref.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/terragrunt.star#L11)
 
@@ -118,6 +118,6 @@ set_source_ref(repo, "git::https://github.com/acme/modules.git//*", "v1.3.0")
     }
     ```
 
-**Used in:** [`terragrunt-module-ref`](https://github.com/rossedman/gh-fleet/tree/main/examples/terragrunt-module-ref)
+**Used in:** [`terragrunt-module-ref`](../examples/terragrunt-module-ref.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/terragrunt.star#L28)

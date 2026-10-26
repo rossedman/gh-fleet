@@ -65,7 +65,7 @@ build_files(repo)
     object Dependencies
     ```
 
-**Used in:** [`sbt-scala-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/sbt-scala-bump)
+**Used in:** [`sbt-scala-bump`](../examples/sbt-scala-bump.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/sbt.star#L10)
 
@@ -111,7 +111,7 @@ set_sbt_version(repo, "1.10.2")
     sbt.version=1.10.2
     ```
 
-**Used in:** [`sbt-scala-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/sbt-scala-bump)
+**Used in:** [`sbt-scala-bump`](../examples/sbt-scala-bump.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/sbt.star#L30)
 
@@ -262,6 +262,6 @@ set_scala_version(repo, "2.13.15", from_version = "2.13.12")
     crossScalaVersions := Seq("2.13.15", "3.3.1")
     ```
 
-**Used in:** [`sbt-scala-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/sbt-scala-bump)
+**Used in:** [`sbt-scala-bump`](../examples/sbt-scala-bump.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/sbt.star#L133)

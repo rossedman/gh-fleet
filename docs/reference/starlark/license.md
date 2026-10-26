@@ -87,7 +87,7 @@ detect(repo)
     Permission is hereby granted, free of charge, to any person obtaining a copy
     ```
 
-**Used in:** [`license-year`](https://github.com/rossedman/gh-fleet/tree/main/examples/license-year)
+**Used in:** [`license-year`](../examples/license-year.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/license.star#L42)
 
@@ -140,7 +140,7 @@ set_year(repo, 2026)
     Copyright (c) 2021-2026 Acme Inc.
     ```
 
-**Used in:** [`license-year`](https://github.com/rossedman/gh-fleet/tree/main/examples/license-year)
+**Used in:** [`license-year`](../examples/license-year.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/license.star#L69)
 

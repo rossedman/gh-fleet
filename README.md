@@ -81,6 +81,29 @@ limits:
   maxOpenPRs: 200
 ```
 
+The steps that edit files are Starlark, sandboxed in the clone with no shell
+or network. `change.star` lists the unpinned actions:
+
+```python
+load("@fleet//gha.star", "unpinned")
+
+def change(repo):
+    repo.set_var("refs", unpinned(repo))
+```
+
+and `pin.star` rewrites them to the SHAs the shell step looked up:
+
+```python
+load("@fleet//gha.star", "pin")
+
+def change(repo):
+    pin(repo, repo.vars.get("shas", ""))
+```
+
+The full campaign, with its test cases, is in
+[`examples/pin-actions`](examples/pin-actions); every example has a
+[page on the docs site](https://rossedman.github.io/gh-fleet/examples/).
+
 `gh fleet plan` on one repo:
 
 ```console

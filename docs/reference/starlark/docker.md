@@ -113,7 +113,7 @@ bump_base_image(repo, "node", "18", "22")
     FROM node:18.2
     ```
 
-**Used in:** [`compose-image-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/compose-image-bump), [`docker-base-image`](https://github.com/rossedman/gh-fleet/tree/main/examples/docker-base-image)
+**Used in:** [`compose-image-bump`](../examples/compose-image-bump.md), [`docker-base-image`](../examples/docker-base-image.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/docker.star#L32)
 
@@ -180,6 +180,6 @@ bump_image(repo, "redis", "7", "8")
         image: redis:7.2.4
     ```
 
-**Used in:** [`compose-image-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/compose-image-bump)
+**Used in:** [`compose-image-bump`](../examples/compose-image-bump.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/docker.star#L71)

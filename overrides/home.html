@@ -95,16 +95,24 @@
       <div class="lp-pillars">
         <article class="lp-pillar" style="--accent: var(--brand)">
           <h3>Campaign</h3><div class="when">A file you commit and review</div>
-          <p>Targets, a script and a PR template. The name derives the branch and the hidden PR marker.</p>
-          <pre><code>name: pin-actions
+          <p>Targets, a few lines of Starlark and a PR template. The name derives the branch and the hidden PR marker.</p>
+          <pre><code>name: bump-go-1-27
 targets:
   orgs: [acme]
   include:
-    files: [.github/workflows]
+    files: [go.mod]
 change:
-  run: ./scripts/pin.sh
+  steps:
+    - starlark: ./change.star
 pr:
-  title: "ci: pin GitHub Actions"</code></pre>
+  title: "build: go 1.27"</code></pre>
+          <pre><code># change.star
+load("@fleet//gomod.star", "set_go_version")
+load("@fleet//gha.star", "set_input")
+
+def change(repo):
+    set_go_version(repo, "1.27.3")
+    set_input(repo, "go-version", "1.27.3")</code></pre>
         </article>
         <article class="lp-pillar" style="--accent: var(--warn)">
           <h3>Plan</h3><div class="when">Before anything is pushed</div>

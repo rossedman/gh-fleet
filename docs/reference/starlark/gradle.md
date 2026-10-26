@@ -150,7 +150,7 @@ set_dependency(repo, "com.fasterxml.jackson.core:jackson-databind", "2.17.2")
     jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
     ```
 
-**Used in:** [`jvm-dependency-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/jvm-dependency-bump)
+**Used in:** [`jvm-dependency-bump`](../examples/jvm-dependency-bump.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gradle.star#L40)
 
@@ -236,7 +236,7 @@ set_wrapper_version(repo, "8.10.2")
     distributionUrl=https\://services.gradle.org/distributions/gradle-8.10.2-bin.zip
     ```
 
-**Used in:** [`gradle-wrapper-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/gradle-wrapper-bump)
+**Used in:** [`gradle-wrapper-bump`](../examples/gradle-wrapper-bump.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gradle.star#L122)
 

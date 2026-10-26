@@ -68,7 +68,7 @@ markdownlint_rule(repo, "MD013", False)
     }
     ```
 
-**Used in:** [`lint-configs`](https://github.com/rossedman/gh-fleet/tree/main/examples/lint-configs)
+**Used in:** [`lint-configs`](../examples/lint-configs.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/lintconfig.star#L16)
 
@@ -123,7 +123,7 @@ yamllint_rule(repo, "document-start", "disable")
       document-start: disable
     ```
 
-**Used in:** [`lint-configs`](https://github.com/rossedman/gh-fleet/tree/main/examples/lint-configs)
+**Used in:** [`lint-configs`](../examples/lint-configs.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/lintconfig.star#L52)
 
@@ -170,6 +170,6 @@ hadolint_ignore(repo, ["DL3013", "DL3008"])
       - DL3013
     ```
 
-**Used in:** [`lint-configs`](https://github.com/rossedman/gh-fleet/tree/main/examples/lint-configs)
+**Used in:** [`lint-configs`](../examples/lint-configs.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/lintconfig.star#L92)

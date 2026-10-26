@@ -68,7 +68,7 @@ get(repo, "deploy.yaml", "spec.template.metadata.labels.app")
             app: "api"
     ```
 
-**Used in:** [`helm-image-tag`](https://github.com/rossedman/gh-fleet/tree/main/examples/helm-image-tag)
+**Used in:** [`helm-image-tag`](../examples/helm-image-tag.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/yamlpath.star#L161)
 
@@ -109,7 +109,7 @@ values(repo, ".github/workflows/ci.yml", "jobs.*.runs-on")
         runs-on: ubuntu-22.04
     ```
 
-**Used in:** [`runner-label`](https://github.com/rossedman/gh-fleet/tree/main/examples/runner-label)
+**Used in:** [`runner-label`](../examples/runner-label.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/yamlpath.star#L189)
 
@@ -172,7 +172,7 @@ set(repo, "deploy.yaml", "spec.revisionHistoryLimit", 5)
       revisionHistoryLimit: 5
     ```
 
-**Used in:** [`runner-label`](https://github.com/rossedman/gh-fleet/tree/main/examples/runner-label)
+**Used in:** [`runner-label`](../examples/runner-label.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/yamlpath.star#L219)
 

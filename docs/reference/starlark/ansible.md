@@ -111,6 +111,6 @@ set_version(repo, "community.general", "9.4.0")
         version: 1.5.4
     ```
 
-**Used in:** [`ansible-collections`](https://github.com/rossedman/gh-fleet/tree/main/examples/ansible-collections)
+**Used in:** [`ansible-collections`](../examples/ansible-collections.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/ansible.star#L26)

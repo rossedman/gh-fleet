@@ -112,6 +112,6 @@ set_context(repo, "@aws-cdk/aws-s3:createDefaultLoggingPolicy", True)
     }
     ```
 
-**Used in:** [`cdk-feature-flags`](https://github.com/rossedman/gh-fleet/tree/main/examples/cdk-feature-flags)
+**Used in:** [`cdk-feature-flags`](../examples/cdk-feature-flags.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/cdk.star#L28)

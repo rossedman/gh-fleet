@@ -157,7 +157,7 @@ add_contact_link(repo, "Security report", "https://github.com/acme/api/security/
         about: Report a vulnerability privately.
     ```
 
-**Used in:** [`github-repo-files`](https://github.com/rossedman/gh-fleet/tree/main/examples/github-repo-files)
+**Used in:** [`github-repo-files`](../examples/github-repo-files.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/github.star#L89)
 
@@ -214,7 +214,7 @@ add_release_category(repo, "Dependencies", ["dependencies"])
           labels: [dependencies]
     ```
 
-**Used in:** [`github-repo-files`](https://github.com/rossedman/gh-fleet/tree/main/examples/github-repo-files)
+**Used in:** [`github-repo-files`](../examples/github-repo-files.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/github.star#L123)
 
@@ -279,7 +279,7 @@ set_label(repo, "fleet", "1f6feb", description = "Opened by gh fleet")
       description: Opened by gh fleet
     ```
 
-**Used in:** [`github-repo-files`](https://github.com/rossedman/gh-fleet/tree/main/examples/github-repo-files)
+**Used in:** [`github-repo-files`](../examples/github-repo-files.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/github.star#L187)
 

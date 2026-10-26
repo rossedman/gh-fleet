@@ -1,0 +1,61 @@
+---
+title: renovate-preset
+---
+
+# renovate-preset
+
+Point every Renovate config at the org's shared preset.
+
+**Uses:** [`jsonfile.set`](../starlark/jsonfile.md#set)
+
+Start a campaign from it, then point it at your organization:
+
+```sh
+gh fleet init --from renovate-preset --org your-org
+```
+
+## Campaign
+
+=== "change.star"
+
+    ```python
+    load("@fleet//jsonfile.star", "set")
+
+    def change(repo):
+        set(repo, "renovate.json", "extends", [env["PRESET"]])
+    ```
+
+=== "fleet.yaml"
+
+    ```yaml
+    # yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+    apiVersion: fleet.gh/v1
+    name: renovate-preset
+    description: Point every Renovate config at the org's shared preset
+
+    targets:
+      orgs: [acme]
+      include:
+        files: [renovate.json]
+
+    change:
+      steps:
+        # Sets "extends" in renovate.json, keeping the rest of the file, its
+        # key order and its indentation.
+        - name: renovate.json
+          starlark: ./change.star
+          timeout: 1m
+      env:
+        PRESET: "github>acme/renovate-config"
+
+    pr:
+      title: "chore: use the shared Renovate preset"
+      body: |
+        Points {{ .Repo.Name }}'s Renovate config at the org preset, so
+        schedules and grouping rules are managed in one place.
+
+        Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+      labels: [fleet, dependencies]
+    ```
+
+[Source on GitHub](https://github.com/rossedman/gh-fleet/tree/main/examples/renovate-preset)

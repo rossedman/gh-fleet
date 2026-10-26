@@ -122,7 +122,7 @@ set_gem(repo, "puma", [">= 6", "< 7"])
     gem "pg"
     ```
 
-**Used in:** [`ruby-rails-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/ruby-rails-bump)
+**Used in:** [`ruby-rails-bump`](../examples/ruby-rails-bump.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/ruby.star#L33)
 
