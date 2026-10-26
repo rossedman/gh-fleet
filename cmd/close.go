@@ -18,7 +18,11 @@ passed.`,
   gh fleet close --repo acme/api --comment "Superseded by #42" --yes`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		o := app.CloseOptions{Common: common(args), Comment: viper.GetString("comment"), KeepBranches: viper.GetBool("keep-branches")}
+		c, err := common(cmd, args)
+		if err != nil {
+			return err
+		}
+		o := app.CloseOptions{Common: c, Comment: viper.GetString("comment"), KeepBranches: viper.GetBool("keep-branches")}
 		return run(cmd, func(a *app.App) error { return a.Close(cmd.Context(), o) })
 	},
 }
