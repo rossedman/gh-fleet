@@ -12,6 +12,10 @@ GitHub is the source of truth: PRs are found by branch and by the hidden
 campaign marker, so status is correct even after the local state file is
 deleted. The remaining API quota is shown at the end.
 
+--format markdown prints a progress report to paste into an issue, a PR or
+chat: what needs attention, open PRs and what each waits on, and merged
+PRs. --format html prints the same report as a self-contained page.
+
 ```
 gh fleet status [campaign] [flags]
 ```
@@ -21,6 +25,8 @@ gh fleet status [campaign] [flags]
 ```
   gh fleet status
   gh fleet status pin-actions --json --jq '.counts'
+  gh fleet status --format markdown | gh issue comment 42 --body-file -
+  gh fleet status --format html > report.html
 ```
 
 ### Options
@@ -28,6 +34,7 @@ gh fleet status [campaign] [flags]
 ```
       --concurrency int    repos processed in parallel (default limits.concurrency, else 8)
   -f, --file string        campaign file (default ./fleet.yaml)
+      --format string      table, or a report to share: markdown or html (default "table")
   -h, --help               help for status
       --jq string          filter JSON output with a jq expression
       --json               print JSON instead of a table

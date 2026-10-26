@@ -88,7 +88,7 @@ pr:
 		t.Fatal(err)
 	}
 	out.Reset()
-	if err := a.Status(ctx, Common{File: file, JSON: true}); err != nil {
+	if err := a.Status(ctx, StatusOptions{Common: Common{File: file, JSON: true}}); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out.String(), `"status": "pr_open"`) {

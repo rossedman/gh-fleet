@@ -61,6 +61,47 @@ For scripts, `--json` prints a report and `--jq` filters it:
 gh fleet status --json --jq '.counts'
 ```
 
+### Sharing progress
+
+`--format markdown` prints a report for people: how many repos are done, what needs attention (failed runs, failing checks, conflicts, requested changes), the open PRs with what each waits on, using the same reasons as `merge`, and the merged ones. It renders in an issue, a PR, a wiki page or chat:
+
+```sh
+gh fleet status --format markdown | gh issue comment 42 --body-file -
+```
+
+```markdown
+# rails-7-2
+
+Move every Rails app to 7.2
+
+**2 of 7 repos done (28%)** `██░░░░░░░░`
+
+1 merged · 4 pr open · 1 failed · 1 noop · 1 skipped
+
+## Needs attention
+
+| Repo | PR | Problem |
+| --- | --- | --- |
+| acme/d | [#4](https://github.com/acme/d/pull/4) | checks failing |
+| acme/e | [#5](https://github.com/acme/e/pull/5) | merge conflict |
+| acme/f | - | step lock: exit 1 |
+
+## Open
+
+| Repo | PR | Checks | Review | Waiting on |
+| --- | --- | --- | --- | --- |
+| acme/b | [#2](https://github.com/acme/b/pull/2) | success | approved | ready to merge |
+| acme/c | [#3](https://github.com/acme/c/pull/3) | pending | review required | checks running |
+```
+
+`--format html` prints the same report as one self-contained page, with light and dark themes, to publish or attach:
+
+```sh
+gh fleet status --format html > rails-7-2.html
+```
+
+"Done" counts merged PRs and repos that needed no change. Skipped repos aren't counted.
+
 ## Recovering from failures
 
 A failure in one repo never stops the run. The repo is recorded as `failed` with its error, `gh fleet` exits non-zero at the end, and `status` shows the error. Fix the script or the cause, then:
