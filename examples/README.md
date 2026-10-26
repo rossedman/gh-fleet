@@ -82,7 +82,12 @@ campaign is safe.
 | [`runner-label`](runner-label/) | Pins jobs on `ubuntu-latest` to `ubuntu-24.04` | `yamlpath.values` with a `*` wildcard, then `yamlpath.set` |
 | [`buildkite-plugin-bump`](buildkite-plugin-bump/) | Moves the docker-compose plugin to v5.4.1 in every Buildkite pipeline | `buildkite.bump_plugin`, reporting the old version |
 | [`buildkite-agents`](buildkite-agents/) | Moves steps to a new agent queue and adds `timeout_in_minutes` where missing | `buildkite.set_queue` and `buildkite.set_step_defaults`, including grouped steps |
-| [`jenkins-shared-library`](jenkins-shared-library/) | Moves a Jenkins shared library and a CircleCI orb to v3 | the generic `refs.bump` on `name@ref` |
+| [`jenkins-shared-library`](jenkins-shared-library/) | Moves a Jenkins shared library and a CircleCI orb to v3 | `jenkins.bump_library` and `circleci.bump_orb`, both built on `refs.bump` |
+| [`gitlab-image-bump`](gitlab-image-bump/) | Moves GitLab CI job and service images from Node 18 to 22 | `gitlab.bump_image` on `image:`, `name:` and `services` forms |
+| [`gitlab-templates`](gitlab-templates/) | Moves included templates and CI/CD components to v2, and makes jobs interruptible | `gitlab.set_include_ref`, `gitlab.bump_component`, `gitlab.set_default` |
+| [`circleci-orbs`](circleci-orbs/) | Moves the node orb to 5.2.0 in every CircleCI config | `circleci.bump_orb`, reporting the old version |
+| [`circleci-machine-image`](circleci-machine-image/) | Moves machine jobs off retired Ubuntu 20.04 images | `circleci.set_machine_image` with a `*` match, leaving Docker images alone |
+| [`jenkins-agent-image`](jenkins-agent-image/) | Moves Jenkins agents to Maven 3.9 and `tools` to JDK 21 | `jenkins.bump_image` and `jenkins.set_tool` |
 | [`branch-rename`](branch-rename/) | Updates workflow branch filters and `refs/heads/` checks after `master` becomes `main` | `gha.rename_branch` |
 
 ## Deployments

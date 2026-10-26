@@ -10,9 +10,9 @@ targets:
 
 change:
   steps:
-    # The `refs` helper works on any `name@ref`: here a Jenkins shared library
-    # (`@Library('ci-lib@v2')`) and a CircleCI orb (`acme/ci-orb@2.1.0`), in
-    # one step.
+    # Moves a Jenkins shared library (`@Library('ci-lib@v2')`) and a
+    # CircleCI orb (`acme/ci-orb@2.1.0`) in one step. Both modules are built
+    # on `refs.bump`, which works on any `name@ref` in any file.
     - name: jenkins-shared-library
       starlark: ./change.star
       timeout: 1m

@@ -31,6 +31,7 @@ This reference is generated from the library's docstrings, and every example on 
 | [`buildkite.star`](starlark/buildkite.md) | Edit Buildkite pipelines: plugin versions, agent queues and step defaults. | 6 |
 | [`cargo.star`](starlark/cargo.md) | Bump Rust crate dependencies and rust-version in Cargo.toml files. | 4 |
 | [`changelog.star`](starlark/changelog.md) | Add entries to a Keep a Changelog style CHANGELOG.md. | 2 |
+| [`circleci.star`](starlark/circleci.md) | Edit CircleCI configuration: orb versions, executor images, machine images and resource classes. | 6 |
 | [`cmake.star`](starlark/cmake.md) | Bump CMake's minimum version and FetchContent dependency tags. | 4 |
 | [`codeowners.star`](starlark/codeowners.md) | Find and edit CODEOWNERS files. | 3 |
 | [`dependabot.star`](starlark/dependabot.md) | Detect package ecosystems and write a Dependabot configuration. | 4 |
@@ -41,9 +42,11 @@ This reference is generated from the library's docstrings, and every example on 
 | [`flux.star`](starlark/flux.md) | Edit Flux HelmReleases and sources: chart versions and Git refs. | 3 |
 | [`gha.star`](starlark/gha.md) | Find GitHub Actions workflows, bump action versions, set inputs and add permissions. | 8 |
 | [`gitattributes.star`](starlark/gitattributes.md) | Set attributes for path patterns in .gitattributes, such as line endings and Git LFS tracking. | 2 |
+| [`gitlab.star`](starlark/gitlab.md) | Edit GitLab CI configuration: job and service images, included template refs, CI/CD component versions and defaults. | 6 |
 | [`gomod.star`](starlark/gomod.md) | Read and raise the go directive in go.mod files. | 5 |
 | [`gradle.star`](starlark/gradle.md) | Bump Gradle dependencies, version catalog entries and the Gradle wrapper. | 4 |
 | [`helm.star`](starlark/helm.md) | Bump Helm chart versions, chart dependencies and image tags in values files. | 5 |
+| [`jenkins.star`](starlark/jenkins.md) | Edit Jenkinsfiles: shared library versions, agent images and tool versions. | 5 |
 | [`jsonfile.star`](starlark/jsonfile.md) | Read and edit any JSON file, keeping key order and indentation. | 5 |
 | [`k8s.star`](starlark/k8s.md) | Edit Kubernetes manifests: migrate removed API versions and set labels on every resource. | 4 |
 | [`kustomize.star`](starlark/kustomize.md) | Set image tags and names in kustomization files, the usual way to roll out a release with Kustomize. | 2 |
@@ -72,10 +75,19 @@ This reference is generated from the library's docstrings, and every example on 
 | [`refs.bump`](starlark/refs.md#bump) | Moves every reference to `name` to a new ref. |
 | [`gha.bump_action`](starlark/gha.md#bump_action) | Moves an action to a new version wherever a workflow or local action uses it. |
 | [`docker.bump_base_image`](starlark/docker.md#bump_base_image) | Moves `FROM` lines of an image from one tag to another in every Dockerfile. |
+| [`gitlab.bump_component`](starlark/gitlab.md#bump_component) | Moves an included CI/CD component to a new version. |
+| [`circleci.bump_image`](starlark/circleci.md#bump_image) | Moves a Docker executor image from one tag to another. |
 | [`docker.bump_image`](starlark/docker.md#bump_image) | Moves `image:` lines from one tag to another in YAML files. |
+| [`gitlab.bump_image`](starlark/gitlab.md#bump_image) | Moves a job or service image from one tag to another. |
+| [`jenkins.bump_image`](starlark/jenkins.md#bump_image) | Moves a container image used by an agent or step from one tag to another. |
+| [`jenkins.bump_library`](starlark/jenkins.md#bump_library) | Moves a shared library to a new version in every Jenkinsfile. |
+| [`circleci.bump_orb`](starlark/circleci.md#bump_orb) | Moves an orb to a new version in every config. |
 | [`buildkite.bump_plugin`](starlark/buildkite.md#bump_plugin) | Moves a plugin to a new version in every pipeline. |
 | [`helm.charts`](starlark/helm.md#charts) | Lists the repo's Helm charts. |
+| [`gitlab.components`](starlark/gitlab.md#components) | Lists the CI/CD components a config includes, with their versions. |
 | [`dependabot.config`](starlark/dependabot.md#config) | Builds the text of a dependabot.yml with one update entry per ecosystem. |
+| [`circleci.configs`](starlark/circleci.md#configs) | Lists the repo's CircleCI configs. |
+| [`gitlab.configs`](starlark/gitlab.md#configs) | Lists the repo's GitLab CI files. |
 | [`jsonfile.delete`](starlark/jsonfile.md#delete) | Removes a key by dotted key path. |
 | [`toml.delete`](starlark/toml.md#delete) | Removes a key from a table. |
 | [`yamlpath.delete`](starlark/yamlpath.md#delete) | Removes a key and everything nested under it. |
@@ -102,12 +114,15 @@ This reference is generated from the library's docstrings, and every example on 
 | [`gomod.go_version`](starlark/gomod.md#go_version) | Reads the version in a go.mod's `go` directive. |
 | [`markdown.has_section`](starlark/markdown.md#has_section) | Reports whether a Markdown file has a heading with this text. |
 | [`flux.helm_releases`](starlark/flux.md#helm_releases) | Lists the YAML files that define Flux HelmReleases. |
+| [`jenkins.jenkinsfiles`](starlark/jenkins.md#jenkinsfiles) | Lists the repo's Jenkinsfiles. |
+| [`jenkins.libraries`](starlark/jenkins.md#libraries) | Lists the shared libraries Jenkinsfiles load, with their versions. |
 | [`make.makefiles`](starlark/make.md#makefiles) | Lists the repo's Makefiles. |
 | [`cargo.manifests`](starlark/cargo.md#manifests) | Lists the repo's Cargo manifests. |
 | [`k8s.manifests`](starlark/k8s.md#manifests) | Lists the YAML files that hold Kubernetes resources. |
 | [`k8s.migrate_api_versions`](starlark/k8s.md#migrate_api_versions) | Moves resources off API versions Kubernetes removed. |
 | [`cmake.minimum_version`](starlark/cmake.md#minimum_version) | Reads the version from `cmake_minimum_required`. |
 | [`gomod.modules`](starlark/gomod.md#modules) | Lists the repo's Go modules. |
+| [`circleci.orbs`](starlark/circleci.md#orbs) | Lists the orbs configs use, with their versions. |
 | [`gomod.outdated`](starlark/gomod.md#outdated) | Finds the modules that require a dependency below a version. |
 | [`codeowners.owners`](starlark/codeowners.md#owners) | Reads the owners of a CODEOWNERS pattern. |
 | [`npm.packages`](starlark/npm.md#packages) | Lists the repo's package.json files. |
@@ -139,6 +154,7 @@ This reference is generated from the library's docstrings, and every example on 
 | [`helm.set_app_version`](starlark/helm.md#set_app_version) | Sets a chart's `appVersion` in its Chart.yaml, keeping its quotes. |
 | [`flux.set_chart_version`](starlark/flux.md#set_chart_version) | Sets the chart `version` of every HelmRelease that installs a chart. |
 | [`helm.set_chart_version`](starlark/helm.md#set_chart_version) | Sets a chart's `version` in its Chart.yaml. |
+| [`gitlab.set_default`](starlark/gitlab.md#set_default) | Sets a key under `default:` in .gitlab-ci.yml, adding `default:` if needed. |
 | [`cargo.set_dependency`](starlark/cargo.md#set_dependency) | Sets a crate's version wherever a Cargo.toml already depends on it. |
 | [`gradle.set_dependency`](starlark/gradle.md#set_dependency) | Sets a library's version wherever the build declares it. |
 | [`helm.set_dependency`](starlark/helm.md#set_dependency) | Sets the version of a chart dependency in every Chart.yaml that lists it. |
@@ -150,8 +166,10 @@ This reference is generated from the library's docstrings, and every example on 
 | [`kustomize.set_image`](starlark/kustomize.md#set_image) | Sets `newTag`, `newName` or `digest` for an image in every kustomization's `images` list. |
 | [`helm.set_image_tag`](starlark/helm.md#set_image_tag) | Sets the `tag` next to `repository: <repository>` in values files. |
 | [`yamlpath.set_in`](starlark/yamlpath.md#set_in) | Sets a key in YAML text rather than a file, the same way `set` does. |
+| [`gitlab.set_include_ref`](starlark/gitlab.md#set_include_ref) | Sets the `ref` of every `include` that pulls templates from another project. |
 | [`gha.set_input`](starlark/gha.md#set_input) | Sets every `<key>: <value>` line in the workflows, such as an action input. |
 | [`k8s.set_label`](starlark/k8s.md#set_label) | Sets a label on every resource, and on the pods workloads create. |
+| [`circleci.set_machine_image`](starlark/circleci.md#set_machine_image) | Sets the `image` of every machine executor, such as when an Ubuntu image is retired. |
 | [`cmake.set_minimum_version`](starlark/cmake.md#set_minimum_version) | Raises `cmake_minimum_required` to a version, never lowering it. |
 | [`codeowners.set_owners`](starlark/codeowners.md#set_owners) | Makes a list of users or teams the owners of a pattern. |
 | [`dotnet.set_package`](starlark/dotnet.md#set_package) | Sets a NuGet package's version wherever a project already references it. |
@@ -161,6 +179,7 @@ This reference is generated from the library's docstrings, and every example on 
 | [`terraform.set_required_version`](starlark/terraform.md#set_required_version) | Sets every `required_version` constraint. |
 | [`python.set_requirement`](starlark/python.md#set_requirement) | Sets a package's version specifier wherever it is already required. |
 | [`python.set_requires_python`](starlark/python.md#set_requires_python) | Sets `requires-python` in a pyproject.toml that already has it. |
+| [`circleci.set_resource_class`](starlark/circleci.md#set_resource_class) | Sets `resource_class` on every job and executor that sets one. |
 | [`precommit.set_rev`](starlark/precommit.md#set_rev) | Pins a hook repository to a new revision, keeping quotes and comments. |
 | [`cargo.set_rust_version`](starlark/cargo.md#set_rust_version) | Raises `rust-version` in every Cargo.toml that sets it, never lowering it. |
 | [`dotnet.set_sdk_version`](starlark/dotnet.md#set_sdk_version) | Sets the .NET SDK version in a global.json that already pins one. |
@@ -171,6 +190,7 @@ This reference is generated from the library's docstrings, and every example on 
 | [`buildkite.set_step_defaults`](starlark/buildkite.md#set_step_defaults) | Adds keys, such as `timeout_in_minutes`, to every command step that lacks them. |
 | [`dotnet.set_target_framework`](starlark/dotnet.md#set_target_framework) | Sets the target framework of every project, such as `net8.0`. |
 | [`argocd.set_target_revision`](starlark/argocd.md#set_target_revision) | Sets `targetRevision` for every source that points at a repository. |
+| [`jenkins.set_tool`](starlark/jenkins.md#set_tool) | Sets the installation a `tools` block asks for, such as `maven 'Maven 3.9'`. |
 | [`make.set_var`](starlark/make.md#set_var) | Sets every assignment to a variable, in every Makefile that has one. |
 | [`ansible.set_version`](starlark/ansible.md#set_version) | Sets the version of a role or collection wherever a requirements file lists it. |
 | [`runtime.set_version`](starlark/runtime.md#set_version) | Sets a runtime's version in every version file the repo already has. |
