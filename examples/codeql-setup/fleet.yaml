@@ -1,0 +1,36 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: codeql-everywhere
+description: Turn on CodeQL code scanning, including GitHub Actions workflows
+
+targets:
+  orgs: [acme]
+  include:
+    files: [.github/workflows]
+  exclude:
+    topics: [no-fleet]
+
+change:
+  steps:
+    # Repos without CodeQL get a workflow for their main language and their
+    # Actions workflows. Repos that already run it get `actions` added to
+    # the matrix and codeql-action moved to v4.
+    - name: codeql
+      starlark: ./change.star
+      timeout: 1m
+
+pr:
+  title: "ci: CodeQL code scanning"
+  body: |
+    {{ if .Vars.added -}}
+    Adds a CodeQL workflow scanning {{ .Vars.languages }} on pushes, pull
+    requests and weekly.
+    {{- else -}}
+    Adds `actions` to {{ .Repo.Name }}'s CodeQL matrix, so workflow files
+    are scanned too, and moves `github/codeql-action` to v4.
+    {{- end }}
+
+    Results show up under Security → Code scanning.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet, security]

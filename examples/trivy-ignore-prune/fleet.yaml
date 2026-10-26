@@ -1,0 +1,32 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: trivy-ignore-prune
+description: Remove expired entries from .trivyignore so teams see which findings are back
+
+targets:
+  orgs: [acme]
+  include:
+    files: [.trivyignore]
+
+change:
+  steps:
+    # 1. Today's date, from the shell.
+    - name: today
+      run: echo "today=$(date -u +%F)" >> "$FLEET_OUTPUT/vars"
+      timeout: 1m
+    # 2. Starlark removes entries whose exp: date has passed, with comments
+    #    that only described them.
+    - name: prune
+      starlark: ./change.star
+      timeout: 1m
+
+pr:
+  title: "chore: remove expired .trivyignore entries"
+  body: |
+    These `.trivyignore` entries in {{ .Repo.Name }} expired, so Trivy
+    reports them again: {{ .Vars.expired }}.
+
+    Fix them, or add them back with a new `exp:` date and a reason.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet, security]

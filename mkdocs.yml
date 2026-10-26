@@ -111,6 +111,7 @@ nav:
           - cmake.star: reference/starlark/cmake.md
           - cocoapods.star: reference/starlark/cocoapods.md
           - codeowners.star: reference/starlark/codeowners.md
+          - codeql.star: reference/starlark/codeql.md
           - dependabot.star: reference/starlark/dependabot.md
           - devcontainer.star: reference/starlark/devcontainer.md
           - docker.star: reference/starlark/docker.md
@@ -150,6 +151,8 @@ nav:
           - ruby.star: reference/starlark/ruby.md
           - runtime.star: reference/starlark/runtime.md
           - sbt.star: reference/starlark/sbt.md
+          - scanignore.star: reference/starlark/scanignore.md
+          - scorecard.star: reference/starlark/scorecard.md
           - serverless.star: reference/starlark/serverless.md
           - skaffold.star: reference/starlark/skaffold.md
           - swift.star: reference/starlark/swift.md
