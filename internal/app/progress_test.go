@@ -80,3 +80,35 @@ func TestDefaultReportsRateLimitWaits(t *testing.T) {
 		t.Errorf("stderr = %q", errOut.String())
 	}
 }
+
+func TestRepoFlagLooksUpOnlyThoseRepos(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	f := h.campaign(basic, files)
+	ctx := context.Background()
+	if err := h.app.Plan(ctx, PlanOptions{Common: Common{File: f, Repos: []string{"acme/api"}}}); err != nil {
+		t.Fatal(err)
+	}
+	if n := h.gh.CallCount("ListOwnerRepos"); n != 0 {
+		t.Errorf("plan --repo listed the org %d times", n)
+	}
+	if out := h.errOut.String(); !strings.Contains(out, "Looking up 1 repo\n") || !strings.Contains(out, "Planning 1 repo, ") || strings.Contains(out, "acme/web") {
+		t.Errorf("plan --repo output:\n%s", out)
+	}
+	// A repo the campaign doesn't target is still an error.
+	if err := h.app.Plan(ctx, PlanOptions{Common: Common{File: f, Repos: []string{"acme/docs-nope"}}}); err == nil {
+		t.Error("unknown repo accepted")
+	}
+	if err := h.app.Plan(ctx, PlanOptions{Common: Common{File: f, Repos: []string{"acme/old"}}}); err == nil || !strings.Contains(err.Error(), "not a campaign target: acme/old") {
+		t.Errorf("archived repo: %v", err)
+	}
+
+	// Listing a repo and excluding it leaves nothing to do, not everything.
+	h.reset()
+	if err := h.app.Plan(ctx, PlanOptions{Common: Common{File: f, Repos: []string{"acme/api"}, Exclude: []string{"acme/api"}}}); err != nil {
+		t.Fatal(err)
+	}
+	if out := h.errOut.String(); strings.Contains(out, "acme/web") || !strings.Contains(out, "Planning 0 repos") {
+		t.Errorf("listed and excluded:\n%s", out)
+	}
+}

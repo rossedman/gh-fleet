@@ -119,12 +119,15 @@ func (c *Client) GetRepo(ctx context.Context, fullName string) (ghapi.Repo, erro
 	if err := c.call(ctx, "GetRepo", fullName); err != nil {
 		return ghapi.Repo{}, err
 	}
-	r, ok := c.Repos[fullName]
-	if !ok {
-		return ghapi.Repo{}, fmt.Errorf("get %s: not found", fullName)
+	// GitHub matches names ignoring case and answers with the canonical
+	// one.
+	for name, r := range c.Repos {
+		if strings.EqualFold(name, fullName) {
+			r.Properties = nil
+			return r, nil
+		}
 	}
-	r.Properties = nil
-	return r, nil
+	return ghapi.Repo{}, fmt.Errorf("get %s: not found", fullName)
 }
 
 // PathsExist reports which paths exist per repo.

@@ -131,7 +131,7 @@ gh fleet targets --json targets --jq '.targets[].repo | .owner + "/" + .name'
 
 ## Narrowing a run
 
-`--repo owner/name` limits `targets`, `plan`, `apply`, `status`, `merge`, `retry` and `close` to specific repos, and repeats. A name that is not a campaign target is an error, so a typo never silently does nothing.
+`--repo owner/name` limits `targets`, `plan`, `apply`, `status`, `merge`, `retry` and `close` to specific repos, and repeats. A name that is not a campaign target is an error, so a typo never silently does nothing. Only the named repos are looked up and checked against the filters, so `--repo` on one repo is quick even when the campaign targets thousands.
 
 ```sh
 gh fleet apply --repo acme/api --repo acme/web

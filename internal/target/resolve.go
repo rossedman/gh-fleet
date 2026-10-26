@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -87,6 +88,9 @@ type Resolver struct {
 	// AllowReadOnly keeps repos without push access as targets, for
 	// commands that only read.
 	AllowReadOnly bool
+	// Only, when set, limits resolution to these owner/name repos: they
+	// are looked up one by one instead of listing every org.
+	Only []string
 	// Progress, when set, is told what resolution is doing, so a long
 	// listing or file check isn't silent.
 	Progress func(msg string)
@@ -100,57 +104,15 @@ type Resolver struct {
 // sorted by full name. Repos without push access are reported as skipped
 // unless AllowReadOnly is set.
 func (rs *Resolver) Resolve(ctx context.Context, t campaign.Targets) (*Result, error) {
-	candidates := map[string]ghapi.Repo{}
-	for _, org := range t.Orgs {
-		repos, err := rs.listOwner(ctx, org)
-		if err != nil {
-			return nil, err
-		}
-		for _, r := range repos {
-			candidates[strings.ToLower(r.FullName())] = r
-		}
+	var candidates map[string]ghapi.Repo
+	var err error
+	if len(rs.Only) > 0 {
+		candidates, err = rs.named(ctx, t)
+	} else {
+		candidates, err = rs.candidates(ctx, t)
 	}
-	listed := map[string]bool{}
-	for _, o := range t.Orgs {
-		listed[strings.ToLower(o)] = true
-	}
-	for _, name := range t.Include.Repos {
-		if _, ok := candidates[strings.ToLower(name)]; ok {
-			continue
-		}
-		owner, _, hasOwner := strings.Cut(name, "/")
-		if !hasOwner {
-			// A bare name or name pattern matches among the repos of orgs;
-			// load rejects one without orgs.
-			continue
-		}
-		if campaign.IsPattern(name) {
-			// A pattern names repos of one owner: list that owner, unless
-			// orgs already did, and keep the matches. Load rejects a
-			// pattern in the owner without orgs to match against.
-			if campaign.IsPattern(owner) || listed[strings.ToLower(owner)] {
-				continue
-			}
-			listed[strings.ToLower(owner)] = true
-			repos, err := rs.listOwner(ctx, owner)
-			if err != nil {
-				return nil, err
-			}
-			for _, r := range repos {
-				if campaign.MatchAny(t.Include.Repos, r.FullName()) != "" {
-					candidates[strings.ToLower(r.FullName())] = r
-				}
-			}
-			continue
-		}
-		r, err := rs.Client.GetRepo(ctx, name)
-		if err != nil {
-			return nil, err
-		}
-		if r.Properties, err = rs.Client.RepoProperties(ctx, r.FullName()); err != nil && rs.RequireProperties {
-			return nil, err
-		}
-		candidates[strings.ToLower(r.FullName())] = r
+	if err != nil {
+		return nil, err
 	}
 
 	// Cheap metadata filters first, so file and search lookups only run
@@ -328,4 +290,86 @@ func countRepos(n int) string {
 		return "1 repo"
 	}
 	return fmt.Sprintf("%d repos", n)
+}
+
+// candidates lists every repo the campaign could target: its orgs, and
+// the repos and patterns of include.repos.
+func (rs *Resolver) candidates(ctx context.Context, t campaign.Targets) (map[string]ghapi.Repo, error) {
+	candidates := map[string]ghapi.Repo{}
+	for _, org := range t.Orgs {
+		repos, err := rs.listOwner(ctx, org)
+		if err != nil {
+			return nil, err
+		}
+		for _, r := range repos {
+			candidates[strings.ToLower(r.FullName())] = r
+		}
+	}
+	listed := map[string]bool{}
+	for _, o := range t.Orgs {
+		listed[strings.ToLower(o)] = true
+	}
+	for _, name := range t.Include.Repos {
+		if _, ok := candidates[strings.ToLower(name)]; ok {
+			continue
+		}
+		owner, _, hasOwner := strings.Cut(name, "/")
+		if !hasOwner {
+			// A bare name or name pattern matches among the repos of orgs;
+			// load rejects one without orgs.
+			continue
+		}
+		if campaign.IsPattern(name) {
+			// A pattern names repos of one owner: list that owner, unless
+			// orgs already did, and keep the matches. Load rejects a
+			// pattern in the owner without orgs to match against.
+			if campaign.IsPattern(owner) || listed[strings.ToLower(owner)] {
+				continue
+			}
+			listed[strings.ToLower(owner)] = true
+			repos, err := rs.listOwner(ctx, owner)
+			if err != nil {
+				return nil, err
+			}
+			for _, r := range repos {
+				if campaign.MatchAny(t.Include.Repos, r.FullName()) != "" {
+					candidates[strings.ToLower(r.FullName())] = r
+				}
+			}
+			continue
+		}
+		r, err := rs.Client.GetRepo(ctx, name)
+		if err != nil {
+			return nil, err
+		}
+		if r.Properties, err = rs.Client.RepoProperties(ctx, r.FullName()); err != nil && rs.RequireProperties {
+			return nil, err
+		}
+		candidates[strings.ToLower(r.FullName())] = r
+	}
+	return candidates, nil
+}
+
+// named looks up only the repos in Only, keeping those the campaign could
+// target: in one of its orgs, or named by include.repos. Filters still
+// apply to them, so a run limited with --repo costs a lookup per repo
+// instead of listing and checking every org.
+func (rs *Resolver) named(ctx context.Context, t campaign.Targets) (map[string]ghapi.Repo, error) {
+	rs.progress("Looking up " + countRepos(len(rs.Only)))
+	candidates := map[string]ghapi.Repo{}
+	for _, name := range rs.Only {
+		r, err := rs.Client.GetRepo(ctx, name)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", name, err)
+		}
+		inOrg := slices.ContainsFunc(t.Orgs, func(o string) bool { return strings.EqualFold(o, r.Owner) })
+		if !inOrg && campaign.MatchAny(t.Include.Repos, r.FullName()) == "" {
+			continue // not a candidate; Limit reports it
+		}
+		if r.Properties, err = rs.Client.RepoProperties(ctx, r.FullName()); err != nil && rs.RequireProperties {
+			return nil, err
+		}
+		candidates[strings.ToLower(r.FullName())] = r
+	}
+	return candidates, nil
 }
