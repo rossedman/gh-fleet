@@ -99,7 +99,7 @@ func TestMissingVariableFailsBeforePush(t *testing.T) {
 	h := newHarness(t)
 	f := h.campaign(strings.Replace(varsCampaign, "Ping {{ .Vars.oncall }}", "Ping {{ .Vars.pager }}", 1), map[string]string{"owners.csv": "repo,oncall\n"})
 	ctx := context.Background()
-	err := h.app.Plan(ctx, Common{File: f})
+	err := h.app.Plan(ctx, PlanOptions{Common: Common{File: f}})
 	if err == nil || !strings.Contains(h.errOut.String(), `missing variable "pager" for acme/api`) {
 		t.Fatalf("plan: %v\n%s", err, h.errOut.String())
 	}

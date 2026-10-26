@@ -200,6 +200,14 @@
             "minLength": 1
           }
         },
+        "reviewersFrom": {
+          "description": "Also request review from each repo's own owners: `codeowners` for the CODEOWNERS owners of the files the change touches, `catalog` for the owners in its Backstage catalog-info.yaml (a group becomes the `org/group` team). An owner GitHub can't request, such as the PR's author or a team without access, is skipped.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": ["codeowners", "catalog"]
+          }
+        },
         "commit": {
           "description": "The commit made in each repo.",
           "type": "object",
@@ -303,6 +311,35 @@
           "type": "integer",
           "minimum": 0,
           "default": 0
+        },
+        "waves": {
+          "description": "Roll the change out in order. `apply` opens PRs for a wave only once every repo in the waves before it is merged or needed no change, so a problem stops at the canaries. Targets left after the last wave form one final wave. `--repo` bypasses waves.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "anyOf": [
+              {"required": ["repos"]},
+              {"required": ["size"]}
+            ],
+            "properties": {
+              "repos": {
+                "description": "Repos (`owner/name`) in this wave, such as canaries. Repos that aren't targets are ignored.",
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "$ref": "#/$defs/repo"
+                }
+              },
+              "size": {
+                "description": "How many more targets join this wave, in name order: a number, or a percentage of all targets such as `25%`.",
+                "type": ["integer", "string"],
+                "minimum": 1,
+                "pattern": "^([1-9][0-9]?|100)%$"
+              }
+            }
+          }
         }
       }
     }

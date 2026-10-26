@@ -36,6 +36,14 @@ gh fleet init pin-actions --org acme
 
 This writes `fleet.yaml` in the current directory, with a `yaml-language-server` header so editors validate and complete it. The name defaults to the directory's name, and `--file` writes it elsewhere.
 
+Or start from one of the [80 tested examples](examples.md), with its scripts and test cases:
+
+```sh
+gh fleet init --list
+gh fleet init node-22 --from node-version --org acme
+gh fleet test        # the copied test cases pass before you change anything
+```
+
 Open it and edit the targets and the change. The examples in this guide use the [`pin-actions` example](examples.md), which pins every `uses:` in `.github/workflows` to a commit SHA:
 
 ```yaml title="fleet.yaml"
@@ -98,6 +106,7 @@ Every matched repo shows the filter that matched it. Nothing is cloned yet.
 
 ```console
 $ gh fleet plan -f fleet.yaml --repo acme/api
+changed  acme/api
 ── acme/api
 diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
 index e9179e8..4b6957d 100644
@@ -115,7 +124,7 @@ index e9179e8..4b6957d 100644
 1 changed · 1 skipped
 ```
 
-Start with `--repo` on one repo, then drop it to preview all of them. A repo where the steps change nothing is reported as `noop`.
+Start with `--repo` on one repo, then drop it to preview all of them. A repo where the steps change nothing is reported as `noop`. Across many repos, each distinct diff is printed once, under the repos that get it (`── 212 repos: acme/api, acme/billing, … and 202 more`), so the same change in 300 repos is read once. `--ungrouped` prints every repo's diff instead.
 
 !!! tip "Test without GitHub"
     `gh fleet test --dir ../api` runs the change on a clone you already have. Once it works, keep sample repos in `tests/` next to `fleet.yaml` and `gh fleet test` checks them on every edit. See [Testing a campaign](guides/testing.md).

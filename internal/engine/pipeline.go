@@ -10,11 +10,13 @@ import (
 	"path/filepath"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/rossedman/gh-fleet/internal/campaign"
 	"github.com/rossedman/gh-fleet/internal/ghapi"
 	"github.com/rossedman/gh-fleet/internal/gitops"
+	"github.com/rossedman/gh-fleet/internal/owners"
 	"github.com/rossedman/gh-fleet/internal/pr"
 	"github.com/rossedman/gh-fleet/internal/runner"
 	"github.com/rossedman/gh-fleet/internal/star"
@@ -153,11 +155,11 @@ func (p *Pipeline) Process(ctx context.Context, t target.Target) (state.RepoStat
 		return rs, nil
 	}
 
-	return p.apply(ctx, t, ws, res, extra, existing, rs, base)
+	return p.apply(ctx, t, ws, res, extra, existing, rs, base, logw)
 }
 
 // apply commits, pushes and syncs the PR for a repo whose script ran.
-func (p *Pipeline) apply(ctx context.Context, t target.Target, ws *workspace.Workspace, res runner.Result, extra map[string]any, existing *ghapi.PR, rs state.RepoState, base string) (state.RepoState, error) {
+func (p *Pipeline) apply(ctx context.Context, t target.Target, ws *workspace.Workspace, res runner.Result, extra map[string]any, existing *ghapi.PR, rs state.RepoState, base string, logw io.Writer) (state.RepoState, error) {
 	repo := t.Repo
 	fail := func(err error) (state.RepoState, error) {
 		rs.Status = state.Failed
@@ -241,6 +243,9 @@ func (p *Pipeline) apply(ctx context.Context, t target.Target, ws *workspace.Wor
 			release()
 		}
 		return fail(err)
+	}
+	if action == pr.Created && len(p.Campaign.PR.ReviewersFrom) > 0 {
+		p.requestOwners(ctx, ws.Dir, repo, base, got.Number, c.reviewers, logw)
 	}
 	rs.Status = state.PROpen
 	rs.Checks, rs.Review = got.Checks, got.Review
@@ -428,4 +433,59 @@ func (p *Pipeline) RenderLocal(t target.Target, l Local) (Local, error) {
 	}
 	l.Title, l.Body, l.CommitMessage = c.title, c.body, c.commit
 	return l, nil
+}
+
+// requestOwners asks the repo's own owners, from CODEOWNERS or the
+// Backstage catalog, to review a new PR. Owners GitHub won't accept, such
+// as the author or a team without access, are skipped and logged rather
+// than failing the repo.
+func (p *Pipeline) requestOwners(ctx context.Context, dir string, repo ghapi.Repo, base string, number int, already []string, log io.Writer) {
+	var want []string
+	for _, from := range p.Campaign.PR.ReviewersFrom {
+		switch from {
+		case "codeowners":
+			for _, f := range owners.CodeownersPaths {
+				b, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(f)))
+				if err != nil {
+					continue
+				}
+				changed, err := p.Git.Run(ctx, dir, "diff", "--name-only", "origin/"+base, "HEAD")
+				if err == nil {
+					want = append(want, owners.ParseCodeowners(string(b)).Owners(strings.Fields(changed))...)
+				}
+				break
+			}
+		case "catalog":
+			for _, f := range owners.CatalogPaths {
+				if b, err := os.ReadFile(filepath.Join(dir, f)); err == nil {
+					want = append(want, owners.CatalogOwners(b, repo.Owner)...)
+					break
+				}
+			}
+		}
+	}
+	seen := map[string]bool{}
+	for _, r := range already {
+		seen[strings.ToLower(r)] = true
+	}
+	var ask []string
+	for _, w := range want {
+		if !seen[strings.ToLower(w)] {
+			seen[strings.ToLower(w)] = true
+			ask = append(ask, w)
+		}
+	}
+	if len(ask) == 0 {
+		return
+	}
+	fmt.Fprintf(log, "## reviewers from %s: %s\n", strings.Join(p.Campaign.PR.ReviewersFrom, ", "), strings.Join(ask, ", "))
+	if err := p.PRs.Client.RequestReviewers(ctx, repo.FullName(), number, ask); err == nil {
+		return
+	}
+	// One bad owner fails the whole request; ask for each alone.
+	for _, r := range ask {
+		if err := p.PRs.Client.RequestReviewers(ctx, repo.FullName(), number, []string{r}); err != nil {
+			fmt.Fprintf(log, "reviewer %s skipped: %v\n", r, err)
+		}
+	}
 }

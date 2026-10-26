@@ -12,9 +12,12 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"text/template"
 	"time"
+
+	"go.yaml.in/yaml/v3"
 )
 
 // APIVersion is the only campaign apiVersion this binary understands.
@@ -114,7 +117,11 @@ type PR struct {
 	Draft     bool     `yaml:"draft,omitempty" json:"draft,omitempty"`
 	Labels    []string `yaml:"labels,omitempty" json:"labels,omitempty"`
 	Reviewers []string `yaml:"reviewers,omitempty" json:"reviewers,omitempty"`
-	Commit    Commit   `yaml:"commit,omitempty" json:"commit"`
+	// ReviewersFrom adds each repo's own owners as reviewers: codeowners
+	// for the CODEOWNERS of the changed files, catalog for the owners in
+	// its Backstage catalog-info.yaml.
+	ReviewersFrom []string `yaml:"reviewersFrom,omitempty" json:"reviewersFrom,omitempty"`
+	Commit        Commit   `yaml:"commit,omitempty" json:"commit"`
 }
 
 // Commit describes the commit made in each repository.
@@ -127,6 +134,52 @@ type Commit struct {
 type Limits struct {
 	Concurrency int `yaml:"concurrency,omitempty" json:"concurrency,omitempty"`
 	MaxOpenPRs  int `yaml:"maxOpenPRs,omitempty" json:"maxOpenPRs,omitempty"`
+	// Waves rolls the change out in order: apply opens PRs for a wave only
+	// once every repo of the waves before it is merged or unchanged.
+	// Targets left over after the last wave form one final wave.
+	Waves []Wave `yaml:"waves,omitempty" json:"waves,omitempty"`
+}
+
+// Wave is one step of a rollout: named repos, the next Size targets, or
+// both.
+type Wave struct {
+	Repos []string `yaml:"repos,omitempty" json:"repos,omitempty"`
+	Size  WaveSize `yaml:"size,omitempty" json:"size,omitzero"`
+}
+
+// WaveSize is a number of repos, or a percentage of all targets when
+// written as "25%".
+type WaveSize struct {
+	N       int
+	Percent bool
+}
+
+// UnmarshalYAML reads 10 or "25%".
+func (s *WaveSize) UnmarshalYAML(n *yaml.Node) error {
+	v := strings.TrimSpace(n.Value)
+	pct := strings.HasSuffix(v, "%")
+	num, err := strconv.Atoi(strings.TrimSuffix(v, "%"))
+	if n.Kind != yaml.ScalarNode || err != nil || num < 1 || pct && num > 100 {
+		return fmt.Errorf("line %d: wave size must be a number of repos or a percentage such as 25%%", n.Line)
+	}
+	*s = WaveSize{N: num, Percent: pct}
+	return nil
+}
+
+// MarshalText writes 10 or 25%.
+func (s WaveSize) MarshalText() ([]byte, error) {
+	if s.Percent {
+		return []byte(strconv.Itoa(s.N) + "%"), nil
+	}
+	return []byte(strconv.Itoa(s.N)), nil
+}
+
+// Of returns how many of total repos the size names, at least one.
+func (s WaveSize) Of(total int) int {
+	if !s.Percent {
+		return s.N
+	}
+	return max(1, (total*s.N+99)/100)
 }
 
 // Duration is a time.Duration written as a Go duration string in YAML.

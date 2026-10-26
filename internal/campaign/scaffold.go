@@ -55,6 +55,7 @@ pr:
   draft: false
   labels: [fleet]
   # reviewers: [octocat, {{ .Org }}/platform]
+  # reviewersFrom: [codeowners, catalog]   # also each repo's CODEOWNERS or Backstage owner
   commit:
     # message: defaults to the PR title
     signoff: false
@@ -62,6 +63,10 @@ pr:
 limits:
   concurrency: 8
   maxOpenPRs: 0       # 0 means no limit
+  # waves:            # roll out in stages; each starts when the one before is merged
+  #   - repos: [{{ .Org }}/canary]
+  #   - size: 10
+  #   - size: 25%
 `))
 
 // Scaffold returns a commented campaign file for a new campaign. org fills

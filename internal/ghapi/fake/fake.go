@@ -295,6 +295,10 @@ func (c *Client) AddLabels(ctx context.Context, repo string, number int, labels 
 
 // RequestReviewers records requested reviewers.
 func (c *Client) RequestReviewers(ctx context.Context, repo string, number int, reviewers []string) error {
+	if len(reviewers) == 0 {
+		// Like the real client, nothing to request is no call.
+		return nil
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if err := c.call(ctx, "RequestReviewers", repo); err != nil {

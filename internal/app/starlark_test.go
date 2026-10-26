@@ -51,7 +51,7 @@ func TestStarlarkPlanAndApply(t *testing.T) {
 	f := h.campaign(starCampaign, map[string]string{"change.star": starScript, "lib/text.star": starLib})
 	ctx := context.Background()
 
-	if err := h.app.Plan(ctx, Common{File: f, Repos: []string{"acme/api"}}); err != nil {
+	if err := h.app.Plan(ctx, PlanOptions{Common: Common{File: f, Repos: []string{"acme/api"}}}); err != nil {
 		t.Fatalf("%v\n%s", err, h.errOut.String())
 	}
 	if out := h.out.String(); !strings.Contains(out, "+managed by fleet") || !strings.Contains(out, "+shell saw platform after add line to") {
@@ -84,7 +84,7 @@ func TestStarlarkOnly(t *testing.T) {
 	h := newHarness(t)
 	camp := strings.Replace(starCampaign, "    - name: notes\n      run: echo \"shell saw $FLEET_VAR_TEAM after $FLEET_VAR_ACTION\" >> NOTES.md\n", "", 1)
 	f := h.campaign(camp, map[string]string{"change.star": starScript, "lib/text.star": starLib})
-	if err := h.app.Plan(context.Background(), Common{File: f, Repos: []string{"acme/web"}}); err != nil {
+	if err := h.app.Plan(context.Background(), PlanOptions{Common: Common{File: f, Repos: []string{"acme/web"}}}); err != nil {
 		t.Fatalf("%v\n%s", err, h.errOut.String())
 	}
 	if out := h.out.String(); !strings.Contains(out, "+managed by fleet") || strings.Contains(out, "NOTES.md") {
@@ -99,7 +99,7 @@ func TestStarlarkErrorsSurfaceEarly(t *testing.T) {
 	ctx := context.Background()
 	for name, run := range map[string]func() error{
 		"targets": func() error { return h.app.Targets(ctx, Common{File: f}) },
-		"plan":    func() error { return h.app.Plan(ctx, Common{File: f}) },
+		"plan":    func() error { return h.app.Plan(ctx, PlanOptions{Common: Common{File: f}}) },
 		"apply":   func() error { return h.app.Apply(ctx, ApplyOptions{Common: Common{File: f, Yes: true}}) },
 	} {
 		err := run()
@@ -114,7 +114,7 @@ func TestStarlarkErrorsSurfaceEarly(t *testing.T) {
 	// A runtime failure fails only that repo, with the Starlark traceback.
 	h.campaign(starCampaign, map[string]string{"change.star": "def change(repo):\n    repo.set_var('action', 'x')\n    if repo.name == 'web':\n        fail('web is special')\n", "lib/text.star": starLib})
 	h.reset()
-	err := h.app.Plan(ctx, Common{File: f})
+	err := h.app.Plan(ctx, PlanOptions{Common: Common{File: f}})
 	if err == nil || !strings.Contains(h.errOut.String(), "failed   acme/web step edit readme: change.star:4:13: fail: web is special") || !strings.Contains(h.errOut.String(), "1 failed") {
 		t.Fatalf("plan: %v\n%s", err, h.errOut.String())
 	}
