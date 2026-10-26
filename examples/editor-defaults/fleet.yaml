@@ -1,0 +1,27 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: editor-defaults
+description: Give every repo the org's editor and line-ending defaults
+
+targets:
+  orgs: [acme]
+  exclude:
+    topics: [no-fleet]
+
+change:
+  steps:
+    # Sets .editorconfig defaults (root, LF endings, final newline, tabs in
+    # Makefiles) and .gitattributes rules (text=auto, LF for shell scripts),
+    # keeping anything a repo already sets for other patterns.
+    - name: editor-defaults
+      starlark: ./change.star
+      timeout: 1m
+
+pr:
+  title: "chore: editor and line-ending defaults"
+  body: |
+    Adds the org's editor defaults to {{ .Repo.Name }}, so every editor
+    writes the same line endings and indentation.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet]

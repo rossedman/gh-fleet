@@ -96,24 +96,38 @@ nav:
       - Starlark library:
           # gendocs:starlark-library:begin
           - Overview: reference/starlark-library.md
+          - ansible.star: reference/starlark/ansible.md
+          - argocd.star: reference/starlark/argocd.md
+          - buildkite.star: reference/starlark/buildkite.md
           - cargo.star: reference/starlark/cargo.md
+          - changelog.star: reference/starlark/changelog.md
+          - cmake.star: reference/starlark/cmake.md
           - codeowners.star: reference/starlark/codeowners.md
           - dependabot.star: reference/starlark/dependabot.md
           - docker.star: reference/starlark/docker.md
           - dotnet.star: reference/starlark/dotnet.md
+          - editorconfig.star: reference/starlark/editorconfig.md
           - files.star: reference/starlark/files.md
+          - flux.star: reference/starlark/flux.md
           - gha.star: reference/starlark/gha.md
+          - gitattributes.star: reference/starlark/gitattributes.md
           - gomod.star: reference/starlark/gomod.md
           - gradle.star: reference/starlark/gradle.md
           - helm.star: reference/starlark/helm.md
           - jsonfile.star: reference/starlark/jsonfile.md
+          - k8s.star: reference/starlark/k8s.md
+          - kustomize.star: reference/starlark/kustomize.md
+          - license.star: reference/starlark/license.md
+          - make.star: reference/starlark/make.md
           - markdown.star: reference/starlark/markdown.md
           - maven.star: reference/starlark/maven.md
           - npm.star: reference/starlark/npm.md
           - precommit.star: reference/starlark/precommit.md
           - python.star: reference/starlark/python.md
+          - refs.star: reference/starlark/refs.md
           - runtime.star: reference/starlark/runtime.md
           - terraform.star: reference/starlark/terraform.md
+          - terragrunt.star: reference/starlark/terragrunt.md
           - toml.star: reference/starlark/toml.md
           - yamlpath.star: reference/starlark/yamlpath.md
           # gendocs:starlark-library:end

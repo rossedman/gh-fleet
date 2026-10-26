@@ -1,0 +1,30 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: master-to-main
+description: Update workflows after renaming master to main
+
+targets:
+  orgs: [acme]
+  include:
+    files: [.github/workflows]
+
+change:
+  steps:
+    # Renames master in workflow trigger branch lists and refs/heads/master
+    # checks. Run it after renaming the default branch, so CI keeps running
+    # on pushes and pull requests.
+    - name: branch-rename
+      starlark: ./change.star
+      timeout: 1m
+  env:
+    OLD: master
+    NEW: main
+
+pr:
+  title: "ci: master is now main"
+  body: |
+    Updates {{ .Repo.Name }}'s workflows for the default branch rename from
+    `master` to `main`.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet]

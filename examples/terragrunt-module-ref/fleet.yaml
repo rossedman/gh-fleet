@@ -1,0 +1,31 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: modules-v2
+description: Move every Terragrunt and Terraform stack to the shared modules v2.0.0
+
+targets:
+  orgs: [acme]
+  include:
+    search: "acme/terraform-modules ref="
+
+change:
+  steps:
+    # Sets `?ref=` on every module source from the shared modules repo, in
+    # terragrunt.hcl and .tf files alike. Sources pinned to a commit SHA, and
+    # the .terragrunt-cache and .terraform directories, are left alone.
+    - name: terragrunt-module-ref
+      starlark: ./change.star
+      timeout: 1m
+  env:
+    SOURCE: "git::https://github.com/acme/terraform-modules.git//*"
+    REF: v2.0.0
+
+pr:
+  title: "build(deps): terraform modules v2.0.0"
+  body: |
+    Moves {{ .Repo.Name }} to acme/terraform-modules v2.0.0. Review the plan
+    before merging.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet, dependencies]
+  draft: true

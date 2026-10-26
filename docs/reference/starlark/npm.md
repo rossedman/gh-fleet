@@ -219,6 +219,6 @@ set_dependency(repo, "axios", "^1.7.9")
     }
     ```
 
-**Used in:** [`npm-package-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/npm-package-bump)
+**Used in:** [`changelog-entry`](https://github.com/rossedman/gh-fleet/tree/main/examples/changelog-entry), [`npm-package-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/npm-package-bump)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/npm.star#L78)

@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: api-2-4-0-kustomize
+description: Roll out api 2.4.0 in every Kustomize overlay
+
+targets:
+  orgs: [acme]
+  include:
+    search: "ghcr.io/acme/api filename:kustomization.yaml"
+
+change:
+  steps:
+    # Sets newTag for ghcr.io/acme/api in every kustomization that lists the
+    # image, keeping comments. Overlays for other images are left alone.
+    - name: kustomize-image
+      starlark: ./change.star
+      timeout: 1m
+  env:
+    IMAGE: ghcr.io/acme/api
+    TAG: "2.4.0"
+
+pr:
+  title: "deploy: api 2.4.0"
+  body: |
+    Rolls ghcr.io/acme/api 2.4.0 out to {{ .Vars.overlays }}.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet, deploy]

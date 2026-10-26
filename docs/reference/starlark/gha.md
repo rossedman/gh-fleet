@@ -10,7 +10,7 @@ Edits are line-based rather than a YAML round trip, so comments, quoting
 and formatting stay exactly as they were.
 
 ```python
-load("@fleet//gha.star", "workflows", "action_files", "bump_action", "set_input", "ensure_permissions", "unpinned", "pin")
+load("@fleet//gha.star", "workflows", "action_files", "bump_action", "set_input", "ensure_permissions", "unpinned", "pin", "rename_branch")
 ```
 
 | Function | What it does |
@@ -22,6 +22,7 @@ load("@fleet//gha.star", "workflows", "action_files", "bump_action", "set_input"
 | [`ensure_permissions`](#ensure_permissions) | Adds a top-level `permissions` block to each workflow that has none. |
 | [`unpinned`](#unpinned) | Lists each remote action used at a tag or branch rather than a commit SHA. |
 | [`pin`](#pin) | Pins actions to commit SHAs, keeping the old ref as a comment. |
+| [`rename_branch`](#rename_branch) | Renames a branch in workflow triggers and branch checks, as when `master` becomes `main`. |
 
 ## workflows
 
@@ -389,3 +390,71 @@ pin(repo, {"actions/checkout@v4": "08eba0b27e820071cde6df949e0beb9ba4906955"})
 **Used in:** [`pin-actions`](https://github.com/rossedman/gh-fleet/tree/main/examples/pin-actions)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gha.star#L237)
+
+## rename_branch
+
+```python
+rename_branch(repo, old, new)
+```
+
+Renames a branch in workflow triggers and branch checks, as when `master` becomes `main`.
+
+Changes the `branches` and `branches-ignore` lists of triggers, in flow
+(`[master, dev]`) and block form, and `refs/heads/<old>` anywhere in a
+workflow, such as in `if:` conditions. Glob patterns such as `master-*`
+and branches that only start with the old name are left alone.
+
+**Arguments**
+
+| Name | Description |
+| --- | --- |
+| `repo` | The repo passed to `change(repo)`. |
+| `old` | The old branch name. |
+| `new` | The new branch name. |
+
+**Returns:** The list of paths that changed.
+
+**Example**
+
+```python
+rename_branch(repo, "master", "main")
+# returns [".github/workflows/ci.yml"]
+```
+
+=== "Before"
+
+    `.github/workflows/ci.yml`
+
+    ```yaml
+    on:
+      push:
+        branches: [master, "release/*"]
+      pull_request:
+        branches:
+          - master  # default branch
+          - master-legacy
+    jobs:
+      deploy:
+        if: github.ref == 'refs/heads/master'
+    ```
+
+=== "After"
+
+    `.github/workflows/ci.yml`
+
+    ```yaml
+    on:
+      push:
+        branches: [main, "release/*"]
+      pull_request:
+        branches:
+          - main  # default branch
+          - master-legacy
+    jobs:
+      deploy:
+        if: github.ref == 'refs/heads/main'
+    ```
+
+**Used in:** [`branch-rename`](https://github.com/rossedman/gh-fleet/tree/main/examples/branch-rename)
+
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gha.star#L291)
