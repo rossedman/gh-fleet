@@ -117,10 +117,11 @@ acme/worker     noop     -                                       -        -
 API quota: core 4,871/5,000 · graphql 4,962/5,000
 ```
 
-[`examples/`](examples/) has twenty-three tested campaigns for the changes people
+[`examples/`](examples/) has thirty tested campaigns for the changes people
 make most, each a few lines of Starlark: syncing standard files, find and
-replace, README sections, security policies, Go, npm, Python, Cargo and
-Terraform dependency bumps, Docker and Compose image bumps, runtime versions,
+replace, README sections, security policies, Go, npm, Python, Cargo, Gradle, Maven,
+.NET and Terraform dependency bumps, Docker, Compose and Helm image bumps,
+runtime and runner versions, ruff and Renovate settings,
 action upgrades and SHA pinning, pre-commit hooks, Dependabot, CODEOWNERS,
 `.gitignore` entries, read-only workflow tokens, and removing retired config.
 

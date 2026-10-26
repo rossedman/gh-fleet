@@ -100,15 +100,22 @@ nav:
           - codeowners.star: reference/starlark/codeowners.md
           - dependabot.star: reference/starlark/dependabot.md
           - docker.star: reference/starlark/docker.md
+          - dotnet.star: reference/starlark/dotnet.md
           - files.star: reference/starlark/files.md
           - gha.star: reference/starlark/gha.md
           - gomod.star: reference/starlark/gomod.md
+          - gradle.star: reference/starlark/gradle.md
+          - helm.star: reference/starlark/helm.md
+          - jsonfile.star: reference/starlark/jsonfile.md
           - markdown.star: reference/starlark/markdown.md
+          - maven.star: reference/starlark/maven.md
           - npm.star: reference/starlark/npm.md
           - precommit.star: reference/starlark/precommit.md
           - python.star: reference/starlark/python.md
           - runtime.star: reference/starlark/runtime.md
           - terraform.star: reference/starlark/terraform.md
+          - toml.star: reference/starlark/toml.md
+          - yamlpath.star: reference/starlark/yamlpath.md
           # gendocs:starlark-library:end
       - Commands:
           - gh fleet: reference/commands/gh_fleet.md

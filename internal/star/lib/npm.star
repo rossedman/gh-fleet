@@ -5,6 +5,8 @@ the Starlark step with a `run` step such as
 `npm install --package-lock-only --ignore-scripts`.
 """
 
+load("./jsonfile.star", _write = "write")
+
 SECTIONS = ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"]
 
 def packages(repo):
@@ -53,7 +55,7 @@ def write_package(repo, path, pkg):
         path: the package.json to write.
         pkg: the package, usually from `read_package`.
     Returns:
-        None.
+        True when the file changed.
     Example:
         before package.json:
             {
@@ -68,12 +70,10 @@ def write_package(repo, path, pkg):
                 "name": "web",
                 "private": true
             }
+        returns:
+            True
     """
-    indent = "  "
-    g = re.groups(r"\n([ \t]+)\"", repo.read(path, default = ""))
-    if g:
-        indent = g[0]
-    repo.write(path, json.encode_indent(pkg, indent = indent) + "\n")
+    return _write(repo, path, pkg)
 
 def set_dependency(repo, name, version, sections = SECTIONS):
     """Sets a dependency's version range in every package.json that already lists it.

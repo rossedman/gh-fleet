@@ -1,0 +1,30 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: gradle-8-10
+description: Move every Gradle build to Gradle 8.10.2
+
+targets:
+  orgs: [acme]
+  include:
+    files: [gradle/wrapper/gradle-wrapper.properties]
+
+change:
+  steps:
+    # Points the wrapper at the new distribution, never lowering it, and
+    # updates distributionSha256Sum where a repo verifies the download.
+    - name: wrapper
+      starlark: ./change.star
+      timeout: 1m
+  env:
+    GRADLE: "8.10.2"
+    # From https://gradle.org/release-checksums/
+    SHA256_BIN: 31c55713e40233a8303827ceb42ca48a47267a0ad4bab9177123121e71524c26
+    SHA256_ALL: 2ab88d6de2c23e6adae7363ae6e29cbdd2a709e992929b48b6530fd0c7133bd6
+
+pr:
+  title: "build: gradle 8.10.2"
+  body: |
+    Updates the Gradle wrapper in {{ .Repo.Name }} to 8.10.2.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet, dependencies]

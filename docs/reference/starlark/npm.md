@@ -66,7 +66,7 @@ packages(repo)
 
 **Used in:** [`node-engines`](https://github.com/rossedman/gh-fleet/tree/main/examples/node-engines)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/npm.star#L10)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/npm.star#L12)
 
 ## read_package
 
@@ -102,7 +102,7 @@ read_package(repo)["name"]
 
 **Used in:** [`node-engines`](https://github.com/rossedman/gh-fleet/tree/main/examples/node-engines)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/npm.star#L29)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/npm.star#L31)
 
 ## write_package
 
@@ -123,7 +123,7 @@ spaces. Key order is kept, so only what you changed shows in the diff.
 | `path` | The package.json to write. |
 | `pkg` | The package, usually from `read_package`. |
 
-**Returns:** None.
+**Returns:** True when the file changed.
 
 **Example**
 
@@ -131,6 +131,7 @@ spaces. Key order is kept, so only what you changed shows in the diff.
 pkg = read_package(repo)
 pkg["private"] = True
 write_package(repo, "package.json", pkg)
+# returns True
 ```
 
 === "Before"
@@ -156,7 +157,7 @@ write_package(repo, "package.json", pkg)
 
 **Used in:** [`node-engines`](https://github.com/rossedman/gh-fleet/tree/main/examples/node-engines)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/npm.star#L46)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/npm.star#L48)
 
 ## set_dependency
 

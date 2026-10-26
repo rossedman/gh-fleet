@@ -67,6 +67,8 @@ workflows(repo)
     not a workflow
     ```
 
+**Used in:** [`runner-label`](https://github.com/rossedman/gh-fleet/tree/main/examples/runner-label)
+
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gha.star#L11)
 
 ## action_files

@@ -1,0 +1,30 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: pin-runner-image
+description: Pin jobs on ubuntu-latest to ubuntu-24.04
+
+targets:
+  orgs: [acme]
+  include:
+    files: [.github/workflows]
+
+change:
+  steps:
+    # Finds every job's runs-on in every workflow and pins the ones on
+    # ubuntu-latest, so a runner image upgrade happens in a reviewed PR
+    # instead of underneath the build. Comments and quoting are kept.
+    - name: runs-on
+      starlark: ./change.star
+      timeout: 1m
+  env:
+    FROM: ubuntu-latest
+    TO: ubuntu-24.04
+
+pr:
+  title: "ci: pin runners to ubuntu-24.04"
+  body: |
+    Pins {{ .Vars.jobs }} in {{ .Repo.Name }} from `ubuntu-latest` to
+    `ubuntu-24.04`, so the next runner image change is an explicit PR.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet]

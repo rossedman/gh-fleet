@@ -40,11 +40,19 @@ campaign is safe.
 | [`npm-package-bump`](npm-package-bump/) | Sets a package's range in every `package.json` and refreshes the lockfile | `npm.set_dependency`, then a short `run` step reads `FLEET_VAR_DIRS` |
 | [`python-requirement-bump`](python-requirement-bump/) | Pins a package in `requirements*.txt` and `pyproject.toml` | `python.set_requirement` keeping extras, markers and comments |
 | [`cargo-dependency-bump`](cargo-dependency-bump/) | Sets a crate's version in every `Cargo.toml` and refreshes `Cargo.lock` | `cargo.set_dependency` for plain and table forms |
+| [`jvm-dependency-bump`](jvm-dependency-bump/) | Moves jackson-databind to 2.17.2 in Maven poms and Gradle builds | `maven.set_dependency` following `${property}` references, `gradle.set_dependency` including `version.ref` |
 | [`terraform-provider-bump`](terraform-provider-bump/) | Moves the AWS provider to `~> 5.0` and raises `required_version` | `terraform.set_provider_version` on block and one-line entries |
 | [`node-engines`](node-engines/) | Requires Node 22 in every `package.json`, never lowering a newer requirement | JSON edited as data with key order kept, values handed back to the PR |
 | [`docker-base-image`](docker-base-image/) | Moves `FROM node:18` to `node:22`, keeping variants and stages | `docker.bump_base_image`, draft PRs |
 | [`compose-image-bump`](compose-image-bump/) | Moves `image: redis:7` to `redis:8` in Compose files, Kubernetes manifests and Dockerfiles | `docker.bump_image` |
 | [`add-dependabot`](add-dependabot/) | Writes `.github/dependabot.yml` for the ecosystems a repo uses | detecting what a repo contains with `dependabot.ecosystems` |
+
+## Config files
+
+| Campaign | What it changes | Shows |
+| --- | --- | --- |
+| [`ruff-config`](ruff-config/) | Sets `[tool.ruff]` options in `pyproject.toml`, adding tables where missing | `toml.set` keeping comments |
+| [`renovate-preset`](renovate-preset/) | Points every `renovate.json` at a shared preset | `jsonfile.set` keeping key order and indentation |
 
 ## Runtimes
 
@@ -53,6 +61,8 @@ campaign is safe.
 | [`bump-go-version`](bump-go-version/) | Raises the `go` directive and workflow `go-version` pins | `exclude.repos`, `gomod.set_go_version` never lowering a version |
 | [`python-version`](python-version/) | Moves `.python-version`, `requires-python` and `setup-python` to 3.12 | three helpers in one step: `runtime`, `python` and `gha` |
 | [`node-version`](node-version/) | Pins Node 22 in `.nvmrc`, `.tool-versions` and `setup-node`, creating `.nvmrc` where nothing pins it | `runtime.set_version` with `create`, the version as a variable |
+| [`gradle-wrapper-bump`](gradle-wrapper-bump/) | Moves the Gradle wrapper to 8.10.2, with the right checksum for `-bin` or `-all` | `gradle.set_wrapper_version`, never lowering a version |
+| [`dotnet-8`](dotnet-8/) | Retargets `net6.0` projects to `net8.0` and pins the 8.0 SDK | `dotnet.set_target_framework` on single and multi-targeted projects |
 
 ## CI and security
 
@@ -62,6 +72,13 @@ campaign is safe.
 | [`pin-actions`](pin-actions/) | Pins every `uses:` to a commit SHA, keeping the tag as a comment | three steps: Starlark finds refs, `gh api` resolves them, Starlark pins |
 | [`workflow-permissions`](workflow-permissions/) | Adds a read-only top-level `permissions:` to workflows without one | line-based YAML edits so comments and layout survive |
 | [`pre-commit-rev`](pre-commit-rev/) | Moves a hook repository to a new `rev` in `.pre-commit-config.yaml` | `precommit.set_rev`, the old rev reported in the PR |
+| [`runner-label`](runner-label/) | Pins jobs on `ubuntu-latest` to `ubuntu-24.04` | `yamlpath.values` with a `*` wildcard, then `yamlpath.set` |
+
+## Deployments
+
+| Campaign | What it changes | Shows |
+| --- | --- | --- |
+| [`helm-image-tag`](helm-image-tag/) | Rolls an image tag out to every Helm chart that deploys it, bumping `appVersion` and the chart version | `helm.set_image_tag`, then reading a value back with `yamlpath.get` |
 
 ## Writing your own
 
