@@ -46,7 +46,7 @@ func (a *App) Close(ctx context.Context, o CloseOptions) error {
 	}
 	if len(o.Repos) == 0 {
 		for _, r := range st.Sorted() {
-			if !seen[r.Repo] && r.PRNumber > 0 {
+			if !seen[r.Repo] && r.PRNumber > 0 && !excludedName(camp, r.Repo) {
 				names = append(names, r.Repo)
 			}
 		}

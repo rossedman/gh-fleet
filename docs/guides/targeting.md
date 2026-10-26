@@ -101,8 +101,23 @@ gh fleet targets --json targets --jq '.targets[].repo | .owner + "/" + .name'
 
 ## Narrowing a run
 
-`--repo owner/name` limits `plan`, `apply`, `status`, `retry` and `close` to specific repos, and repeats. A name that is not a campaign target is an error, so a typo never silently does nothing.
+`--repo owner/name` limits `targets`, `plan`, `apply`, `status`, `merge`, `retry` and `close` to specific repos, and repeats. A name that is not a campaign target is an error, so a typo never silently does nothing.
 
 ```sh
 gh fleet apply --repo acme/api --repo acme/web
 ```
+
+`--exclude owner/name` does the opposite: it leaves repos out of this run, on top of the campaign's `exclude.repos`. A repo that is both listed and excluded is left out. Status, merge and close also skip an excluded repo's PR from earlier runs.
+
+For longer lists, `--repo-file` and `--exclude-file` read repo names from a file, one per line, and repeat. Blank lines and `#` comments are skipped. A line can be `owner/name` or a GitHub URL, and only its first field counts, so the output of `gh repo list` works as is. `-` reads stdin.
+
+```sh
+# Roll out to the pilot repos first, then everyone else.
+gh fleet apply --repo-file pilot.txt
+gh fleet apply --exclude-file pilot.txt
+
+# Leave out repos with an open security freeze.
+gh repo list acme --topic freeze --limit 1000 | gh fleet plan --exclude-file -
+```
+
+A bad line fails the run with its file and line number. An empty `--repo-file` is an error rather than "no limit", so a list that came out empty never runs against every target.

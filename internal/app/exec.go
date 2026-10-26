@@ -64,13 +64,13 @@ func (a *App) Exec(ctx context.Context, o ExecOptions) error {
 	if o.adHoc() || (o.Campaign == "" && haveFile != nil) {
 		camp.Targets = campaign.Targets{Orgs: o.Orgs, Include: campaign.Include{
 			Topics: o.Topics, Languages: o.Languages, Files: o.Files, Search: o.Search, Repos: o.Repos,
-		}}
+		}, Exclude: campaign.Exclude{Repos: o.Exclude}}
 		repos = nil
 		if len(camp.Targets.Orgs) == 0 && len(camp.Targets.Include.Repos) == 0 {
 			return errors.New("no targets: pass --org or --repo, or run from a directory with a fleet.yaml")
 		}
 	} else {
-		loaded, err := a.LoadCampaign(Common{Campaign: o.Campaign})
+		loaded, err := a.LoadCampaign(Common{Campaign: o.Campaign, Exclude: o.Exclude})
 		if err != nil {
 			return err
 		}

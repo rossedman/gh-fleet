@@ -32,8 +32,12 @@ passed.`,
   gh fleet merge --auto --update-branch --method squash`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		c, err := common(cmd, args)
+		if err != nil {
+			return err
+		}
 		o := app.MergeOptions{
-			Common:          common(args),
+			Common:          c,
 			Method:          viper.GetString("method"),
 			Auto:            viper.GetBool("auto"),
 			UpdateBranch:    viper.GetBool("update-branch"),

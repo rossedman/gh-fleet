@@ -1,0 +1,27 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/guardrails/main/internal/config/schema.json
+#
+# Presets: strict (90% coverage, 90% of changed lines), standard (80%/80%),
+# adopt (coverage may not drop, 80% of changed lines). Any key set here
+# overrides the preset. Docs: https://rossedman.io/guardrails/configuration/
+version: 1
+preset: strict
+
+go:
+  coverage:
+    # Matches `make cover`: test helpers and fakes aren't measured, and the
+    # repo-check helpers are covered through the tools that use them.
+    exclude:
+      - "main.go"
+      - "internal/testutil/**"
+      - "internal/ghapi/fake/**"
+      - "tools/internal/**"
+      - "examples/**"
+
+# The Python, Terraform and Dockerfiles here are example fixtures under
+# examples/, not code gh-fleet ships.
+python:
+  enabled: false
+terraform:
+  enabled: false
+docker:
+  enabled: false

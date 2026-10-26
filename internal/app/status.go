@@ -103,7 +103,7 @@ func (a *App) status(ctx context.Context, o StatusOptions) (rows []state.RepoSta
 	}
 	if len(c.Repos) == 0 {
 		for _, r := range st.Sorted() {
-			if !inTargets[r.Repo] && r.PRNumber > 0 {
+			if !inTargets[r.Repo] && r.PRNumber > 0 && !excludedName(camp, r.Repo) {
 				names = append(names, r.Repo)
 				inTargets[r.Repo] = true
 			}

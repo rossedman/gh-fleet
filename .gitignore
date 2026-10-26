@@ -50,3 +50,6 @@ go.work.sum
 .vscode/
 *.swp
 .DS_Store
+
+# sarifix scan output (build artifacts, regenerated every run)
+/sarif/

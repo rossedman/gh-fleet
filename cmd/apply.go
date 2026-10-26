@@ -26,7 +26,11 @@ apply asks for confirmation before pushing anything unless --yes is passed.`,
   gh fleet apply --close-noop`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		o := app.ApplyOptions{Common: common(args), Reopen: viper.GetBool("reopen"), CloseNoop: viper.GetBool("close-noop")}
+		c, err := common(cmd, args)
+		if err != nil {
+			return err
+		}
+		o := app.ApplyOptions{Common: c, Reopen: viper.GetBool("reopen"), CloseNoop: viper.GetBool("close-noop")}
 		return run(cmd, func(a *app.App) error { return a.Apply(cmd.Context(), o) })
 	},
 }

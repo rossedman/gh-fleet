@@ -19,7 +19,11 @@ Org listings are cached for 10 minutes.`,
   gh fleet targets --json --jq '.targets[].repo | .owner + "/" + .name'`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return run(cmd, func(a *app.App) error { return a.Targets(cmd.Context(), common(args)) })
+		c, err := common(cmd, args)
+		if err != nil {
+			return err
+		}
+		return run(cmd, func(a *app.App) error { return a.Targets(cmd.Context(), c) })
 	},
 }
 

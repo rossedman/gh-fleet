@@ -23,14 +23,17 @@ gh fleet targets [campaign] [flags]
 ### Options
 
 ```
-      --concurrency int    repos processed in parallel (default limits.concurrency, else 8)
-  -f, --file string        campaign file (default ./fleet.yaml)
-  -h, --help               help for targets
-  -q, --jq expression      filter JSON output using a jq expression
-      --json fields        output JSON with the specified fields (comma-separated; --json alone lists them)
-      --repo strings       limit to these repos (owner/name, repeatable)
-  -t, --template string    format JSON output using a Go template; see gh help formatting
-      --write-rate float   GitHub API writes per second (default 1)
+      --concurrency int        repos processed in parallel (default limits.concurrency, else 8)
+      --exclude strings        leave out these repos (owner/name, repeatable)
+      --exclude-file strings   leave out the repos listed in this file, one per line (- for stdin, repeatable)
+  -f, --file string            campaign file (default ./fleet.yaml)
+  -h, --help                   help for targets
+  -q, --jq expression          filter JSON output using a jq expression
+      --json fields            output JSON with the specified fields (comma-separated; --json alone lists them)
+      --repo strings           limit to these repos (owner/name, repeatable)
+      --repo-file strings      limit to the repos listed in this file, one per line (- for stdin, repeatable)
+  -t, --template string        format JSON output using a Go template; see gh help formatting
+      --write-rate float       GitHub API writes per second (default 1)
 ```
 
 ### Options inherited from parent commands

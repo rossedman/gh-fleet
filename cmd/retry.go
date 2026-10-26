@@ -19,7 +19,11 @@ Repos with a PR, merged or closed PRs and no-op repos are left alone.`,
   gh fleet retry --yes`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		o := app.ApplyOptions{Common: common(args), Reopen: viper.GetBool("reopen"), CloseNoop: viper.GetBool("close-noop")}
+		c, err := common(cmd, args)
+		if err != nil {
+			return err
+		}
+		o := app.ApplyOptions{Common: c, Reopen: viper.GetBool("reopen"), CloseNoop: viper.GetBool("close-noop")}
 		return run(cmd, func(a *app.App) error { return a.Retry(cmd.Context(), o) })
 	},
 }

@@ -33,7 +33,11 @@ PRs. --format html prints the same report as a self-contained page.`,
   gh fleet status --format html > report.html`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		o := app.StatusOptions{Common: common(args), Format: viper.GetString("format"), ExitStatus: viper.GetBool("exit-status")}
+		c, err := common(cmd, args)
+		if err != nil {
+			return err
+		}
+		o := app.StatusOptions{Common: c, Format: viper.GetString("format"), ExitStatus: viper.GetBool("exit-status")}
 		return run(cmd, func(a *app.App) error { return a.Status(cmd.Context(), o) })
 	},
 }

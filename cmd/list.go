@@ -18,7 +18,11 @@ passed to any command in place of --file.`,
   gh fleet list --json name --jq '.[].name'`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		return run(cmd, func(a *app.App) error { return a.List(common(nil)) })
+		c, err := common(cmd, nil)
+		if err != nil {
+			return err
+		}
+		return run(cmd, func(a *app.App) error { return a.List(c) })
 	},
 }
 

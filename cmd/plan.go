@@ -26,7 +26,11 @@ The script sees FLEET_DRY_RUN=true.`,
   gh fleet plan --json repo,status --jq '[.[] | select(.status == "changed") | .repo]'`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		o := app.PlanOptions{Common: common(args), Ungrouped: viper.GetBool("ungrouped")}
+		c, err := common(cmd, args)
+		if err != nil {
+			return err
+		}
+		o := app.PlanOptions{Common: c, Ungrouped: viper.GetBool("ungrouped")}
 		return run(cmd, func(a *app.App) error { return a.Plan(cmd.Context(), o) })
 	},
 }

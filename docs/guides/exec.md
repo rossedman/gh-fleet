@@ -20,7 +20,7 @@ Each distinct output line is counted once per repo, most common first. Nothing i
 
 ## Choosing targets
 
-With any ad-hoc flag (`--org`, `--topic`, `--language`, `--file`, `--search`, `--repo`) exec builds its targets from those flags. Otherwise it uses the campaign (`--campaign`, default `./fleet.yaml`). The ad-hoc flags use the same rules as [campaign targeting](targeting.md), with one difference: repos you can read but not push to are included, as the command only reads.
+With any ad-hoc flag (`--org`, `--topic`, `--language`, `--file`, `--search`, `--repo`, `--repo-file`) exec builds its targets from those flags. Otherwise it uses the campaign (`--campaign`, default `./fleet.yaml`). The ad-hoc flags use the same rules as [campaign targeting](targeting.md), with one difference: repos you can read but not push to are included, as the command only reads. `--exclude` and `--exclude-file` leave repos out either way.
 
 ```sh
 gh fleet exec --org acme --file Dockerfile -- grep -h '^FROM' Dockerfile

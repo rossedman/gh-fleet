@@ -37,16 +37,19 @@ gh fleet status [campaign] [flags]
 ### Options
 
 ```
-      --concurrency int    repos processed in parallel (default limits.concurrency, else 8)
-      --exit-status        exit 1 if a repo failed, or 8 while repos still need work
-  -f, --file string        campaign file (default ./fleet.yaml)
-      --format string      table, or a report to share: markdown or html (default "table")
-  -h, --help               help for status
-  -q, --jq expression      filter JSON output using a jq expression
-      --json fields        output JSON with the specified fields (comma-separated; --json alone lists them)
-      --repo strings       limit to these repos (owner/name, repeatable)
-  -t, --template string    format JSON output using a Go template; see gh help formatting
-      --write-rate float   GitHub API writes per second (default 1)
+      --concurrency int        repos processed in parallel (default limits.concurrency, else 8)
+      --exclude strings        leave out these repos (owner/name, repeatable)
+      --exclude-file strings   leave out the repos listed in this file, one per line (- for stdin, repeatable)
+      --exit-status            exit 1 if a repo failed, or 8 while repos still need work
+  -f, --file string            campaign file (default ./fleet.yaml)
+      --format string          table, or a report to share: markdown or html (default "table")
+  -h, --help                   help for status
+  -q, --jq expression          filter JSON output using a jq expression
+      --json fields            output JSON with the specified fields (comma-separated; --json alone lists them)
+      --repo strings           limit to these repos (owner/name, repeatable)
+      --repo-file strings      limit to the repos listed in this file, one per line (- for stdin, repeatable)
+  -t, --template string        format JSON output using a Go template; see gh help formatting
+      --write-rate float       GitHub API writes per second (default 1)
 ```
 
 ### Options inherited from parent commands

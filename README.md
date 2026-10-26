@@ -150,7 +150,8 @@ name of a campaign in local state. Read commands take `--json <fields>`, `--jq`
 and `--template`, as gh's do; see
 [Scripting and CI](https://rossedman.github.io/gh-fleet/guides/scripting/) for
 piped output and exit codes.
-Common flags: `--repo owner/name` (limit to some repos), `--concurrency N`,
+Common flags: `--repo owner/name` and `--repo-file` (limit to some repos),
+`--exclude owner/name` and `--exclude-file` (leave some out), `--concurrency N`,
 `--yes`, `--keep-workdirs`, `--write-rate`.
 
 ## How it behaves
