@@ -295,7 +295,7 @@ func TestContentCreationWindows(t *testing.T) {
 	tr.OnWait = func(why string, d time.Duration) { told = append(told, fmt.Sprintf("%s %s", why, d)) }
 	post := func() {
 		t.Helper()
-		req, _ := http.NewRequestWithContext(context.Background(), http.MethodPost, "https://api.github.com/repos/a/b/issues/1/labels", strings.NewReader("{}"))
+		req, _ := http.NewRequestWithContext(context.Background(), http.MethodPost, "https://api.github.com/repos/a/b/pulls", strings.NewReader("{}"))
 		if _, err := tr.RoundTrip(req); err != nil {
 			t.Fatal(err)
 		}
@@ -323,11 +323,17 @@ func TestContentCreationWindows(t *testing.T) {
 	if len(told) == 0 || !strings.HasPrefix(told[0], "content creation limit ") {
 		t.Fatalf("OnWait = %v", told)
 	}
-	// Reads don't count.
+	// Reads, and writes that create nothing, don't count.
 	n := len(clock.slept)
 	get(t, tr, "/repos/a/b")
+	for _, path := range []string{"/repos/a/b/issues/1/labels", "/repos/a/b/pulls/1/requested_reviewers"} {
+		req, _ := http.NewRequestWithContext(context.Background(), http.MethodPost, "https://api.github.com"+path, strings.NewReader("{}"))
+		if _, err := tr.RoundTrip(req); err != nil {
+			t.Fatal(err)
+		}
+	}
 	if len(clock.slept) != n {
-		t.Fatal("a read waited for the content limit")
+		t.Fatal("a request that creates nothing waited for the content limit")
 	}
 	// A canceled wait stops.
 	tr.Sleep = func(context.Context, time.Duration) error { return context.Canceled }
@@ -433,6 +439,26 @@ func TestWriteLimiterAndClassification(t *testing.T) {
 	} {
 		if got := isWrite(tt.method, tt.path, []byte(tt.body)); got != tt.want {
 			t.Errorf("isWrite(%s %s %s) = %v", tt.method, tt.path, tt.body, got)
+		}
+	}
+	for _, tt := range []struct {
+		method, path string
+		want         bool
+	}{
+		{"POST", "/repos/a/b/pulls", true},
+		{"POST", "/repos/a/b/issues", true},
+		{"POST", "/repos/a/b/issues/1/comments", true},
+		{"POST", "/repos/a/b/pulls/1/reviews", true},
+		{"POST", "/repos/a/b/issues/1/labels", false},
+		{"POST", "/repos/a/b/pulls/1/requested_reviewers", false},
+		{"PATCH", "/repos/a/b/pulls/1", false},
+		{"PUT", "/repos/a/b/pulls/1/merge", false},
+		{"DELETE", "/repos/a/b/git/refs/heads/x", false},
+		{"POST", "/graphql", false},
+		{"GET", "/repos/a/b/pulls", false},
+	} {
+		if got := createsContent(tt.method, tt.path); got != tt.want {
+			t.Errorf("createsContent(%s %s) = %v", tt.method, tt.path, got)
 		}
 	}
 	for path, want := range map[string]string{"/graphql": "graphql", "/search/code": "code_search", "/search/issues": "search", "/repos/a": "core"} {

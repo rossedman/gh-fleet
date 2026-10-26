@@ -202,8 +202,8 @@ Common flags: `--repo owner/name` and `--repo-file` (limit to some repos),
   you decline a prompt, 4 when gh isn't signed in, and 8 from
   `status --exit-status` while PRs are still open.
 - **Kind to the API.** Writes go through one shared limiter (1 per second by
-  default) and stay within GitHub's content creation limits (80 a minute, 500
-  an hour). A secondary rate limit pauses every worker for as long as GitHub
+  default), and new PRs and comments stay within GitHub's content creation
+  limits (80 a minute, 500 an hour). A secondary rate limit pauses every worker for as long as GitHub
   asks, or a minute and doubling when it doesn't say; spent quota is never
   retried before it resets; server errors are retried with backoff; and 10%
   of the primary quota is kept in reserve. Repo listings, file checks and PR lookups are batched GraphQL
