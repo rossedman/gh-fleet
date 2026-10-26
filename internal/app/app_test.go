@@ -523,7 +523,7 @@ func TestStatusAfterStateLoss(t *testing.T) {
 		t.Fatal(err)
 	}
 	h.reset()
-	if err := h.app.Status(ctx, Common{File: f}); err != nil {
+	if err := h.app.Status(ctx, StatusOptions{Common: Common{File: f}}); err != nil {
 		t.Fatal(err)
 	}
 	out := h.out.String()
@@ -533,7 +533,7 @@ func TestStatusAfterStateLoss(t *testing.T) {
 		}
 	}
 	h.reset()
-	if err := h.app.Status(ctx, Common{File: f, JSON: true}); err != nil {
+	if err := h.app.Status(ctx, StatusOptions{Common: Common{File: f, JSON: true}}); err != nil {
 		t.Fatal(err)
 	}
 	var rep StatusReport
@@ -551,7 +551,7 @@ func TestStatusFindsPRsByMarker(t *testing.T) {
 	f := h.campaign(basic, files)
 	// A PR on another branch that carries the campaign marker.
 	h.gh.PRs = append(h.gh.PRs, &ghapi.PR{Repo: "acme/api", Number: 9, URL: "https://github.com/acme/api/pull/9", State: ghapi.StateOpen, HeadRef: "old-branch", Body: "x\n<!-- gh-fleet:campaign=add-line -->"})
-	if err := h.app.Status(context.Background(), Common{File: f}); err != nil {
+	if err := h.app.Status(context.Background(), StatusOptions{Common: Common{File: f}}); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(h.out.String(), "pull/9") {
@@ -572,7 +572,7 @@ func TestStatusDropsVanishedPR(t *testing.T) {
 	if err := h.app.Store.Save(st); err != nil {
 		t.Fatal(err)
 	}
-	if err := h.app.Status(context.Background(), Common{File: f}); err != nil {
+	if err := h.app.Status(context.Background(), StatusOptions{Common: Common{File: f}}); err != nil {
 		t.Fatal(err)
 	}
 	st, _ = h.app.Store.Load("add-line")

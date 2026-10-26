@@ -38,19 +38,21 @@ const (
 
 // RepoState is everything recorded about one repo in a campaign.
 type RepoState struct {
-	Repo      string    `json:"repo"`
-	Status    Status    `json:"status"`
-	PRNumber  int       `json:"prNumber,omitempty"`
-	PRURL     string    `json:"prUrl,omitempty"`
-	HeadSHA   string    `json:"headSha,omitempty"`
-	Checks    string    `json:"checks,omitempty"`
-	Review    string    `json:"review,omitempty"`
-	LastError string    `json:"lastError,omitempty"`
-	Detail    string    `json:"detail,omitempty"`
-	Diff      string    `json:"diff,omitempty"`
-	Output    string    `json:"output,omitempty"`
-	CreatedAt time.Time `json:"createdAt,omitzero"`
-	UpdatedAt time.Time `json:"updatedAt,omitzero"`
+	Repo     string `json:"repo"`
+	Status   Status `json:"status"`
+	PRNumber int    `json:"prNumber,omitempty"`
+	PRURL    string `json:"prUrl,omitempty"`
+	HeadSHA  string `json:"headSha,omitempty"`
+	Checks   string `json:"checks,omitempty"`
+	Review   string `json:"review,omitempty"`
+	// MergeState is the PR's mergeStateStatus, such as CLEAN or DIRTY.
+	MergeState string    `json:"mergeState,omitempty"`
+	LastError  string    `json:"lastError,omitempty"`
+	Detail     string    `json:"detail,omitempty"`
+	Diff       string    `json:"diff,omitempty"`
+	Output     string    `json:"output,omitempty"`
+	CreatedAt  time.Time `json:"createdAt,omitzero"`
+	UpdatedAt  time.Time `json:"updatedAt,omitzero"`
 }
 
 // Campaign is the stored state of one campaign.

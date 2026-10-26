@@ -137,7 +137,7 @@ action upgrades and SHA pinning, pre-commit hooks, Dependabot, CODEOWNERS,
 | `gh fleet plan` | Clone, run the change, and show per-repo diffs without pushing |
 | `gh fleet test` | Run the change against local test cases (or a local directory) and check the result, without GitHub |
 | `gh fleet apply` | Run the change, push branches, open or update PRs |
-| `gh fleet status` | Every target's PR link, state, checks, reviews and last error |
+| `gh fleet status` | Every target's PR link, state, checks, reviews and last error; `--format markdown` or `html` for a report to share |
 | `gh fleet retry` | Re-run only repos that failed or have no PR |
 | `gh fleet merge` | Merge PRs that are approved and passing (or turn on auto-merge), and say what the rest wait on |
 | `gh fleet close` | Close all open campaign PRs and delete their branches |

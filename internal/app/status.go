@@ -21,10 +21,28 @@ type StatusReport struct {
 	Quota    []ghapi.RateLimit `json:"quota,omitempty"`
 }
 
-// Status refreshes every target's PR from GitHub and prints a table. PRs
-// are looked up by branch (and by marker as a fallback), so the report is
-// correct even when the local state file is gone.
-func (a *App) Status(ctx context.Context, c Common) error {
+// StatusOptions configures Status.
+type StatusOptions struct {
+	Common
+	// Format is table, markdown or html.
+	Format string
+}
+
+// Status refreshes every target's PR from GitHub and prints a table, or a
+// Markdown or HTML report. PRs are looked up by branch (and by marker as a
+// fallback), so the report is correct even when the local state file is
+// gone.
+func (a *App) Status(ctx context.Context, o StatusOptions) error {
+	c := o.Common
+	switch o.Format {
+	case "", FormatTable:
+	case FormatMarkdown, FormatHTML:
+		if c.JSON || c.JQ != "" {
+			return fmt.Errorf("--format %s can't be combined with --json or --jq", o.Format)
+		}
+	default:
+		return fmt.Errorf("--format must be table, markdown or html, not %q", o.Format)
+	}
 	camp, err := a.LoadCampaign(c)
 	if err != nil {
 		return err
@@ -70,7 +88,7 @@ func (a *App) Status(ctx context.Context, c Common) error {
 			rs = *old
 		}
 		if p := prs.Existing(n); p != nil {
-			rs.PRNumber, rs.PRURL, rs.Checks, rs.Review = p.Number, p.URL, p.Checks, p.Review
+			rs.PRNumber, rs.PRURL, rs.Checks, rs.Review, rs.MergeState = p.Number, p.URL, p.Checks, p.Review, p.MergeState
 			if p.HeadSHA != "" {
 				rs.HeadSHA = p.HeadSHA
 			}
@@ -96,6 +114,9 @@ func (a *App) Status(ctx context.Context, c Common) error {
 	}
 	quota, _ := client.RateLimits(ctx)
 
+	if o.Format == FormatMarkdown || o.Format == FormatHTML {
+		return writeReport(a.Out, o.Format, newReport(camp, rows, now))
+	}
 	p := a.printer(c)
 	counts := render.Count(rows)
 	if p.Machine() {
