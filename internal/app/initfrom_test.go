@@ -12,7 +12,7 @@ func TestInitFrom(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	var out, errOut bytes.Buffer
-	a := &App{Out: &out, Err: &errOut}
+	a := &App{Out: &out, Err: &errOut, TTY: true}
 	file := filepath.Join(dir, "campaigns", "node", "fleet.yaml")
 	if err := a.Init(InitOptions{From: "examples/node-pnpm-9/", Name: "Pnpm Nine", Org: "mycorp", File: file}); err != nil {
 		t.Fatal(err)
@@ -26,8 +26,8 @@ func TestInitFrom(t *testing.T) {
 			t.Errorf("not copied: %v", err)
 		}
 	}
-	if !strings.Contains(out.String(), "Copied 7 files from example node-pnpm-9") {
-		t.Errorf("output = %q", out.String())
+	if !strings.Contains(errOut.String(), "Copied 7 files from example node-pnpm-9") {
+		t.Errorf("output = %q", errOut.String())
 	}
 
 	// The copy runs against its own test cases.

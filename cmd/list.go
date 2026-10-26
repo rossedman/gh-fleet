@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/rossedman/gh-fleet/internal/app"
+	"github.com/rossedman/gh-fleet/internal/state"
 )
 
 // listCmd lists campaigns in local state.
@@ -14,7 +15,7 @@ var listCmd = &cobra.Command{
 last update, per-status repo counts and campaign file. A listed name can be
 passed to any command in place of --file.`,
 	Example: `  gh fleet list
-  gh fleet list --json --jq '.[].name'`,
+  gh fleet list --json name --jq '.[].name'`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		c, err := common(cmd, nil)
@@ -27,6 +28,6 @@ passed to any command in place of --file.`,
 
 // init registers the list command and its flags.
 func init() {
-	addOutputFlags(listCmd)
+	addOutputFlags(listCmd, []state.Summary{})
 	rootCmd.AddCommand(listCmd)
 }

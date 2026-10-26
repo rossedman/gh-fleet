@@ -74,9 +74,9 @@ func For(color bool) Styles {
 }
 
 // ColorEnabled reports whether output to a terminal may be colored,
-// honoring NO_COLOR and CLICOLOR_FORCE.
+// honoring NO_COLOR, CLICOLOR=0 and CLICOLOR_FORCE as gh does.
 func ColorEnabled(isTTY bool) bool {
-	if os.Getenv("NO_COLOR") != "" {
+	if os.Getenv("NO_COLOR") != "" || os.Getenv("CLICOLOR") == "0" {
 		return false
 	}
 	if v := os.Getenv("CLICOLOR_FORCE"); v != "" && v != "0" {

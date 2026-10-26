@@ -48,7 +48,7 @@ func TestVarsEndToEnd(t *testing.T) {
 	if err := h.app.Targets(ctx, Common{File: f}); err != nil {
 		t.Fatal(err)
 	}
-	out := h.out.String()
+	out := h.out.String() + h.errOut.String()
 	for _, want := range []string{"VARS", "oncall=#payments tags=fleet,owners team=platform", "oncall=#platform tags=fleet,owners team=web", "warning: ./owners.csv names 1 repo that is not a target: acme/gone"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("targets missing %q:\n%s", want, out)

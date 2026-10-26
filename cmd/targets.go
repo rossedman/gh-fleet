@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/rossedman/gh-fleet/internal/app"
+	"github.com/rossedman/gh-fleet/internal/target"
 )
 
 // targetsCmd lists the repos a campaign will touch.
@@ -15,7 +16,7 @@ filters it matched. Repos without push access are listed as skipped.
 
 Org listings are cached for 10 minutes.`,
 	Example: `  gh fleet targets
-  gh fleet targets --json --jq '.targets[].repo | .owner + "/" + .name'`,
+  gh fleet targets --json targets --jq '.targets[].repo | .owner + "/" + .name'`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		c, err := common(cmd, args)
@@ -29,6 +30,6 @@ Org listings are cached for 10 minutes.`,
 // init registers the targets command and its flags.
 func init() {
 	addCampaignFlags(targetsCmd)
-	addOutputFlags(targetsCmd)
+	addOutputFlags(targetsCmd, target.Result{})
 	rootCmd.AddCommand(targetsCmd)
 }

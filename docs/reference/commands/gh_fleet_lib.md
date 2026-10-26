@@ -32,11 +32,12 @@ gh fleet lib [module[.function]] [function] [flags]
 ### Options
 
 ```
-  -h, --help            help for lib
-      --jq string       filter JSON output with a jq expression
-      --json            print JSON instead of a table
-  -s, --search string   list functions whose names or docs mention these words
-      --source          print the module's Starlark source
+  -h, --help              help for lib
+  -q, --jq expression     filter JSON output using a jq expression
+      --json fields       output JSON with the specified fields (comma-separated; --json alone lists them)
+  -s, --search string     list functions whose names or docs mention these words
+      --source            print the module's Starlark source
+  -t, --template string   format JSON output using a Go template; see gh help formatting
 ```
 
 ### Options inherited from parent commands

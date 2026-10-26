@@ -45,13 +45,14 @@ gh fleet merge [campaign] [flags]
       --exclude-file strings   leave out the repos listed in this file, one per line (- for stdin, repeatable)
   -f, --file string            campaign file (default ./fleet.yaml)
   -h, --help                   help for merge
-      --jq string              filter JSON output with a jq expression
-      --json                   print JSON instead of a table
+  -q, --jq expression          filter JSON output using a jq expression
+      --json fields            output JSON with the specified fields (comma-separated; --json alone lists them)
       --keep-branches          keep the branches of merged PRs
       --max int                merge or auto-merge at most this many PRs (0: no limit)
       --method string          merge method: merge, squash or rebase (default "squash")
       --repo strings           limit to these repos (owner/name, repeatable)
       --repo-file strings      limit to the repos listed in this file, one per line (- for stdin, repeatable)
+  -t, --template string        format JSON output using a Go template; see gh help formatting
       --update-branch          merge the base into PRs that are behind it
       --write-rate float       GitHub API writes per second (default 1)
   -y, --yes                    skip the confirmation prompt

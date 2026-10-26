@@ -5,6 +5,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/rossedman/gh-fleet/internal/app"
+	"github.com/rossedman/gh-fleet/internal/state"
 )
 
 // retryCmd re-runs failed repos.
@@ -32,7 +33,7 @@ func init() {
 	addCampaignFlags(retryCmd)
 	addRunFlags(retryCmd)
 	addWriteFlags(retryCmd)
-	addOutputFlags(retryCmd)
+	addOutputFlags(retryCmd, []state.RepoState{})
 	retryCmd.Flags().Bool("reopen", false, "reopen campaign PRs that were closed without merging")
 	retryCmd.Flags().Bool("close-noop", false, "close open PRs whose change is already on the base branch")
 	rootCmd.AddCommand(retryCmd)

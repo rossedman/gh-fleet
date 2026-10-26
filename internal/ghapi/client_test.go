@@ -3,6 +3,7 @@ package ghapi
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -493,5 +494,16 @@ func TestCustomProperties(t *testing.T) {
 	}
 	if _, err := c.RepoProperties(ctx, "bad"); err == nil {
 		t.Fatal("invalid name accepted")
+	}
+}
+
+func TestNewWithoutAuth(t *testing.T) {
+	for _, k := range []string{"GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN", "GH_HOST"} {
+		t.Setenv(k, "")
+	}
+	t.Setenv("GH_CONFIG_DIR", t.TempDir())
+	t.Setenv("PATH", "")
+	if _, err := New(Options{}); !errors.Is(err, ErrAuthRequired) {
+		t.Fatalf("err = %v", err)
 	}
 }

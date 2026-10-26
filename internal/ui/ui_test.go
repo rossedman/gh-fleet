@@ -19,6 +19,11 @@ func TestStylesAndColor(t *testing.T) {
 		t.Fatal("NO_COLOR ignored")
 	}
 	t.Setenv("NO_COLOR", "")
+	t.Setenv("CLICOLOR", "0")
+	if ColorEnabled(true) {
+		t.Fatal("CLICOLOR=0 ignored")
+	}
+	t.Setenv("CLICOLOR", "")
 	t.Setenv("CLICOLOR_FORCE", "1")
 	if !ColorEnabled(false) {
 		t.Fatal("CLICOLOR_FORCE ignored")
