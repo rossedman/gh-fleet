@@ -84,14 +84,15 @@ func TestStoreErrors(t *testing.T) {
 	if _, err := (&Store{Dir: filepath.Join(dir, "null.json")}).List(); err == nil && runtime.GOOS != "windows" {
 		t.Fatal("expected error listing a file")
 	}
-	if err := (&Store{Dir: "/dev/null/x"}).Save(&Campaign{Name: "x"}); err == nil {
+	if err := (&Store{Dir: filepath.Join(dir, "null.json", "x")}).Save(&Campaign{Name: "x"}); err == nil {
 		t.Fatal("expected save error")
 	}
 	ro := filepath.Join(dir, "ro")
 	if err := os.Mkdir(ro, 0o500); err != nil {
 		t.Fatal(err)
 	}
-	if os.Geteuid() != 0 {
+	// Root ignores the mode, and Windows has no read-only directories.
+	if os.Geteuid() != 0 && runtime.GOOS != "windows" {
 		if err := (&Store{Dir: ro}).Save(&Campaign{Name: "x"}); err == nil {
 			t.Fatal("expected temp file error")
 		}
