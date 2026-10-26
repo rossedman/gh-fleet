@@ -163,4 +163,4 @@ Fix a script, or change the campaign, and run `apply` again to update every open
 - [Writing changes](guides/writing-changes.md): how steps run, and the shell contract.
 - [Starlark library](reference/starlark-library.md): every built-in helper.
 - [Targeting repositories](guides/targeting.md): topics, languages, files and code search.
-- [Examples](examples.md): sixty-six tested campaigns for common changes.
+- [Examples](examples.md): seventy-five tested campaigns for common changes.

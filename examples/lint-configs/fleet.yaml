@@ -1,0 +1,26 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: lint-defaults
+description: Relax line-length rules and silence noisy Dockerfile checks
+
+targets:
+  orgs: [acme]
+  exclude:
+    topics: [no-fleet]
+
+change:
+  steps:
+    # Turns off markdownlint's MD013 line length and raises yamllint's to 120
+    # where those tools are configured, and ignores hadolint's apt and pip pin
+    # rules (DL3008, DL3013) in repos that have a Dockerfile.
+    - name: lint-configs
+      starlark: ./change.star
+      timeout: 1m
+
+pr:
+  title: "chore: lint rule defaults"
+  body: |
+    Applies the org's lint rule defaults to {{ .Repo.Name }}.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet]

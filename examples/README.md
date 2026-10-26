@@ -74,6 +74,8 @@ campaign is safe.
 | [`renovate-automerge`](renovate-automerge/) | Moves off `config:base` and automerges minor and patch devDependency updates | `renovate.remove_preset`, `add_preset` and `add_package_rule` |
 | [`golangci-v2`](golangci-v2/) | Migrates golangci-lint configs to v2 and enables gosec | Starlark, the official `migrate` command, then Starlark again |
 | [`devcontainer-image`](devcontainer-image/) | Moves Dev Containers to Go 1.23 and adds the GitHub CLI feature | `devcontainer` edits that keep JSONC comments |
+| [`prettier-eslint`](prettier-eslint/) | Sets shared Prettier options and an ESLint rule, reporting flat configs for review | `prettier.set_option`, `eslint.set_rule` and `eslint.find` |
+| [`lint-configs`](lint-configs/) | Sets markdownlint and yamllint rules and adds a hadolint ignore | `lintconfig` helpers across three config formats |
 
 ## Runtimes
 
@@ -103,6 +105,9 @@ campaign is safe.
 | [`circleci-orbs`](circleci-orbs/) | Moves the node orb to 5.2.0 in every CircleCI config | `circleci.bump_orb`, reporting the old version |
 | [`circleci-machine-image`](circleci-machine-image/) | Moves machine jobs off retired Ubuntu 20.04 images | `circleci.set_machine_image` with a `*` match, leaving Docker images alone |
 | [`jenkins-agent-image`](jenkins-agent-image/) | Moves Jenkins agents to Maven 3.9 and `tools` to JDK 21 | `jenkins.bump_image` and `jenkins.set_tool` |
+| [`azure-ubuntu-24`](azure-ubuntu-24/) | Moves Azure Pipelines to `ubuntu-24.04` agents and a newer task version | `azure_pipelines.set_vm_image` and `bump_task` |
+| [`bitbucket-pipes`](bitbucket-pipes/) | Moves the aws-s3-deploy pipe and Node images in Bitbucket Pipelines | `bitbucket.bump_pipe` and `bump_image`, listing pipes first |
+| [`drone-golang`](drone-golang/) | Moves Drone and Woodpecker steps to Go 1.23 | `drone.bump_image` on both CI systems |
 | [`branch-rename`](branch-rename/) | Updates workflow branch filters and `refs/heads/` checks after `master` becomes `main` | `gha.rename_branch` |
 
 ## Deployments
@@ -115,6 +120,10 @@ campaign is safe.
 | [`flux-chart-bump`](flux-chart-bump/) | Moves a Flux HelmRelease to a new chart version | `flux.set_chart_version` |
 | [`k8s-api-migration`](k8s-api-migration/) | Moves manifests off API versions Kubernetes removed | `k8s.migrate_api_versions` on multi-document files |
 | [`k8s-labels`](k8s-labels/) | Labels every resource and pod template with the owning team | `k8s.set_label` with a per-repo variable |
+| [`helmfile-chart`](helmfile-chart/) | Moves a Helmfile release to a new chart version | `helmfile.set_chart_version` across `helmfile.d/` |
+| [`serverless-runtime`](serverless-runtime/) | Moves Serverless Framework functions to the nodejs20.x runtime | `serverless.set_runtime` on the provider and per function |
+| [`cdk-feature-flags`](cdk-feature-flags/) | Turns on a CDK feature flag in apps that already set flags | `cdk.set_context` with `only_existing` |
+| [`packer-plugins`](packer-plugins/) | Raises the Packer amazon plugin constraint | `packer.set_plugin_version` in `required_plugins` |
 
 ## Writing your own
 

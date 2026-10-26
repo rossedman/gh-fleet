@@ -99,10 +99,13 @@ nav:
           - android.star: reference/starlark/android.md
           - ansible.star: reference/starlark/ansible.md
           - argocd.star: reference/starlark/argocd.md
+          - azure_pipelines.star: reference/starlark/azure_pipelines.md
           - bazel.star: reference/starlark/bazel.md
+          - bitbucket.star: reference/starlark/bitbucket.md
           - buf.star: reference/starlark/buf.md
           - buildkite.star: reference/starlark/buildkite.md
           - cargo.star: reference/starlark/cargo.md
+          - cdk.star: reference/starlark/cdk.md
           - changelog.star: reference/starlark/changelog.md
           - circleci.star: reference/starlark/circleci.md
           - cmake.star: reference/starlark/cmake.md
@@ -112,8 +115,10 @@ nav:
           - devcontainer.star: reference/starlark/devcontainer.md
           - docker.star: reference/starlark/docker.md
           - dotnet.star: reference/starlark/dotnet.md
+          - drone.star: reference/starlark/drone.md
           - editorconfig.star: reference/starlark/editorconfig.md
           - elixir.star: reference/starlark/elixir.md
+          - eslint.star: reference/starlark/eslint.md
           - files.star: reference/starlark/files.md
           - flux.star: reference/starlark/flux.md
           - gha.star: reference/starlark/gha.md
@@ -124,23 +129,29 @@ nav:
           - gomod.star: reference/starlark/gomod.md
           - gradle.star: reference/starlark/gradle.md
           - helm.star: reference/starlark/helm.md
+          - helmfile.star: reference/starlark/helmfile.md
           - jenkins.star: reference/starlark/jenkins.md
           - jsonfile.star: reference/starlark/jsonfile.md
           - k8s.star: reference/starlark/k8s.md
           - kustomize.star: reference/starlark/kustomize.md
           - license.star: reference/starlark/license.md
+          - lintconfig.star: reference/starlark/lintconfig.md
           - make.star: reference/starlark/make.md
           - markdown.star: reference/starlark/markdown.md
           - maven.star: reference/starlark/maven.md
           - npm.star: reference/starlark/npm.md
+          - packer.star: reference/starlark/packer.md
           - php.star: reference/starlark/php.md
           - precommit.star: reference/starlark/precommit.md
+          - prettier.star: reference/starlark/prettier.md
           - python.star: reference/starlark/python.md
           - refs.star: reference/starlark/refs.md
           - renovate.star: reference/starlark/renovate.md
           - ruby.star: reference/starlark/ruby.md
           - runtime.star: reference/starlark/runtime.md
           - sbt.star: reference/starlark/sbt.md
+          - serverless.star: reference/starlark/serverless.md
+          - skaffold.star: reference/starlark/skaffold.md
           - swift.star: reference/starlark/swift.md
           - terraform.star: reference/starlark/terraform.md
           - terragrunt.star: reference/starlark/terragrunt.md
