@@ -61,7 +61,7 @@ func (a *App) Plan(ctx context.Context, o PlanOptions) error {
 	if err != nil {
 		return err
 	}
-	res, err := a.resolve(ctx, client, camp, c.Repos, true)
+	res, err := a.resolve(ctx, c, client, camp, c.Repos, true)
 	if err != nil {
 		return err
 	}
@@ -71,19 +71,17 @@ func (a *App) Plan(ctx context.Context, o PlanOptions) error {
 		Mode: engine.Plan, Campaign: camp, Workspaces: a.workspaces(c), Git: a.Git, Scripts: scripts,
 		LogPath: func(repo string) string { return a.Store.LogPath(camp.Name, repo) },
 	}
+	tr, stop := a.track(c, "Planning", len(res.Targets), concurrency(c, camp), true)
 	results, fatal := engine.Run(ctx, res.Targets, pipe, engine.Options{
 		Concurrency: concurrency(c, camp),
 		OnResult: func(rs state.RepoState) {
-			if p.Machine() {
-				return
+			if rs.Status == state.Changed && o.Ungrouped && !p.Machine() {
+				tr.Pause(func() { p.Diff(rs.Repo, rs.Diff) })
 			}
-			if rs.Status == state.Changed && o.Ungrouped {
-				p.Diff(rs.Repo, rs.Diff)
-				return
-			}
-			progress.Progress(rs)
+			tr.Result(rs)
 		},
 	})
+	stop()
 	results = append(results, skippedStates(res)...)
 	sortStates(results)
 	if p.Machine() {
@@ -138,7 +136,7 @@ func (a *App) apply(ctx context.Context, o ApplyOptions, keep func(*state.Campai
 	if err != nil {
 		return err
 	}
-	res, err := a.resolve(ctx, client, camp, o.Repos, true)
+	res, err := a.resolve(ctx, o.Common, client, camp, o.Repos, true)
 	if err != nil {
 		return err
 	}
@@ -169,6 +167,9 @@ func (a *App) apply(ctx context.Context, o ApplyOptions, keep func(*state.Campai
 	}
 
 	prs := pr.NewManager(client, camp.Limits.MaxOpenPRs)
+	if !a.quiet(o.Common) {
+		a.note("Looking up existing PRs in " + plural(len(all), "repo"))
+	}
 	if err := prs.Index(ctx, all, camp.PR.Branch, camp.Marker(), searchScope(camp)); err != nil {
 		return err
 	}
@@ -233,6 +234,7 @@ func (a *App) apply(ctx context.Context, o ApplyOptions, keep func(*state.Campai
 		Reopen:  o.Reopen, CloseNoop: o.CloseNoop,
 	}
 	done := 0
+	tr, stop := a.track(o.Common, "Applying to", len(res.Targets), concurrency(o.Common, camp), true)
 	results, fatal := engine.Run(ctx, res.Targets, pipe, engine.Options{
 		Concurrency: concurrency(o.Common, camp),
 		OnResult: func(rs state.RepoState) {
@@ -241,11 +243,10 @@ func (a *App) apply(ctx context.Context, o ApplyOptions, keep func(*state.Campai
 			if done%saveEvery == 0 {
 				_ = a.Store.Save(st)
 			}
-			if !p.Machine() {
-				progress.Progress(rs)
-			}
+			tr.Result(rs)
 		},
 	})
+	stop()
 	for _, r := range results {
 		if r.Status == state.Pending {
 			if old := st.Get(r.Repo); old != nil {

@@ -65,6 +65,9 @@ type Transport struct {
 	Now func() time.Time
 	// Jitter returns a random duration in [0, d). Defaults to math/rand.
 	Jitter func(d time.Duration) time.Duration
+	// OnWait, when set, is told each time every request starts waiting on
+	// a rate limit, and for how long, so a long silence can be explained.
+	OnWait func(why string, d time.Duration)
 
 	mu          sync.Mutex
 	pausedUntil time.Time
@@ -209,10 +212,16 @@ func (t *Transport) pause(d time.Duration) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	until := t.now().Add(d)
-	if until.After(t.pausedUntil) {
+	extended := until.After(t.pausedUntil)
+	if extended {
 		t.pausedUntil = until
 	}
 	t.pauses.Add(1)
+	// Only a new or longer pause is news; workers hitting the same limit
+	// at once would otherwise each report it.
+	if extended && t.OnWait != nil {
+		t.OnWait("secondary rate limit", d)
+	}
 }
 
 // waitForPause blocks while a secondary rate limit pause is in effect.
@@ -248,6 +257,9 @@ func (t *Transport) checkQuota(ctx context.Context, resource string) error {
 		return nil
 	}
 	if search {
+		if t.OnWait != nil {
+			t.OnWait(resource+" rate limit", q.Reset.Sub(t.now()))
+		}
 		err := t.sleep(ctx, q.Reset.Sub(t.now()))
 		t.mu.Lock()
 		delete(t.quotas, resource)

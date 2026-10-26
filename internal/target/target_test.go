@@ -360,3 +360,30 @@ func TestResolveBareNamesAndEmptyRepos(t *testing.T) {
 		t.Errorf("GetRepo called %d times for bare names", n)
 	}
 }
+
+func TestResolveProgress(t *testing.T) {
+	t.Parallel()
+	var msgs []string
+	rs := &Resolver{Client: newFake(), Cache: &Cache{Dir: t.TempDir()}, Progress: func(m string) { msgs = append(msgs, m) }}
+	targets := campaign.Targets{Orgs: []string{"acme"}, Include: campaign.Include{Files: []string{".github/workflows", "go.mod"}, Search: "uses: actions/"}}
+	for range 2 {
+		if _, err := rs.Resolve(context.Background(), targets); err != nil {
+			t.Fatal(err)
+		}
+	}
+	want := []string{
+		"Listing acme's repos",
+		"Listed acme: 5 repos",
+		"Checking .github/workflows, go.mod in 5 repos",
+		`Searching code for "uses: actions/"`,
+		"Listed acme: 5 repos, from the cache",
+		"Checking .github/workflows, go.mod in 5 repos",
+		`Searching code for "uses: actions/"`,
+	}
+	if !slices.Equal(msgs, want) {
+		t.Fatalf("progress =\n%s\nwant\n%s", strings.Join(msgs, "\n"), strings.Join(want, "\n"))
+	}
+	if countRepos(1) != "1 repo" {
+		t.Error("repos")
+	}
+}
