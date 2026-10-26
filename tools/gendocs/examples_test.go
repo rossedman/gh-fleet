@@ -75,3 +75,74 @@ func TestExamplePage(t *testing.T) {
 		t.Error("bad glob accepted")
 	}
 }
+
+func TestExampleErrors(t *testing.T) {
+	t.Parallel()
+	for name, setup := range map[string]func(t *testing.T, ex string){
+		"fleet.yaml is a directory": func(t *testing.T, ex string) {
+			if err := os.MkdirAll(filepath.Join(ex, "fleet.yaml"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+		},
+		"unreadable campaign file": func(t *testing.T, ex string) {
+			writeTree(t, ex, map[string]string{"fleet.yaml": "name: x\n"})
+			if err := os.Symlink(filepath.Join(ex, "missing"), filepath.Join(ex, "broken")); err != nil {
+				t.Fatal(err)
+			}
+		},
+		"tests is a file": func(t *testing.T, ex string) {
+			writeTree(t, ex, map[string]string{"fleet.yaml": "name: x\n", "tests": "not a dir\n"})
+		},
+		"case without before": func(t *testing.T, ex string) {
+			writeTree(t, ex, map[string]string{"fleet.yaml": "name: x\n", "tests/case/after/a": "a\n"})
+		},
+		"unreadable after file": func(t *testing.T, ex string) {
+			writeTree(t, ex, map[string]string{"fleet.yaml": "name: x\n", "tests/case/before/a": "a\n", "tests/case/after/a": "a\n"})
+			if err := os.Symlink(filepath.Join(ex, "missing"), filepath.Join(ex, "tests", "case", "after", "broken")); err != nil {
+				t.Fatal(err)
+			}
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			dir := t.TempDir()
+			setup(t, filepath.Join(dir, "ex"))
+			if _, err := readExamples(dir, nil); err == nil || !strings.Contains(err.Error(), "ex") {
+				t.Errorf("err = %v", err)
+			}
+		})
+	}
+
+	// A stray file next to the cases is ignored.
+	dir := t.TempDir()
+	writeTree(t, dir, map[string]string{"ex/fleet.yaml": "name: x\n", "ex/tests/NOTES": "x\n", "ex/tests/c/before/a.sh": "echo\n"})
+	exs, err := readExamples(dir, nil)
+	if err != nil || len(exs) != 1 || len(exs[0].Cases) != 1 {
+		t.Fatalf("examples = %+v, %v", exs, err)
+	}
+	if page := string(ExamplePage(exs[0])); !strings.Contains(page, "```bash\n    echo\n") {
+		t.Errorf("shell file not highlighted as bash:\n%s", page)
+	}
+}
+
+func TestWriteExamplesErrors(t *testing.T) {
+	t.Parallel()
+	bad := t.TempDir()
+	writeTree(t, bad, map[string]string{"x/fleet.yaml": "name: [\n"})
+	if err := writeExamples(t.TempDir(), "", bad, nil); err == nil {
+		t.Error("bad example accepted")
+	}
+	// out is a file, so its examples directory can't be replaced.
+	file := filepath.Join(t.TempDir(), "file")
+	writeTree(t, filepath.Dir(file), map[string]string{"file": "x"})
+	if err := writeExamples(file, "", "../../examples", nil); err == nil {
+		t.Error("unwritable output accepted")
+	}
+	if err := run(t.TempDir(), "", "[bad"); err == nil {
+		t.Error("bad examples glob accepted")
+	}
+	dir := t.TempDir()
+	if err := run(dir, filepath.Join(dir, "none.yml"), "../../examples"); err == nil {
+		t.Error("missing mkdocs.yml accepted")
+	}
+}
