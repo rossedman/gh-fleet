@@ -148,7 +148,7 @@ func (a *App) status(ctx context.Context, o StatusOptions) (rows []state.RepoSta
 	quota, _ := client.RateLimits(ctx)
 
 	if o.Format == FormatMarkdown || o.Format == FormatHTML {
-		return rows, writeReport(a.Out, o.Format, newReport(camp, rows, now))
+		return rows, WriteReport(a.Out, o.Format, camp, rows, now)
 	}
 	p := a.printer(c)
 	counts := render.Count(rows)

@@ -139,3 +139,7 @@
 .md-footer { border-top: 1px solid var(--hairline); }
 .md-footer__link { color: var(--mist); }
 .md-footer__link:hover { color: var(--brand); }
+
+/* Example progress reports, framed so they read as their own page. */
+.report-example { width: 100%; height: 34rem; border: 1px solid var(--hairline); border-radius: 8px; background: #fff; }
+@media (prefers-color-scheme: dark) { .report-example { background: #0d1117; } }
