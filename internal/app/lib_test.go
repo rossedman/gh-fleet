@@ -13,7 +13,7 @@ import (
 func lib(t *testing.T, o LibOptions) (string, string, error) {
 	t.Helper()
 	var out, errOut bytes.Buffer
-	a := &App{Out: &out, Err: &errOut}
+	a := &App{Out: &out, Err: &errOut, TTY: true}
 	err := a.Lib(o)
 	return out.String(), errOut.String(), err
 }

@@ -91,6 +91,7 @@ nav:
       - Tracking pull requests: guides/tracking-prs.md
       - Rate limits: guides/rate-limits.md
       - Exploring with exec: guides/exec.md
+      - Scripting and CI: guides/scripting.md
       - Examples: examples.md
   - Reference:
       - Campaign file: reference/campaign.md

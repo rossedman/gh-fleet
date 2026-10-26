@@ -39,6 +39,11 @@ type Options struct {
 	Base http.RoundTripper
 }
 
+// ErrAuthRequired is returned when gh has no token for the host. Its
+// message is gh's own, so the fix reads the same.
+var ErrAuthRequired = errors.New("To get started with GitHub CLI, please run:  gh auth login\n" + //nolint:staticcheck // gh's wording
+	"Alternatively, populate the GH_TOKEN environment variable with a GitHub API authentication token.")
+
 // New builds a GitHub client that authenticates the way gh does.
 func New(opts Options) (*GitHub, error) {
 	rate := opts.WriteRate
@@ -49,6 +54,9 @@ func New(opts Options) (*GitHub, error) {
 	co := api.ClientOptions{Host: opts.Host, AuthToken: opts.AuthToken, Transport: tr}
 	rest, err := api.NewRESTClient(co)
 	if err != nil {
+		if strings.HasPrefix(err.Error(), "authentication token not found") {
+			return nil, ErrAuthRequired
+		}
 		return nil, err
 	}
 	gql, err := api.NewGraphQLClient(co)

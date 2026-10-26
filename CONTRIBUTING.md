@@ -74,7 +74,9 @@ the module, so put a matching build on `PATH`
   that handles outside input (see below).
 - **Terminal output** goes through `internal/ui` and `internal/render`: no
   colors defined anywhere else, nothing styled when output is piped or
-  `--json` is set, and `NO_COLOR` is honored.
+  `--json` is set, and `NO_COLOR` is honored. Follow gh's conventions:
+  results on stdout and everything else on stderr, tab-separated tables with
+  no header when piped, and gh's exit codes (`docs/guides/scripting.md`).
 
 ## Critical paths
 

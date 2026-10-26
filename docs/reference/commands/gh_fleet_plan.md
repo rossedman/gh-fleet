@@ -23,7 +23,7 @@ gh fleet plan [campaign] [flags]
 
 ```
   gh fleet plan --repo acme/api
-  gh fleet plan --json --jq '[.[] | select(.status == "changed") | .repo]'
+  gh fleet plan --json repo,status --jq '[.[] | select(.status == "changed") | .repo]'
 ```
 
 ### Options
@@ -34,11 +34,12 @@ gh fleet plan [campaign] [flags]
       --exclude-file strings   leave out the repos listed in this file, one per line (- for stdin, repeatable)
   -f, --file string            campaign file (default ./fleet.yaml)
   -h, --help                   help for plan
-      --jq string              filter JSON output with a jq expression
-      --json                   print JSON instead of a table
+  -q, --jq expression          filter JSON output using a jq expression
+      --json fields            output JSON with the specified fields (comma-separated; --json alone lists them)
       --keep-workdirs          leave clones on disk for debugging
       --repo strings           limit to these repos (owner/name, repeatable)
       --repo-file strings      limit to the repos listed in this file, one per line (- for stdin, repeatable)
+  -t, --template string        format JSON output using a Go template; see gh help formatting
       --ungrouped              print each repo's diff as it finishes instead of grouping identical diffs
       --write-rate float       GitHub API writes per second (default 1)
 ```

@@ -55,7 +55,7 @@ passed.`,
 func init() {
 	addCampaignFlags(mergeCmd)
 	addWriteFlags(mergeCmd)
-	addOutputFlags(mergeCmd)
+	addOutputFlags(mergeCmd, []app.MergeResult{})
 	mergeCmd.Flags().String("method", "squash", "merge method: merge, squash or rebase")
 	mergeCmd.Flags().Bool("auto", false, "turn on auto-merge for PRs that aren't ready yet")
 	mergeCmd.Flags().Bool("update-branch", false, "merge the base into PRs that are behind it")

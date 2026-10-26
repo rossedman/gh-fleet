@@ -5,6 +5,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/rossedman/gh-fleet/internal/app"
+	"github.com/rossedman/gh-fleet/internal/state"
 )
 
 // planCmd is a dry run of apply.
@@ -22,7 +23,7 @@ repo's diff as it finishes instead.
 
 The script sees FLEET_DRY_RUN=true.`,
 	Example: `  gh fleet plan --repo acme/api
-  gh fleet plan --json --jq '[.[] | select(.status == "changed") | .repo]'`,
+  gh fleet plan --json repo,status --jq '[.[] | select(.status == "changed") | .repo]'`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		c, err := common(cmd, args)
@@ -38,7 +39,7 @@ The script sees FLEET_DRY_RUN=true.`,
 func init() {
 	addCampaignFlags(planCmd)
 	addRunFlags(planCmd)
-	addOutputFlags(planCmd)
+	addOutputFlags(planCmd, []state.RepoState{})
 	planCmd.Flags().Bool("ungrouped", false, "print each repo's diff as it finishes instead of grouping identical diffs")
 	rootCmd.AddCommand(planCmd)
 }

@@ -50,6 +50,7 @@ func newHarness(t *testing.T) *harness {
 	h.gh.Files["acme/api"] = []string{"README.md", "go.mod"}
 	h.gh.Files["acme/web"] = []string{"README.md"}
 	h.app = &App{
+		TTY: true,
 		Out: h.out, Err: h.errOut, In: strings.NewReader(""),
 		NewClient: func(float64) (ghapi.Client, error) { return h.gh, nil },
 		Store:     &state.Store{Dir: filepath.Join(t.TempDir(), "state")},
@@ -125,7 +126,7 @@ func TestTargets(t *testing.T) {
 	if err := h.app.Targets(context.Background(), Common{File: f}); err != nil {
 		t.Fatal(err)
 	}
-	out := h.out.String()
+	out := h.out.String() + h.errOut.String()
 	for _, want := range []string{"acme/api", "topic:service", "acme/web", "SKIPPED", "acme/docs", "no push access", "2 repos (1 skipped)"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output missing %q:\n%s", want, out)
@@ -526,7 +527,7 @@ func TestStatusAfterStateLoss(t *testing.T) {
 	if err := h.app.Status(ctx, StatusOptions{Common: Common{File: f}}); err != nil {
 		t.Fatal(err)
 	}
-	out := h.out.String()
+	out := h.out.String() + h.errOut.String()
 	for _, want := range []string{"acme/api", "merged", "success", "approved", "acme/web", "pr open", "failure", "review required", "acme/docs", "skipped", "1 pr open · 1 merged · 1 skipped", "core 4,812/5,000", "graphql 4,950/5,000"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("status missing %q:\n%s", want, out)
@@ -706,8 +707,8 @@ func TestListAndCampaignByName(t *testing.T) {
 	if err := h.app.List(Common{}); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(h.out.String(), "No campaigns yet") {
-		t.Fatalf("list: %s", h.out.String())
+	if !strings.Contains(h.errOut.String(), "No campaigns yet") || h.out.Len() != 0 {
+		t.Fatalf("list: %q %q", h.out, h.errOut)
 	}
 	h.reset()
 	if err := h.app.List(Common{JSON: true}); err != nil || strings.TrimSpace(h.out.String()) != "[]" {
@@ -729,8 +730,8 @@ func TestListAndCampaignByName(t *testing.T) {
 	if err := h.app.Targets(context.Background(), Common{Campaign: "add-line"}); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(h.out.String(), "2 repos") {
-		t.Fatalf("targets by name:\n%s", h.out.String())
+	if !strings.Contains(h.errOut.String(), "2 repos") {
+		t.Fatalf("targets by name:\n%s", h.errOut.String())
 	}
 }
 
@@ -764,8 +765,8 @@ func TestInit(t *testing.T) {
 	if err != nil || !strings.Contains(string(b), "name: pin-actions") || !strings.Contains(string(b), "orgs: [acme]") {
 		t.Fatalf("file = %s, %v", b, err)
 	}
-	if !strings.Contains(h.out.String(), "Wrote") {
-		t.Fatalf("output: %s", h.out.String())
+	if !strings.Contains(h.errOut.String(), "Wrote") {
+		t.Fatalf("output: %s", h.errOut.String())
 	}
 	if err := h.app.Init(InitOptions{File: f}); err == nil || !strings.Contains(err.Error(), "--force") {
 		t.Fatalf("err = %v", err)

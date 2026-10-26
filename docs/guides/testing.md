@@ -148,7 +148,7 @@ It is a `plan` for one repo you already have on disk. Use it to try a change on 
 
 ## In CI
 
-`gh fleet test` exits non-zero when any case fails, and `--json` prints one result per case:
+`gh fleet test` exits 1 when any case fails, and `--json name,status,errors` prints one result per case:
 
 ```yaml
 - run: gh fleet test -f campaigns/python-3.12/fleet.yaml

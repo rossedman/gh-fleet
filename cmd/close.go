@@ -5,6 +5,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/rossedman/gh-fleet/internal/app"
+	"github.com/rossedman/gh-fleet/internal/state"
 )
 
 // closeCmd closes every open campaign PR.
@@ -31,7 +32,7 @@ passed.`,
 func init() {
 	addCampaignFlags(closeCmd)
 	addWriteFlags(closeCmd)
-	addOutputFlags(closeCmd)
+	addOutputFlags(closeCmd, []state.RepoState{})
 	closeCmd.Flags().String("comment", "", "comment to post on each PR before closing it")
 	closeCmd.Flags().Bool("keep-branches", false, "close PRs but keep their branches")
 	rootCmd.AddCommand(closeCmd)

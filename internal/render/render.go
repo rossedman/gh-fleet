@@ -23,31 +23,64 @@ type Printer struct {
 	Out io.Writer
 	// JSON switches to machine output.
 	JSON bool
+	// Fields keeps only these fields of each JSON record; empty keeps all.
+	Fields []string
 	// JQ filters JSON output; setting it implies JSON.
 	JQ string
+	// Template formats JSON output with a Go template; setting it implies
+	// JSON.
+	Template string
+	// TTY lays tables out for people. Without it, as in a pipe, tables are
+	// tab-separated with no header row, the way gh prints them.
+	TTY bool
 	// Styles colors human output; use ui.Plain() for pipes.
 	Styles ui.Styles
 }
 
 // Machine reports whether output is JSON.
-func (p Printer) Machine() bool { return p.JSON || p.JQ != "" }
+func (p Printer) Machine() bool { return p.JSON || p.JQ != "" || p.Template != "" }
 
-// PrintJSON writes v as indented JSON, or the result of the jq filter.
+// PrintJSON writes v as indented JSON, keeping only Fields when set, then
+// filters it with the jq expression or formats it with the template.
 func (p Printer) PrintJSON(v any) error {
-	b, err := json.MarshalIndent(v, "", "  ")
+	b, err := json.Marshal(v)
 	if err != nil {
 		return err
 	}
-	if p.JQ != "" {
-		return jq.Evaluate(bytes.NewReader(b), p.Out, p.JQ)
+	if len(p.Fields) > 0 {
+		if b, err = SelectFields(b, p.Fields); err != nil {
+			return err
+		}
 	}
-	_, err = fmt.Fprintf(p.Out, "%s\n", b)
+	switch {
+	case p.JQ != "":
+		return jq.Evaluate(bytes.NewReader(b), p.Out, p.JQ)
+	case p.Template != "":
+		return executeTemplate(p.Out, p.Template, b)
+	}
+	var out bytes.Buffer
+	if err := json.Indent(&out, b, "", "  "); err != nil {
+		return err
+	}
+	out.WriteByte('\n')
+	_, err = p.Out.Write(out.Bytes())
 	return err
 }
 
 // Table writes rows under headers with aligned columns. Styling is applied
 // per cell by style, which may be nil.
 func (p Printer) Table(headers []string, rows [][]string, style func(row, col int, s string) string) {
+	if !p.TTY {
+		clean := strings.NewReplacer("\t", " ", "\n", " ", "\r", " ")
+		for _, r := range rows {
+			cells := make([]string, min(len(r), len(headers)))
+			for i := range cells {
+				cells[i] = clean.Replace(r[i])
+			}
+			fmt.Fprintln(p.Out, strings.Join(cells, "\t"))
+		}
+		return
+	}
 	widths := make([]int, len(headers))
 	for i, h := range headers {
 		widths[i] = lipgloss.Width(h)

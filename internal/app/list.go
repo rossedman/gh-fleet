@@ -21,7 +21,7 @@ func (a *App) List(c Common) error {
 		return p.PrintJSON(sums)
 	}
 	if len(sums) == 0 {
-		fmt.Fprintln(p.Out, "No campaigns yet. Run gh fleet init to start one.")
+		fmt.Fprintln(a.Err, "No campaigns yet. Run gh fleet init to start one.")
 		return nil
 	}
 	rows := make([][]string, len(sums))
