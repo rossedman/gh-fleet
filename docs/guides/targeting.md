@@ -50,7 +50,7 @@ targets:
 
 `exclude.properties` drops repos whose custom property has any of the listed values, for example `properties: {pci: true}`.
 
-**Exclusion always wins**, even over `include.repos`. `archived` and `forks` both default to `true`, so archived repos and forks are skipped unless you set them to `false`.
+**Exclusion always wins**, even over `include.repos`. `archived` and `forks` both default to `true`, so archived repos and forks are skipped unless you set them to `false`. Empty repos, which have no default branch, are always skipped.
 
 ## Name patterns
 
@@ -73,9 +73,9 @@ targets:
 | `[a-c]`, `[0-9]` | one character in the range |
 | `[^a-c]` | one character not in the range |
 
-Matching ignores case. In `include.names`, a pattern without a slash matches the repo's name and one with a slash matches `owner/name`, so `service-*` and `acme/service-*` both work. `include.repos`, `exclude.repos`, [`vars.match[].when.repos`](../configuration.md#variables) and [`limits.waves[].repos`](tracking-prs.md#rolling-out-in-waves) take `owner/name` patterns.
+Matching ignores case. A pattern without a slash matches the repo's name, and one with a slash matches `owner/name`, so `*-domain` and `acme/*-domain` both work. This holds everywhere repos are listed: `include.names`, `include.repos`, `exclude.repos`, [`vars.match[].when.repos`](../configuration.md#variables) and [`limits.waves[].repos`](tracking-prs.md#rolling-out-in-waves).
 
-`include.names` is a filter like `topics`, so it combines with the other filters with AND: `names: [service-*]` and `languages: [Go]` select Go repos named `service-*`. A pattern in `include.repos` instead adds every match and bypasses the filters, as a plain name does. Its owner doesn't need to be in `orgs`: `tools/cli-*` lists `tools` once and keeps the matches. A pattern in the owner, such as `*/cli-*`, only matches repos from `orgs`.
+`include.names` is a filter like `topics`, so it combines with the other filters with AND: `names: [service-*]` and `languages: [Go]` select Go repos named `service-*`. A pattern in `include.repos` instead adds every match and bypasses the filters, as a plain name does. With an owner, the owner doesn't need to be in `orgs`: `tools/cli-*` lists `tools` once and keeps the matches. Without one, as in `*-domain`, or with a pattern for the owner, as in `*/cli-*`, it only matches the repos of `orgs`, so the campaign needs `orgs`.
 
 A pattern that doesn't parse, such as `acme/[ab`, is an error when the campaign loads, with its line and column.
 

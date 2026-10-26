@@ -13,7 +13,7 @@ import (
 func TestTableForPipes(t *testing.T) {
 	t.Parallel()
 	var b bytes.Buffer
-	p := Printer{Out: &b, Styles: ui.Color()}
+	p := Printer{Out: &b, Styles: ui.ColorFor(true)}
 	p.Table([]string{"REPO", "NOTE"}, [][]string{{"acme/api", "line one\nline\ttwo", "extra"}, {"a/b", ""}}, func(_, _ int, s string) string { return "[" + s + "]" })
 	if want := "acme/api\tline one line two\na/b\t\n"; b.String() != want {
 		t.Fatalf("table = %q, want %q", b.String(), want)

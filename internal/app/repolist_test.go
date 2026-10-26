@@ -95,7 +95,7 @@ func TestSearchScopeAndExcludePatterns(t *testing.T) {
 	t.Parallel()
 	camp := &campaign.Campaign{Targets: campaign.Targets{
 		Orgs:    []string{"acme"},
-		Include: campaign.Include{Repos: []string{"acme/x", "*/tool-*", "other/cli-*", "other/svc-*", "third/one"}},
+		Include: campaign.Include{Repos: []string{"acme/x", "*/tool-*", "other/cli-*", "other/svc-*", "third/one", "*-domain", "api"}},
 		Exclude: campaign.Exclude{Repos: []string{"*/legacy-*"}},
 	}}
 	if got := strings.Join(searchScope(camp), " "); got != "user:acme user:other repo:third/one" {

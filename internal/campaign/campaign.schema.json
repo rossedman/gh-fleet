@@ -80,10 +80,10 @@
               }
             },
             "repos": {
-              "description": "Repos (`owner/name`) that are always included, bypassing the filters above. Glob patterns such as `acme/tool-*` include every matching repo.",
+              "description": "Repos that are always included, bypassing the filters above: `owner/name`, or a name or glob pattern such as `*-domain` matched against the repos of `orgs`. A pattern with an owner, such as `tools/cli-*`, lists that owner.",
               "type": "array",
               "items": {
-                "$ref": "#/$defs/repo"
+                "$ref": "#/$defs/namePattern"
               }
             },
             "properties": {
@@ -98,10 +98,10 @@
           "additionalProperties": false,
           "properties": {
             "repos": {
-              "description": "Repos (`owner/name`) to skip. Glob patterns such as `*/legacy-*` skip every matching repo.",
+              "description": "Repos to skip: `owner/name`, a name, or a glob pattern such as `legacy-*` or `*/legacy-*`.",
               "type": "array",
               "items": {
-                "$ref": "#/$defs/repo"
+                "$ref": "#/$defs/namePattern"
               }
             },
             "archived": {
@@ -259,10 +259,10 @@
                 "additionalProperties": false,
                 "properties": {
                   "repos": {
-                    "description": "Repos (`owner/name`), or glob patterns such as `acme/payments-*`.",
+                    "description": "Repos: `owner/name`, a name, or a glob pattern such as `payments-*`.",
                     "type": "array",
                     "items": {
-                      "$ref": "#/$defs/repo"
+                      "$ref": "#/$defs/namePattern"
                     }
                   },
                   "topics": {
@@ -332,11 +332,11 @@
             ],
             "properties": {
               "repos": {
-                "description": "Repos (`owner/name`) in this wave, such as canaries, or glob patterns such as `acme/canary-*`. Repos that aren't targets are ignored.",
+                "description": "Repos in this wave, such as canaries: `owner/name`, a name, or a glob pattern such as `canary-*`. Repos that aren't targets are ignored.",
                 "type": "array",
                 "minItems": 1,
                 "items": {
-                  "$ref": "#/$defs/repo"
+                  "$ref": "#/$defs/namePattern"
                 }
               },
               "size": {
@@ -352,10 +352,6 @@
     }
   },
   "$defs": {
-    "repo": {
-      "type": "string",
-      "pattern": "^[A-Za-z0-9_.*?\\[\\]^-]+/[A-Za-z0-9_.*?\\[\\]^-]+$"
-    },
     "namePattern": {
       "type": "string",
       "pattern": "^[A-Za-z0-9_.*?\\[\\]^-]+(/[A-Za-z0-9_.*?\\[\\]^-]+)?$"
