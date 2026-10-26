@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -234,6 +235,23 @@ func TestEveryCommandDocumented(t *testing.T) {
 		}
 		if c.Short == "" || c.Example == "" && c.Name() != "version" {
 			t.Errorf("%s needs Short and Example", c.Name())
+		}
+		// Every --json in an example names fields the command has.
+		known := strings.Split(c.Annotations[jsonFieldsKey], ",")
+		fields := strings.Fields(c.Example)
+		for i, f := range fields {
+			if f != "--json" {
+				continue
+			}
+			if i+1 == len(fields) {
+				t.Errorf("%s example ends with a bare --json", c.Name())
+				continue
+			}
+			for _, name := range strings.Split(fields[i+1], ",") {
+				if !slices.Contains(known, name) {
+					t.Errorf("%s example uses --json %s; %q is not a field", c.Name(), fields[i+1], name)
+				}
+			}
 		}
 	}
 }

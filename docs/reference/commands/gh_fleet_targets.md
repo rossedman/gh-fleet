@@ -17,7 +17,7 @@ gh fleet targets [campaign] [flags]
 
 ```
   gh fleet targets
-  gh fleet targets --json --jq '.targets[].repo | .owner + "/" + .name'
+  gh fleet targets --json targets --jq '.targets[].repo | .owner + "/" + .name'
 ```
 
 ### Options

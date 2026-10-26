@@ -16,7 +16,7 @@ filters it matched. Repos without push access are listed as skipped.
 
 Org listings are cached for 10 minutes.`,
 	Example: `  gh fleet targets
-  gh fleet targets --json --jq '.targets[].repo | .owner + "/" + .name'`,
+  gh fleet targets --json targets --jq '.targets[].repo | .owner + "/" + .name'`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		c, err := common(cmd, args)
