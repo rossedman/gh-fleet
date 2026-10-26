@@ -12,10 +12,11 @@ import (
 // docstrings.
 type LibDoc struct {
 	// Name is the module's file name, such as files.star.
-	Name string
+	Name string `json:"name"`
 	// Summary is the first line of the module docstring; Body the rest.
-	Summary, Body string
-	Funcs         []LibFunc
+	Summary string    `json:"summary"`
+	Body    string    `json:"body,omitempty"`
+	Funcs   []LibFunc `json:"functions"`
 }
 
 // LibFunc documents one public function of a built-in module.
@@ -40,44 +41,47 @@ type LibDoc struct {
 //
 // repo needs no Args entry; every other parameter does.
 type LibFunc struct {
-	Name string
+	Name string `json:"name"`
 	// Signature is the def line without "def" and the trailing colon.
-	Signature string
+	Signature string `json:"signature"`
 	// Params are the parameter names, in order.
-	Params []string
+	Params []string `json:"params"`
 	// Line is the line of the def statement.
-	Line int
+	Line int `json:"line"`
 	// Summary is the docstring's first line; Body the prose after it.
-	Summary, Body string
-	Args          []LibArg
-	Returns       string
-	Example       *LibExample
+	Summary string      `json:"summary"`
+	Body    string      `json:"body,omitempty"`
+	Args    []LibArg    `json:"args,omitempty"`
+	Returns string      `json:"returns,omitempty"`
+	Example *LibExample `json:"example,omitempty"`
 }
 
 // LibArg documents one parameter.
 type LibArg struct {
-	Name, Doc string
+	Name string `json:"name"`
+	Doc  string `json:"doc"`
 }
 
 // LibExample is a docstring example: files before, a call, and the files
 // and value after. Tests run every example, so they cannot go stale.
 type LibExample struct {
 	// Campaign are files next to the campaign file.
-	Campaign []LibFile
-	Before   []LibFile
+	Campaign []LibFile `json:"campaign,omitempty"`
+	Before   []LibFile `json:"before,omitempty"`
 	// Call is one or more lines of Starlark; the last is an expression
 	// whose value Returns describes.
-	Call    string
-	After   []LibFile
-	Deleted []string
+	Call    string    `json:"call"`
+	After   []LibFile `json:"after,omitempty"`
+	Deleted []string  `json:"deleted,omitempty"`
 	// Returns is the repr of the call's value, or "" when not checked.
-	Returns string
+	Returns string `json:"returns,omitempty"`
 }
 
 // LibFile is a file in an example. Content always ends in a newline
 // unless it is empty.
 type LibFile struct {
-	Path, Content string
+	Path    string `json:"path"`
+	Content string `json:"content"`
 }
 
 // ParseLibDoc reads the module docstring and the public functions, with

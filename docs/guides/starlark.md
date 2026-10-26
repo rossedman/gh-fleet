@@ -139,7 +139,7 @@ def change(repo):
     repo.set_var("dockerfiles", ", ".join(changed))
 ```
 
-Each function's entry shows its arguments, what it returns, a before-and-after example, and the [example campaigns](../examples.md) that use it. The reference is generated from the library's docstrings, and every example in it runs as a test, so it always matches the code.
+Each function's entry shows its arguments, what it returns, a before-and-after example, and the [example campaigns](../examples.md) that use it. The same docs are in the terminal: `gh fleet lib` lists the modules, `gh fleet lib docker` a module's functions, `gh fleet lib docker.bump_image` one function with its example, and `gh fleet lib --search "never lower"` finds functions by what they do. The reference is generated from the library's docstrings, and every example in it runs as a test, so it always matches the code.
 
 ## Sharing your own helpers with `load`
 

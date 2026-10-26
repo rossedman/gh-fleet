@@ -158,12 +158,20 @@ acme/worker     noop     -                                       -        -
 API quota: core 4,871/5,000 · graphql 4,962/5,000
 ```
 
-Fix a script, or change the campaign, and run `apply` again to update every open PR. See [Tracking pull requests](guides/tracking-prs.md) for `retry`, `close` and what the local state holds.
+Fix a script, or change the campaign, and run `apply` again to update every open PR.
+
+When PRs are approved and green, `merge` merges them and says what the rest wait on. `--auto` hands the ones still running checks to GitHub's auto-merge:
+
+```console
+$ gh fleet merge --auto
+```
+
+See [Tracking pull requests](guides/tracking-prs.md) for `merge`, `retry`, `close` and what the local state holds.
 
 ## Where next
 
 - [How it works](how-it-works.md): the path each repo takes.
 - [Writing changes](guides/writing-changes.md): how steps run, and the shell contract.
-- [Starlark library](reference/starlark-library.md): every built-in helper.
+- [Starlark library](reference/starlark-library.md): every built-in helper. `gh fleet lib` prints the same docs in the terminal.
 - [Targeting repositories](guides/targeting.md): topics, languages, files and code search.
 - [Examples](examples.md): eighty tested campaigns for common changes.

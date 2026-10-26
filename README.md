@@ -45,6 +45,7 @@ gh fleet plan --repo acme/api          # run it in one clone, show the diff
 gh fleet plan                          # every repo: diffs, no-ops, failures
 gh fleet apply                         # push branches, open PRs (asks first)
 gh fleet status                        # PR state, checks and reviews
+gh fleet merge --auto                  # merge what's approved and green
 ```
 
 A campaign file:
@@ -138,8 +139,10 @@ action upgrades and SHA pinning, pre-commit hooks, Dependabot, CODEOWNERS,
 | `gh fleet apply` | Run the change, push branches, open or update PRs |
 | `gh fleet status` | Every target's PR link, state, checks, reviews and last error |
 | `gh fleet retry` | Re-run only repos that failed or have no PR |
+| `gh fleet merge` | Merge PRs that are approved and passing (or turn on auto-merge), and say what the rest wait on |
 | `gh fleet close` | Close all open campaign PRs and delete their branches |
 | `gh fleet exec -- <cmd>` | Run a read-only command across targets and tally the output |
+| `gh fleet lib [module[.function]]` | Browse the built-in Starlark library: modules, functions, tested examples and `--search` |
 | `gh fleet list` | List campaigns in local state |
 
 Every command takes a campaign file (`--file`, default `./fleet.yaml`) or the

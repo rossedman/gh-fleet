@@ -43,6 +43,10 @@ type Client struct {
 	Reviewers map[string][]string
 	// DeletedBranches records "repo:branch" for each deleted branch.
 	DeletedBranches []string
+	// Merges records "repo#number:method" for each merged PR.
+	Merges []string
+	// UpdatedBranches records "repo#number" for each branch update.
+	UpdatedBranches []string
 	// Delay is added to every call, to simulate latency in benchmarks.
 	Delay time.Duration
 }
@@ -322,6 +326,62 @@ func (c *Client) DeleteBranch(ctx context.Context, repo, branch string) error {
 	}
 	c.DeletedBranches = append(c.DeletedBranches, repo+":"+branch)
 	return nil
+}
+
+// MergePR merges a stored PR, failing when it isn't open or its head
+// moved past sha.
+func (c *Client) MergePR(ctx context.Context, repo string, number int, method, sha string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if err := c.call(ctx, "MergePR", repo); err != nil {
+		return err
+	}
+	p := c.find(repo, number)
+	if p == nil || p.State != ghapi.StateOpen {
+		return fmt.Errorf("merge %s#%d: not open", repo, number)
+	}
+	if sha != "" && p.HeadSHA != "" && p.HeadSHA != sha {
+		return fmt.Errorf("merge %s#%d: head moved", repo, number)
+	}
+	p.State = ghapi.StateMerged
+	c.Merges = append(c.Merges, fmt.Sprintf("%s#%d:%s", repo, number, method))
+	return nil
+}
+
+// EnableAutoMerge marks a stored PR as auto-merging.
+func (c *Client) EnableAutoMerge(ctx context.Context, pr ghapi.PR, method string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if err := c.call(ctx, "EnableAutoMerge", pr.Repo); err != nil {
+		return err
+	}
+	if p := c.find(pr.Repo, pr.Number); p != nil {
+		p.AutoMerge = true
+	}
+	return nil
+}
+
+// UpdateBranch records a branch update and marks the PR up to date.
+func (c *Client) UpdateBranch(ctx context.Context, repo string, number int, sha string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if err := c.call(ctx, "UpdateBranch", repo); err != nil {
+		return err
+	}
+	if p := c.find(repo, number); p != nil {
+		p.MergeState = "BLOCKED"
+	}
+	c.UpdatedBranches = append(c.UpdatedBranches, fmt.Sprintf("%s#%d", repo, number))
+	return nil
+}
+
+// SetMergeState sets a stored PR's mergeStateStatus.
+func (c *Client) SetMergeState(repo string, number int, mergeState string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if p := c.find(repo, number); p != nil {
+		p.MergeState = mergeState
+	}
 }
 
 // OwnerProperties returns the Properties of every repo owned by owner.

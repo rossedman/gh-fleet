@@ -75,6 +75,43 @@ gh fleet retry
 
 `limits.maxOpenPRs` stops new PRs once that many campaign PRs are open, counting the ones already open. Repos held back show `changed` with `maxOpenPRs reached; not pushed`. As PRs merge, `retry` opens the next ones, which makes it a simple way to roll out in waves.
 
+## Merging
+
+`merge` merges the campaign's open PRs that are ready, and says what each of the others waits on:
+
+```console
+$ gh fleet merge --dry-run
+pr open  acme/web https://github.com/acme/web/pull/1 waiting: checks running
+pr open  acme/api https://github.com/acme/api/pull/1 would merge
+1 would merge · 1 waiting
+$ gh fleet merge --auto --yes
+pr open  acme/web https://github.com/acme/web/pull/1 auto-merge on
+merged   acme/api https://github.com/acme/api/pull/1
+1 merged · 1 set to auto-merge
+```
+
+A PR is merged when GitHub reports it mergeable, its checks pass and it is approved. By default both the approval and the checks are needed even in repos whose branch protection doesn't require them, so a campaign never merges something nobody looked at. `--allow-unreviewed` and `--allow-no-checks` relax that for repos you trust. The merge names the head commit gh fleet checked, so a PR that gets a new push in the meantime waits for the next run.
+
+The others wait, with the reason:
+
+| Reason | What to do |
+| --- | --- |
+| `checks running`, `needs review` | Wait, or pass `--auto` so GitHub merges it when they pass. |
+| `checks failing` | Fix the change and run `apply` again. |
+| `merge conflict` | Run `apply` again: it rebases the branch on the base. |
+| `behind its base` | Pass `--update-branch` to merge the base into the branch. |
+| `changes requested`, `draft` | Up to the repo's owners. |
+
+Useful flags:
+
+- `--method merge|squash|rebase`, default `squash`.
+- `--auto` turns on GitHub's auto-merge for PRs that aren't ready yet. Auto-merge only waits for what branch protection requires, so it isn't used where the repo requires no review or no checks, unless you pass the `--allow-` flags.
+- `--max 10` merges at most ten PRs per run, to roll out in batches. It picks the same PRs whatever order the API answers in.
+- `--keep-branches` keeps the branches of merged PRs. By default they are deleted, as `close` does.
+- `--dry-run` writes nothing, and `--json` prints one result per PR with its action and reason.
+
+It asks for confirmation unless you pass `--yes`.
+
 ## Closing a campaign
 
 ```sh

@@ -217,6 +217,7 @@ func TestPRsByHeadAndSearch(t *testing.T) {
 					"number": 7, "url": "https://github.com/acme/api/pull/7", "state": "OPEN", "title": "t", "body": "b",
 					"isDraft": false, "headRefName": "fleet/x", "headRefOid": "abc", "baseRefName": "main",
 					"reviewDecision": "APPROVED", "labels": map[string]any{"nodes": []any{map[string]any{"name": "fleet"}}},
+					"id": "PR_kw", "mergeStateStatus": "CLEAN", "autoMergeRequest": map[string]any{"enabledAt": "2026-01-01T00:00:00Z"},
 					"commits": map[string]any{"nodes": []any{map[string]any{"commit": map[string]any{"statusCheckRollup": map[string]any{"state": "SUCCESS"}}}}},
 				}}}},
 				"r1": map[string]any{"pullRequests": map[string]any{"nodes": []any{}}},
@@ -245,7 +246,8 @@ func TestPRsByHeadAndSearch(t *testing.T) {
 		t.Fatal(err)
 	}
 	p, ok := got["acme/api"]
-	if !ok || len(got) != 1 || p.Number != 7 || p.Checks != "SUCCESS" || p.Review != "APPROVED" || p.Labels[0] != "fleet" || p.HeadSHA != "abc" {
+	if !ok || len(got) != 1 || p.Number != 7 || p.Checks != "SUCCESS" || p.Review != "APPROVED" || p.Labels[0] != "fleet" || p.HeadSHA != "abc" ||
+		p.NodeID != "PR_kw" || p.MergeState != "CLEAN" || !p.AutoMerge {
 		t.Fatalf("got = %+v", got)
 	}
 	if _, err := c.PRsByHead(context.Background(), []string{"bad"}, "x"); err == nil {
@@ -279,6 +281,8 @@ func TestWrites(t *testing.T) {
 		"POST /repos/acme/api/pulls/5/requested_reviewers": func(*http.Request, []byte) (any, int) { return map[string]any{}, 201 },
 		"POST /repos/acme/api/issues/5/comments":           func(*http.Request, []byte) (any, int) { return map[string]any{}, 201 },
 		"DELETE /repos/acme/api/git/refs/heads/fleet/x":    func(*http.Request, []byte) (any, int) { return nil, 204 },
+		"PUT /repos/acme/api/pulls/5/merge":                func(*http.Request, []byte) (any, int) { return map[string]any{"merged": true}, 200 },
+		"PUT /repos/acme/api/pulls/5/update-branch":        func(*http.Request, []byte) (any, int) { return map[string]any{}, 202 },
 		"DELETE /repos/acme/api/git/refs/heads/gone": func(*http.Request, []byte) (any, int) {
 			return map[string]any{"message": "Reference does not exist"}, 422
 		},
@@ -323,13 +327,20 @@ func TestWrites(t *testing.T) {
 	if err := c.DeleteBranch(ctx, "acme/api", "gone"); err != nil {
 		t.Fatalf("missing branch should not fail: %v", err)
 	}
+	if err := c.MergePR(ctx, "acme/api", 5, MergeMethodSquash, "abc"); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.UpdateBranch(ctx, "acme/api", 5, "abc"); err != nil {
+		t.Fatal(err)
+	}
 	limits, err := c.RateLimits(ctx)
 	if err != nil || len(limits) != 2 || limits[0].Remaining != 4000 {
 		t.Fatalf("limits = %+v, %v", limits, err)
 	}
 
 	joined := strings.Join(s.bodies, "\n")
-	for _, want := range []string{`"draft":true`, `"state":"closed"`, `"team_reviewers":["platform"]`, `"reviewers":["octocat"]`, `"labels":["fleet"]`} {
+	for _, want := range []string{`"draft":true`, `"state":"closed"`, `"team_reviewers":["platform"]`, `"reviewers":["octocat"]`, `"labels":["fleet"]`,
+		`{"merge_method":"squash","sha":"abc"}`, `{"expected_head_sha":"abc"}`} {
 		if !strings.Contains(joined, want) {
 			t.Errorf("request bodies missing %s", want)
 		}
@@ -352,6 +363,12 @@ func TestWrites(t *testing.T) {
 	if err := c.Comment(ctx, "acme/none", 1, "x"); err == nil {
 		t.Fatal("comment should fail")
 	}
+	if err := c.MergePR(ctx, "acme/none", 1, MergeMethodMerge, ""); err == nil || !strings.Contains(err.Error(), "merge acme/none#1") {
+		t.Fatalf("merge should fail: %v", err)
+	}
+	if err := c.UpdateBranch(ctx, "acme/none", 1, ""); err == nil {
+		t.Fatal("update branch should fail")
+	}
 	s.rest["DELETE /repos/acme/none/git/refs/heads/x"] = func(*http.Request, []byte) (any, int) { return map[string]any{"message": "denied"}, 403 }
 	if err := c.DeleteBranch(ctx, "acme/none", "x"); err == nil {
 		t.Fatal("delete should fail")
@@ -359,6 +376,33 @@ func TestWrites(t *testing.T) {
 	delete(s.rest, "GET /rate_limit")
 	if _, err := c.RateLimits(ctx); err == nil {
 		t.Fatal("rate limit should fail")
+	}
+}
+
+func TestEnableAutoMerge(t *testing.T) {
+	t.Parallel()
+	var got map[string]any
+	var query string
+	s := &apiServer{gql: func(q string, vars map[string]any) (any, int) {
+		query, got = q, vars
+		if vars["id"] == "bad" {
+			return nil, 400
+		}
+		return map[string]any{"enablePullRequestAutoMerge": map[string]any{"clientMutationId": nil}}, 200
+	}}
+	c := newClient(t, s)
+	ctx := context.Background()
+	if err := c.EnableAutoMerge(ctx, PR{Repo: "acme/api", Number: 5, NodeID: "PR_kw"}, MergeMethodSquash); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(query, "mutation") || got["id"] != "PR_kw" || got["method"] != "SQUASH" {
+		t.Fatalf("query %q vars %v", query, got)
+	}
+	if err := c.EnableAutoMerge(ctx, PR{Repo: "acme/api", Number: 5}, MergeMethodSquash); err == nil || !strings.Contains(err.Error(), "no node ID") {
+		t.Fatalf("missing ID: %v", err)
+	}
+	if err := c.EnableAutoMerge(ctx, PR{Repo: "acme/api", Number: 5, NodeID: "bad"}, MergeMethodMerge); err == nil {
+		t.Fatal("server error swallowed")
 	}
 }
 
