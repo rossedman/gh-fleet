@@ -67,7 +67,10 @@ func run(out, nav, examples string) error {
 	if err := writeLib(out, nav, used); err != nil {
 		return err
 	}
-	return writeExamples(out, nav, examples, used)
+	if err := writeExamples(out, nav, examples, used); err != nil {
+		return err
+	}
+	return writeReportExamples(out, reportFiles)
 }
 
 // promoteTitles turns the "## gh fleet x" line cobra writes first into a

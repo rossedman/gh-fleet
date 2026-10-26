@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pin-actions report, rendered</title>
+<style>
+:root { --bg: #fff; --fg: #1f2328; --dim: #59636e; --line: #d1d9e0; --alt: #f6f8fa; --link: #0969da; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #0d1117; --fg: #f0f6fc; --dim: #9198a1; --line: #3d444d; --alt: #151b23; --link: #4493f8; }
+}
+body { background: var(--bg); color: var(--fg); font: 14px/1.5 -apple-system, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif; margin: 0; padding: 16px 24px; }
+h1 { font-size: 2em; border-bottom: 1px solid var(--line); padding-bottom: .3em; margin: 0 0 16px; }
+h2 { font-size: 1.5em; border-bottom: 1px solid var(--line); padding-bottom: .3em; margin: 24px 0 16px; }
+p, ul, table, details { margin: 0 0 16px; }
+a { color: var(--link); text-decoration: none; }
+code { font: 85% ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--alt); padding: .2em .4em; border-radius: 6px; }
+table { border-collapse: collapse; display: block; overflow: auto; }
+th, td { border: 1px solid var(--line); padding: 6px 13px; }
+th { font-weight: 600; }
+tr:nth-child(2n) { background: var(--alt); }
+em { color: var(--dim); }
+summary { cursor: pointer; }
+</style>
+</head>
+<body>
+<h1>pin-actions</h1>
+
+<p>Pin every third-party GitHub Action to a full commit SHA</p>
+
+<p><strong>5 of 12 repos done (41%)</strong> <code>████░░░░░░</code></p>
+
+<p>3 merged · 6 pr open · 1 failed · 2 noop · 1 skipped</p>
+
+<h2>Needs attention</h2>
+
+<table>
+<thead>
+<tr>
+<th>Repo</th>
+<th>PR</th>
+<th>Problem</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>acme/ledger</td>
+<td><a href="https://github.com/acme/ledger/pull/7">#7</a></td>
+<td>merge conflict</td>
+</tr>
+
+<tr>
+<td>acme/payments</td>
+<td><a href="https://github.com/acme/payments/pull/54">#54</a></td>
+<td>changes requested</td>
+</tr>
+
+<tr>
+<td>acme/worker</td>
+<td><a href="https://github.com/acme/worker/pull/31">#31</a></td>
+<td>checks failing</td>
+</tr>
+
+<tr>
+<td>acme/legacy-api</td>
+<td>-</td>
+<td>step resolve: gh api repos/acme/internal-action/commits/v2: HTTP 404</td>
+</tr>
+</tbody>
+</table>
+
+<h2>Open</h2>
+
+<table>
+<thead>
+<tr>
+<th>Repo</th>
+<th>PR</th>
+<th>Checks</th>
+<th>Review</th>
+<th>Waiting on</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>acme/gateway</td>
+<td><a href="https://github.com/acme/gateway/pull/23">#23</a></td>
+<td>success</td>
+<td>approved</td>
+<td>ready to merge</td>
+</tr>
+
+<tr>
+<td>acme/notify</td>
+<td><a href="https://github.com/acme/notify/pull/12">#12</a></td>
+<td>success</td>
+<td>review required</td>
+<td>needs review</td>
+</tr>
+
+<tr>
+<td>acme/search</td>
+<td><a href="https://github.com/acme/search/pull/9">#9</a></td>
+<td>pending</td>
+<td>review required</td>
+<td>checks running</td>
+</tr>
+</tbody>
+</table>
+
+<h2>Merged</h2>
+
+<ul>
+<li>acme/api <a href="https://github.com/acme/api/pull/41">#41</a></li>
+<li>acme/billing <a href="https://github.com/acme/billing/pull/17">#17</a></li>
+<li>acme/web <a href="https://github.com/acme/web/pull/88">#88</a></li>
+</ul>
+
+<p><details><summary>3 other repos</summary></p>
+
+<table>
+<thead>
+<tr>
+<th>Repo</th>
+<th>Status</th>
+<th>Note</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>acme/cli</td>
+<td>noop</td>
+<td>no unpinned actions</td>
+</tr>
+
+<tr>
+<td>acme/docs-site</td>
+<td>noop</td>
+<td>no unpinned actions</td>
+</tr>
+
+<tr>
+<td>acme/archive</td>
+<td>skipped</td>
+<td>no push access</td>
+</tr>
+</tbody>
+</table>
+<p></details></p>
+
+<p><em>Generated 2026-10-26 14:00 UTC by <a href="https://github.com/rossedman/gh-fleet">gh fleet</a>.</em></p>
+</body>
+</html>

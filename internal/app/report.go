@@ -202,6 +202,12 @@ footer { margin-top: 32px; font-size: 13px; }
 </html>
 `))
 
+// WriteReport writes a campaign's progress report in format, markdown or
+// html, from its status rows as of now.
+func WriteReport(w io.Writer, format string, camp *campaign.Campaign, rows []state.RepoState, now time.Time) error {
+	return writeReport(w, format, newReport(camp, rows, now))
+}
+
 // writeReport renders the report in format.
 func writeReport(w io.Writer, format string, r report) error {
 	switch format {

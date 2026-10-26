@@ -16,7 +16,7 @@ func TestRunWritesEveryPage(t *testing.T) {
 	if err := run(dir, "", "../../examples"); err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"campaign.md", "starlark-library.md", "starlark/files.md", "starlark/gha.md", "commands/gh_fleet.md", "commands/gh_fleet_apply.md", "commands/gh_fleet_exec.md", "examples/pin-actions.md"} {
+	for _, name := range []string{"campaign.md", "starlark-library.md", "starlark/files.md", "starlark/gha.md", "commands/gh_fleet.md", "commands/gh_fleet_apply.md", "commands/gh_fleet_exec.md", "examples/pin-actions.md", "report/report.html"} {
 		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
 			t.Errorf("%s not written", name)
 		}

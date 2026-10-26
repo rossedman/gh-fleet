@@ -1,0 +1,42 @@
+# pin-actions
+
+Pin every third-party GitHub Action to a full commit SHA
+
+**5 of 12 repos done (41%)** `████░░░░░░`
+
+3 merged · 6 pr open · 1 failed · 2 noop · 1 skipped
+
+## Needs attention
+
+| Repo | PR | Problem |
+| --- | --- | --- |
+| acme/ledger | [#7](https://github.com/acme/ledger/pull/7) | merge conflict |
+| acme/payments | [#54](https://github.com/acme/payments/pull/54) | changes requested |
+| acme/worker | [#31](https://github.com/acme/worker/pull/31) | checks failing |
+| acme/legacy-api | - | step resolve: gh api repos/acme/internal-action/commits/v2: HTTP 404 |
+
+## Open
+
+| Repo | PR | Checks | Review | Waiting on |
+| --- | --- | --- | --- | --- |
+| acme/gateway | [#23](https://github.com/acme/gateway/pull/23) | success | approved | ready to merge |
+| acme/notify | [#12](https://github.com/acme/notify/pull/12) | success | review required | needs review |
+| acme/search | [#9](https://github.com/acme/search/pull/9) | pending | review required | checks running |
+
+## Merged
+
+- acme/api [#41](https://github.com/acme/api/pull/41)
+- acme/billing [#17](https://github.com/acme/billing/pull/17)
+- acme/web [#88](https://github.com/acme/web/pull/88)
+
+<details><summary>3 other repos</summary>
+
+| Repo | Status | Note |
+| --- | --- | --- |
+| acme/cli | noop | no unpinned actions |
+| acme/docs-site | noop | no unpinned actions |
+| acme/archive | skipped | no push access |
+
+</details>
+
+_Generated 2026-10-26 14:00 UTC by [gh fleet](https://github.com/rossedman/gh-fleet)._
