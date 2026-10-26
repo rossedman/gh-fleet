@@ -24,11 +24,11 @@ targets:
 ```
 
 Only what you name is fetched:
-- **`owner/name`:** that repo is looked up by itself.
+- **`owner/name`:** that repo is looked up, with no listing.
 - **A bare name:** looked up in each org, and skipped where it doesn't exist.
 - **A pattern:** its owner, or `orgs` for a bare pattern like `*-domain`, is listed once and only the matches are kept.
 
-No org listing runs for exact names, so this costs a lookup per repo even in an org of thousands. Add any include filter, such as `topics`, and `include.repos` goes back to adding its repos to the org's matches.
+No org listing runs for exact names. Lookups go 50 repos to a query, so a list of 500 repos costs 10 queries even in an org of thousands. Add any include filter, such as `topics`, and `include.repos` goes back to adding its repos to the org's matches.
 
 ## Include filters
 
@@ -152,7 +152,7 @@ gh fleet targets --json targets --jq '.targets[].repo | .owner + "/" + .name'
 
 ## Narrowing a run
 
-`--repo owner/name` limits `targets`, `plan`, `apply`, `status`, `merge`, `retry` and `close` to specific repos, and repeats. A name that is not a campaign target is an error, so a typo never silently does nothing. Only the named repos are looked up and checked against the filters, so `--repo` on one repo is quick even when the campaign targets thousands.
+`--repo owner/name` limits `targets`, `plan`, `apply`, `status`, `merge`, `retry` and `close` to specific repos, and repeats. A name that is not a campaign target is an error, so a typo never silently does nothing. Only the named repos are looked up, 50 to a query, and checked against the filters, so `--repo` and `--repo-file` are quick even when the campaign targets thousands.
 
 ```sh
 gh fleet apply --repo acme/api --repo acme/web

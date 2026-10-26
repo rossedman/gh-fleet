@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -45,7 +46,9 @@ func (s *apiServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// A "__errors" key in the data becomes the response's GraphQL
 		// errors, as GitHub sends them alongside partial data.
 		if m, ok := data.(map[string]any); ok && m["__errors"] != nil {
-			resp = map[string]any{"data": nil, "errors": m["__errors"]}
+			errs := m["__errors"]
+			delete(m, "__errors")
+			resp = map[string]any{"data": m, "errors": errs}
 		}
 		_ = json.NewEncoder(w).Encode(resp)
 		return
@@ -120,29 +123,57 @@ func TestListOwnerReposPaginates(t *testing.T) {
 	}
 }
 
-func TestGetRepo(t *testing.T) {
+func TestGetRepos(t *testing.T) {
 	t.Parallel()
-	s := &apiServer{gql: func(_ string, vars map[string]any) (any, int) {
-		if vars["name"] == "gone" {
-			return map[string]any{"repository": nil}, 200
+	alias := regexp.MustCompile(`(r\d+): repository\(owner: "([^"]+)", name: "([^"]+)"\)`)
+	s := &apiServer{gql: func(q string, _ map[string]any) (any, int) {
+		data := map[string]any{}
+		var errs []any
+		for _, m := range alias.FindAllStringSubmatch(q, -1) {
+			switch m[3] {
+			case "gone":
+				data[m[1]] = nil
+			case "hidden":
+				data[m[1]] = nil
+				errs = append(errs, map[string]any{"type": "NOT_FOUND", "path": []any{m[1]}, "message": "Could not resolve to a Repository"})
+			case "broken":
+				errs = append(errs, map[string]any{"type": "FORBIDDEN", "path": []any{m[1]}, "message": "no"})
+			default:
+				data[m[1]] = repoNode(m[2], m[3], "ADMIN")
+			}
 		}
-		if vars["name"] == "hidden" {
-			return map[string]any{"__errors": []any{map[string]any{"type": "NOT_FOUND", "path": []any{"repository"}, "message": "Could not resolve to a Repository"}}}, 200
+		if errs != nil {
+			data["__errors"] = errs
 		}
-		return map[string]any{"repository": repoNode("acme", "api", "ADMIN")}, 200
+		return data, 200
 	}}
 	c := newClient(t, s)
-	r, err := c.GetRepo(context.Background(), "acme/api")
-	if err != nil || r.FullName() != "acme/api" || !r.CanPush {
-		t.Fatalf("repo = %+v, %v", r, err)
+	names := []string{"Acme/API", "acme/gone", "acme/hidden"}
+	for i := range BatchSize {
+		names = append(names, fmt.Sprintf("acme/r%d", i))
 	}
-	for _, name := range []string{"acme/gone", "acme/hidden"} {
-		if _, err := c.GetRepo(context.Background(), name); !errors.Is(err, ErrNotFound) {
-			t.Fatalf("%s: err = %v, want ErrNotFound", name, err)
-		}
+	got, err := c.GetRepos(context.Background(), names)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if _, err := c.GetRepo(context.Background(), "bad"); err == nil {
-		t.Fatal("expected invalid name error")
+	if len(got) != BatchSize+1 || !got["acme/api"].CanPush || got["acme/r49"].Name != "r49" {
+		t.Fatalf("got %d repos: %v", len(got), got["acme/api"])
+	}
+	if _, ok := got["acme/gone"]; ok {
+		t.Error("missing repo returned")
+	}
+	if n := len(s.requests); n != 2 {
+		t.Errorf("%d requests for %d repos, want 2", n, len(names))
+	}
+
+	if _, err := c.GetRepos(context.Background(), []string{"acme/api", "acme/broken"}); err == nil {
+		t.Error("an error other than not found was ignored")
+	}
+	if _, err := c.GetRepos(context.Background(), []string{"bad"}); err == nil {
+		t.Error("expected invalid name error")
+	}
+	if onlyNotFound(errors.New("x")) {
+		t.Error("onlyNotFound on a plain error")
 	}
 }
 

@@ -168,27 +168,50 @@ func (c *GitHub) ListOwnerRepos(ctx context.Context, owner string) ([]Repo, erro
 // can't see it.
 var ErrNotFound = errors.New("not found")
 
-// GetRepo fetches one repository.
-func (c *GitHub) GetRepo(ctx context.Context, fullName string) (Repo, error) {
-	owner, name, err := SplitRepo(fullName)
-	if err != nil {
-		return Repo{}, err
-	}
-	query := `query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { ` + repoFields + ` } }`
-	var resp struct {
-		Repository *gqlRepo `json:"repository"`
-	}
-	if err := c.gql.DoWithContext(ctx, query, map[string]any{"owner": owner, "name": name}, &resp); err != nil {
-		var gqlErr *api.GraphQLError
-		if errors.As(err, &gqlErr) && gqlErr.Match("NOT_FOUND", "repository") {
-			return Repo{}, fmt.Errorf("get %s: %w", fullName, ErrNotFound)
+// GetRepos looks up repositories by owner/name, BatchSize per GraphQL
+// query. The result is keyed by the lower-cased name asked for; a repo that
+// doesn't exist, or that the token can't see, is absent.
+func (c *GitHub) GetRepos(ctx context.Context, names []string) (map[string]Repo, error) {
+	out := map[string]Repo{}
+	for start := 0; start < len(names); start += BatchSize {
+		batch := names[start:min(start+BatchSize, len(names))]
+		var q strings.Builder
+		q.WriteString("query {")
+		for i, n := range batch {
+			owner, name, err := SplitRepo(n)
+			if err != nil {
+				return nil, err
+			}
+			fmt.Fprintf(&q, " r%d: repository(owner: %s, name: %s) { %s }", i, gqlString(owner), gqlString(name), repoFields)
 		}
-		return Repo{}, fmt.Errorf("get %s: %w", fullName, err)
+		q.WriteString(" }")
+		var resp map[string]*gqlRepo
+		if err := c.gql.DoWithContext(ctx, q.String(), nil, &resp); err != nil && !onlyNotFound(err) {
+			return nil, fmt.Errorf("look up repos: %w", err)
+		}
+		for i, n := range batch {
+			if r := resp["r"+strconv.Itoa(i)]; r != nil {
+				out[strings.ToLower(n)] = r.toRepo()
+			}
+		}
 	}
-	if resp.Repository == nil {
-		return Repo{}, fmt.Errorf("get %s: %w", fullName, ErrNotFound)
+	return out, nil
+}
+
+// onlyNotFound reports whether err is a GraphQL error made only of
+// NOT_FOUND items, which GitHub sends beside the data of the repos it
+// found.
+func onlyNotFound(err error) bool {
+	var gqlErr *api.GraphQLError
+	if !errors.As(err, &gqlErr) {
+		return false
 	}
-	return resp.Repository.toRepo(), nil
+	for _, e := range gqlErr.Errors {
+		if e.Type != "NOT_FOUND" {
+			return false
+		}
+	}
+	return true
 }
 
 // gqlString quotes s as a GraphQL string literal.

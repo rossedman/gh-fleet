@@ -132,7 +132,7 @@ func TestResolve(t *testing.T) {
 
 func TestResolveErrors(t *testing.T) {
 	t.Parallel()
-	for _, method := range []string{"ListOwnerRepos", "GetRepo", "PathsExist", "SearchCode"} {
+	for _, method := range []string{"ListOwnerRepos", "GetRepos", "PathsExist", "SearchCode"} {
 		f := newFake()
 		f.Errors[method] = errors.New("boom")
 		rs := &Resolver{Client: f}
@@ -356,8 +356,8 @@ func TestResolveBareNamesAndEmptyRepos(t *testing.T) {
 	if len(res.Skipped) != 1 || res.Skipped[0].Repo != "acme/empty-domain" || res.Skipped[0].Reason != "empty repository" {
 		t.Fatalf("skipped = %+v", res.Skipped)
 	}
-	if n := f.CallCount("GetRepo"); n != 0 {
-		t.Errorf("GetRepo called %d times for bare names", n)
+	if n := f.CallCount("GetRepos"); n != 0 {
+		t.Errorf("GetRepos called %d times for bare names", n)
 	}
 }
 
@@ -408,8 +408,9 @@ func TestResolveOnly(t *testing.T) {
 	if len(res.Skipped) != 1 || res.Skipped[0].Repo != "acme/ro" {
 		t.Fatalf("skipped = %+v", res.Skipped)
 	}
-	if f.CallCount("ListOwnerRepos") != 0 || f.CallCount("GetRepo") != 4 {
-		t.Errorf("ListOwnerRepos %d, GetRepo %d: want only lookups of the named repos", f.CallCount("ListOwnerRepos"), f.CallCount("GetRepo"))
+	// One batched lookup, of the three in the campaign's org.
+	if f.CallCount("ListOwnerRepos") != 0 || f.CallCount("GetRepos") != 1 || !slices.Equal(f.Lookups[0], []string{"ACME/api", "acme/lib", "acme/ro"}) {
+		t.Errorf("ListOwnerRepos %d, lookups %v: want one lookup of the named repos", f.CallCount("ListOwnerRepos"), f.Lookups)
 	}
 	if strings.Join(msgs, "|") != "Looking up 4 repos|Checking .github/workflows in 2 repos" {
 		t.Errorf("progress = %v", msgs)
@@ -424,9 +425,12 @@ func TestResolveOnly(t *testing.T) {
 	if _, err := (&Resolver{Client: f, Only: []string{"acme/api"}, RequireProperties: true}).Resolve(context.Background(), campaign.Targets{Orgs: []string{"acme"}}); err == nil {
 		t.Error("required properties error swallowed")
 	}
-	f.Errors["GetRepo"] = errors.New("not found")
-	if _, err := (&Resolver{Client: f, Only: []string{"acme/nope"}}).Resolve(context.Background(), campaign.Targets{Orgs: []string{"acme"}}); err == nil || !strings.Contains(err.Error(), "acme/nope: not found") {
-		t.Errorf("lookup error = %v", err)
+	if _, err := (&Resolver{Client: f, Only: []string{"acme/nope"}}).Resolve(context.Background(), campaign.Targets{Orgs: []string{"acme"}}); !errors.Is(err, ghapi.ErrNotFound) || !strings.Contains(err.Error(), "acme/nope") {
+		t.Errorf("missing repo error = %v", err)
+	}
+	f.Errors["GetRepos"] = errors.New("boom")
+	if _, err := (&Resolver{Client: f, Only: []string{"acme/api"}}).Resolve(context.Background(), campaign.Targets{Orgs: []string{"acme"}}); err == nil {
+		t.Error("lookup error swallowed")
 	}
 }
 
@@ -452,6 +456,10 @@ func TestResolveOnlyIncludeRepos(t *testing.T) {
 	if f.CallCount("ListOwnerRepos") != 0 || f.CallCount("OwnerProperties") != 0 || f.CallCount("RepoProperties") != 0 {
 		t.Errorf("calls = %v", f.Calls)
 	}
+	// Every name is looked up in one batch: bare names in each org.
+	if want := []string{"acme/api", "acme/api", "other/api", "acme/legacy", "other/legacy", "acme/nope", "other/nope"}; f.CallCount("GetRepos") != 1 || !slices.Equal(f.Lookups[0], want) {
+		t.Errorf("lookups = %v, want [%v]", f.Lookups, want)
+	}
 	if res.Targets[0].Reasons[0] != "include.repos" {
 		t.Errorf("reasons = %v", res.Targets[0].Reasons)
 	}
@@ -474,9 +482,13 @@ func TestResolveOnlyIncludeRepos(t *testing.T) {
 
 	// A lookup error other than not found fails the run.
 	f = newFake()
-	f.Errors["GetRepo"] = errors.New("boom")
+	f.Errors["GetRepos"] = errors.New("boom")
 	if _, err := (&Resolver{Client: f}).Resolve(context.Background(), campaign.Targets{Orgs: acme, Include: campaign.Include{Repos: []string{"api"}}}); err == nil {
 		t.Error("lookup error swallowed")
+	}
+	// An owner/name that doesn't exist is an error; a bare name is not.
+	if _, err := (&Resolver{Client: newFake()}).Resolve(context.Background(), campaign.Targets{Orgs: acme, Include: campaign.Include{Repos: []string{"acme/nope"}}}); !errors.Is(err, ghapi.ErrNotFound) {
+		t.Errorf("missing repo error = %v", err)
 	}
 	f = newFake()
 	f.Errors["ListOwnerRepos"] = errors.New("boom")
