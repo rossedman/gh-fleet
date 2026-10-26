@@ -206,8 +206,9 @@ Common flags: `--repo owner/name` and `--repo-file` (limit to some repos),
   limits (80 a minute, 500 an hour). A secondary rate limit pauses every worker for as long as GitHub
   asks, or a minute and doubling when it doesn't say; spent quota is never
   retried before it resets; server errors are retried with backoff; and 10%
-  of the primary quota is kept in reserve. Repo listings, file checks and PR lookups are batched GraphQL
-  queries, 50 repos at a time.
+  of the primary quota is kept in reserve. Org listings fetch 4 pages at a
+  time; file checks and PR lookups are batched GraphQL queries, 50 repos at a
+  time, split in half when GitHub times out.
 - **Ctrl-C is safe.** The first one stops new repos from starting and lets
   in-flight scripts finish; state is saved. A second one exits immediately.
 

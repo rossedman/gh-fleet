@@ -12,17 +12,22 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 // apiServer is a scripted GitHub API: GraphQL requests are answered by
 // gql, REST requests by the rest routes, and every request is recorded.
 type apiServer struct {
-	mu       sync.Mutex
-	gql      func(query string, vars map[string]any) (any, int)
-	rest     map[string]func(r *http.Request, body []byte) (any, int)
-	requests []string
-	bodies   []string
+	mu   sync.Mutex
+	gql  func(query string, vars map[string]any) (any, int)
+	rest map[string]func(r *http.Request, body []byte) (any, int)
+	// lastPages gives a REST route's page count, sent in a Link header
+	// as GitHub does.
+	lastPages map[string]int
+	requests  []string
+	bodies    []string
 }
 
 // ServeHTTP dispatches a request.
@@ -62,6 +67,9 @@ func (s *apiServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.WriteString(w, `{"message":"Not Found"}`)
 		return
 	}
+	if n, ok := s.lastPages[key]; ok {
+		w.Header().Set("Link", fmt.Sprintf(`<https://api.github.com%s?per_page=100&page=2>; rel="next", <https://api.github.com%s?per_page=100&page=%d>; rel="last"`, r.URL.Path, r.URL.Path, n))
+	}
 	v, code := h(r, body)
 	w.WriteHeader(code)
 	if v != nil {
@@ -93,35 +101,165 @@ func repoNode(owner, name string, perm string, topics ...string) map[string]any 
 	}
 }
 
-func TestListOwnerReposPaginates(t *testing.T) {
+// restRepoJSON builds a REST repository object.
+func restRepoJSON(owner, name string, push bool, size int, topics ...string) map[string]any {
+	return map[string]any{
+		"name": name, "owner": map[string]any{"login": owner}, "html_url": "https://github.com/" + owner + "/" + name,
+		"archived": false, "fork": false, "default_branch": "main", "language": "Go", "topics": topics, "size": size,
+		"permissions": map[string]any{"admin": false, "maintain": false, "push": push},
+	}
+}
+
+func TestListOwnerReposPagesInParallel(t *testing.T) {
 	t.Parallel()
-	s := &apiServer{gql: func(q string, vars map[string]any) (any, int) {
-		page := map[string]any{"hasNextPage": true, "endCursor": "c1"}
-		nodes := []any{repoNode("acme", "api", "WRITE", "service")}
-		if vars["after"] == "c1" {
-			page = map[string]any{"hasNextPage": false, "endCursor": ""}
-			nodes = []any{repoNode("acme", "web", "READ")}
-		}
-		return map[string]any{"repositoryOwner": map[string]any{"repositories": map[string]any{"pageInfo": page, "nodes": nodes}}}, 200
-	}}
+	var mu sync.Mutex
+	inFlight, most := 0, 0
+	// Pages after the first wait until two are in flight at once, which
+	// only happens when they are fetched concurrently.
+	var arrived atomic.Int64
+	together := make(chan struct{})
+	s := &apiServer{
+		lastPages: map[string]int{"GET /orgs/acme/repos": 5},
+		rest: map[string]func(*http.Request, []byte) (any, int){
+			"GET /orgs/acme/repos": func(r *http.Request, _ []byte) (any, int) {
+				mu.Lock()
+				inFlight++
+				most = max(most, inFlight)
+				mu.Unlock()
+				defer func() { mu.Lock(); inFlight--; mu.Unlock() }()
+				page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+				if page > 1 {
+					if arrived.Add(1) == 2 {
+						close(together)
+					}
+					select {
+					case <-together:
+					case <-time.After(5 * time.Second):
+					}
+				}
+				var out []any
+				for i := range 100 {
+					n := (page-1)*100 + i
+					if n >= 450 {
+						break
+					}
+					out = append(out, restRepoJSON("acme", fmt.Sprintf("r%03d", n), n%2 == 0, 10, "service"))
+				}
+				if page == 5 {
+					// Size 0: maybe empty. One is, one isn't.
+					out = append(out, restRepoJSON("acme", "empty", true, 0), restRepoJSON("acme", "tiny", true, 0))
+				}
+				// A repo shifted across a page boundary is listed twice.
+				if page == 2 {
+					out = append(out, restRepoJSON("acme", "r099", false, 10))
+				}
+				return out, 200
+			},
+		},
+		gql: func(q string, _ map[string]any) (any, int) {
+			empty := repoNode("acme", "empty", "WRITE")
+			empty["defaultBranchRef"] = nil
+			return map[string]any{"r0": empty, "r1": repoNode("acme", "tiny", "WRITE")}, 200
+		},
+	}
 	repos, err := newClient(t, s).ListOwnerRepos(context.Background(), "acme")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(repos) != 2 || repos[0].FullName() != "acme/api" || !repos[0].CanPush || repos[1].CanPush ||
-		repos[0].Topics[0] != "service" || repos[0].Language != "Go" || repos[0].DefaultBranch != "main" {
-		t.Fatalf("repos = %+v", repos)
+	if len(repos) != 452 || repos[0].FullName() != "acme/empty" || repos[0].DefaultBranch != "" || repos[1].Name != "r000" {
+		t.Fatalf("got %d repos, first %+v", len(repos), repos[0])
 	}
+	r0 := repos[1]
+	if !r0.CanPush || repos[2].CanPush || r0.Topics[0] != "service" || r0.Language != "Go" || r0.DefaultBranch != "main" || r0.URL != "https://github.com/acme/r000" {
+		t.Fatalf("repo = %+v", r0)
+	}
+	if repos[len(repos)-1].Name != "tiny" || repos[len(repos)-1].DefaultBranch != "main" {
+		t.Fatalf("last = %+v", repos[len(repos)-1])
+	}
+	if n := len(s.requests); n != 6 {
+		t.Errorf("%d requests, want 5 pages and 1 lookup", n)
+	}
+	if most < 2 {
+		t.Errorf("pages fetched one at a time (at most %d at once)", most)
+	}
+}
 
-	missing := &apiServer{gql: func(string, map[string]any) (any, int) { return map[string]any{"repositoryOwner": nil}, 200 }}
-	if _, err := newClient(t, missing).ListOwnerRepos(context.Background(), "nope"); err == nil {
-		t.Fatal("expected error for missing owner")
+func TestListOwnerReposUsersAndErrors(t *testing.T) {
+	t.Parallel()
+	notFound := func(*http.Request, []byte) (any, int) { return map[string]any{"message": "Not Found"}, 404 }
+	s := &apiServer{rest: map[string]func(*http.Request, []byte) (any, int){
+		"GET /orgs/me/repos":    notFound,
+		"GET /orgs/octo/repos":  notFound,
+		"GET /orgs/nope/repos":  notFound,
+		"GET /users/nope/repos": notFound,
+		"GET /user":             func(*http.Request, []byte) (any, int) { return map[string]any{"login": "Me"}, 200 },
+		"GET /user/repos": func(r *http.Request, _ []byte) (any, int) {
+			if r.URL.Query().Get("visibility") != "all" {
+				return nil, 400
+			}
+			return []any{restRepoJSON("me", "private", true, 5)}, 200
+		},
+		"GET /users/octo/repos":   func(*http.Request, []byte) (any, int) { return []any{restRepoJSON("octo", "public", false, 5)}, 200 },
+		"GET /orgs/broken/repos":  func(*http.Request, []byte) (any, int) { return map[string]any{"message": "boom"}, 400 },
+		"GET /orgs/garbled/repos": func(*http.Request, []byte) (any, int) { return "not a list", 200 },
+		"GET /orgs/late/repos": func(r *http.Request, _ []byte) (any, int) {
+			if r.URL.Query().Get("page") == "2" {
+				return map[string]any{"message": "boom"}, 400
+			}
+			return []any{restRepoJSON("late", "a", true, 5)}, 200
+		},
+		"GET /orgs/hollow/repos": func(*http.Request, []byte) (any, int) {
+			return []any{restRepoJSON("hollow", "gone", true, 0), restRepoJSON("hollow", "fail", true, 0)}, 200
+		},
+		"GET /orgs/vanished/repos": func(*http.Request, []byte) (any, int) {
+			return []any{restRepoJSON("vanished", "gone", true, 0), restRepoJSON("vanished", "kept", true, 5)}, 200
+		},
+	}}
+	s.lastPages = map[string]int{"GET /orgs/late/repos": 2}
+	// A size-0 repo deleted before its lookup is left out; a failed
+	// lookup fails the listing.
+	s.gql = func(q string, _ map[string]any) (any, int) {
+		if strings.Contains(q, `"fail"`) {
+			return nil, 400
+		}
+		return map[string]any{"r0": nil}, 200
 	}
-	broken := &apiServer{gql: func(string, map[string]any) (any, int) { return nil, 502 }}
-	c := newClient(t, broken)
-	c.Transport.MaxAttempts = 1
-	if _, err := c.ListOwnerRepos(context.Background(), "acme"); err == nil {
-		t.Fatal("expected HTTP error")
+	c := newClient(t, s)
+	ctx := context.Background()
+	if repos, err := c.ListOwnerRepos(ctx, "vanished"); err != nil || len(repos) != 1 || repos[0].Name != "kept" {
+		t.Fatalf("vanished = %v, %v", repos, err)
+	}
+	// The signed-in user's own repos include private ones.
+	if repos, err := c.ListOwnerRepos(ctx, "me"); err != nil || len(repos) != 1 || repos[0].Name != "private" {
+		t.Fatalf("own repos = %v, %v", repos, err)
+	}
+	if repos, err := c.ListOwnerRepos(ctx, "octo"); err != nil || len(repos) != 1 || repos[0].Name != "public" {
+		t.Fatalf("user repos = %v, %v", repos, err)
+	}
+	if _, err := c.ListOwnerRepos(ctx, "nope"); err == nil || !strings.Contains(err.Error(), "no such user or organization") {
+		t.Fatalf("missing owner: %v", err)
+	}
+	for _, owner := range []string{"broken", "garbled", "late", "hollow"} {
+		if _, err := c.ListOwnerRepos(ctx, owner); err == nil {
+			t.Errorf("%s: no error", owner)
+		}
+	}
+}
+
+func TestLastPage(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		link       string
+		page, want int
+	}{
+		{`<https://api.github.com/orgs/a/repos?per_page=100&page=2>; rel="next", <https://api.github.com/orgs/a/repos?per_page=100&page=50>; rel="last"`, 1, 50},
+		{`<https://api.github.com/x?page=1>; rel="first", <https://api.github.com/x?page=3>; rel="prev"`, 4, 4},
+		{"", 1, 1},
+		{`<https://x?page=99999999999999999999>; rel="last"`, 1, 1},
+	} {
+		if got := lastPage(tc.link, tc.page); got != tc.want {
+			t.Errorf("lastPage(%q, %d) = %d, want %d", tc.link, tc.page, got, tc.want)
+		}
 	}
 }
 
@@ -588,10 +726,10 @@ func TestHelpersAndErrors(t *testing.T) {
 
 func TestCustomProperties(t *testing.T) {
 	t.Parallel()
-	pages := 0
-	s := &apiServer{rest: map[string]func(*http.Request, []byte) (any, int){
+	var pages atomic.Int64
+	s := &apiServer{lastPages: map[string]int{"GET /orgs/acme/properties/values": 2}, rest: map[string]func(*http.Request, []byte) (any, int){
 		"GET /orgs/acme/properties/values": func(r *http.Request, _ []byte) (any, int) {
-			pages++
+			pages.Add(1)
 			if r.URL.Query().Get("page") == "2" {
 				return []any{map[string]any{"repository_full_name": "acme/last", "properties": []any{map[string]any{"property_name": "tier", "value": "2"}}}}, 200
 			}
@@ -624,8 +762,8 @@ func TestCustomProperties(t *testing.T) {
 		t.Fatal(err)
 	}
 	r0 := props["acme/r0"]
-	if pages != 2 || len(props) != 100 || r0["tier"] != "1" || r0["langs"] != "go,rust" || r0["flag"] != "true" || props["acme/last"]["tier"] != "2" {
-		t.Fatalf("pages %d, props = %v", pages, r0)
+	if pages.Load() != 2 || len(props) != 100 || r0["tier"] != "1" || r0["langs"] != "go,rust" || r0["flag"] != "true" || props["acme/last"]["tier"] != "2" {
+		t.Fatalf("pages %d, props = %v", pages.Load(), r0)
 	}
 	if _, ok := r0["unset"]; ok {
 		t.Fatal("unset value kept")

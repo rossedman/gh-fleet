@@ -12,7 +12,7 @@ Every target repo goes through the same short pipeline, and each repo can end in
 
 ## The pipeline
 
-1. **Resolve targets.** The campaign's `orgs` are listed with one paginated GraphQL query each (cached for 10 minutes). Cheap metadata filters run first, then `files` checks in batched queries of 50 repos, then code `search`. Exclusion always wins.
+1. **Resolve targets.** The campaign's `orgs` are listed 100 repos per page, 4 pages at a time (cached for 10 minutes), unless a code `search` has already named the only repos that can match. Cheap metadata filters run first, then `files` checks in batched queries of 50 repos, 4 at a time, split in half whenever GitHub times out. Exclusion always wins.
 2. **Look up existing PRs.** For `apply`, gh fleet finds PRs by the head branch (`fleet/<name>`), in batched queries of 50 repos, and falls back to a search for the hidden `<!-- gh-fleet:campaign=<name> -->` marker in the PR body.
 3. **Prepare a clone.** A shallow, blobless, single-branch clone of the base branch, with the campaign branch checked out. If the branch already exists on GitHub it is rebased onto the base; on a conflict it is reset to the base, because the script, not the old branch, is the source of truth.
 4. **Run the script.** At the repo root, with the `FLEET_*` environment and a timeout. See [Writing changes](guides/writing-changes.md).

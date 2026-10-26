@@ -58,7 +58,6 @@ func TestQueriesMatchSchema(t *testing.T) {
 	ctx := context.Background()
 	repos := []Repo{{Owner: "acme", Name: "api"}, {Owner: "acme", Name: "web"}}
 	calls := map[string]func(){
-		"ListOwnerRepos":  func() { _, _ = c.ListOwnerRepos(ctx, "acme") },
 		"GetRepos":        func() { _, _ = c.GetRepos(ctx, []string{"acme/api", "acme/web"}) },
 		"PathsExist":      func() { _, _ = c.PathsExist(ctx, repos, []string{"go.mod", ".github/workflows"}) },
 		"PRsByHead":       func() { _, _ = c.PRsByHead(ctx, []string{"acme/api", "acme/web"}, "fleet/x") },
