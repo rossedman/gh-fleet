@@ -55,7 +55,8 @@ def bump_action(repo, action, to, from_ref = None):
 
     Steps that use a sub-path of the action (`owner/repo/path`) match too.
     Refs pinned to a full commit SHA are left alone; use `pin` for those.
-    Quotes and trailing comments are kept.
+    Without `from_ref`, refs newer than `to` are left alone too, so a bump
+    never lowers a version. Quotes and trailing comments are kept.
 
     Args:
         action: the action as `owner/repo`, such as `actions/checkout`.
@@ -92,7 +93,7 @@ def bump_action(repo, action, to, from_ref = None):
         dirty = False
         for line in content.split("\n"):
             g = re.groups(pattern, line)
-            if g and g[2] != to and not re.matches(r"^[0-9a-f]{40}$", g[2]) and (from_ref == None or g[2] == from_ref):
+            if g and g[2] != to and not re.matches(r"^[0-9a-f]{40}$", g[2]) and (g[2] == from_ref or (from_ref == None and not semver.lowers(g[2], to))):
                 line = re.sub(pattern, "${1}" + _lit(action) + "${2}@" + _lit(to), line, count = 1)
                 dirty = True
             out.append(line)
@@ -101,7 +102,7 @@ def bump_action(repo, action, to, from_ref = None):
             changed.append(path)
     return changed
 
-def set_input(repo, key, value, match = None):
+def set_input(repo, key, value, match = None, never_lower = False):
     r"""Sets every `<key>: <value>` line in the workflows, such as an action input.
 
     Typical keys are `go-version`, `node-version` and `python-version`.
@@ -113,6 +114,8 @@ def set_input(repo, key, value, match = None):
         match: a regular expression the current value must match to be
             replaced; for example `r"^\d"` leaves `stable` and matrix
             expressions alone.
+        never_lower: leave values that are already a higher version, for
+            inputs that hold versions.
     Returns:
         The list of paths that changed.
     Example:
@@ -144,7 +147,7 @@ def set_input(repo, key, value, match = None):
         out = []
         for line in content.split("\n"):
             g = re.groups(pattern, line)
-            if g and g[1] != value and (match == None or re.matches(match, g[1])):
+            if g and g[1] != value and (match == None or re.matches(match, g[1])) and not (never_lower and semver.lowers(g[1], value)):
                 line = re.sub(pattern, "${1}" + _lit(value), line, count = 1)
             out.append(line)
         updated = "\n".join(out)

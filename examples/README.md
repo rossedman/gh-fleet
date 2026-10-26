@@ -69,9 +69,9 @@ campaign is safe.
 
 | Campaign | What it changes | Shows |
 | --- | --- | --- |
-| [`ruff-config`](ruff-config/) | Sets `[tool.ruff]` options in `pyproject.toml`, adding tables where missing | `toml.set` keeping comments |
+| [`ruff-config`](ruff-config/) | Adds shared ruff rules to `pyproject.toml` without replacing a project's own, adding tables where missing | `toml.get` and `toml.set` keeping comments |
 | [`renovate-preset`](renovate-preset/) | Points every `renovate.json` at a shared preset | `jsonfile.set` keeping key order and indentation |
-| [`renovate-automerge`](renovate-automerge/) | Moves off `config:base` and automerges minor and patch devDependency updates | `renovate.remove_preset`, `add_preset` and `add_package_rule` |
+| [`renovate-automerge`](renovate-automerge/) | Moves off `config:base` and automerges minor and patch devDependency updates | `renovate.replace_preset` and `add_package_rule` |
 | [`golangci-v2`](golangci-v2/) | Migrates golangci-lint configs to v2 and enables gosec | Starlark, the official `migrate` command, then Starlark again |
 | [`devcontainer-image`](devcontainer-image/) | Moves Dev Containers to Go 1.23 and adds the GitHub CLI feature | `devcontainer` edits that keep JSONC comments |
 | [`prettier-eslint`](prettier-eslint/) | Sets shared Prettier options and an ESLint rule, reporting flat configs for review | `prettier.set_option`, `eslint.set_rule` and `eslint.find` |

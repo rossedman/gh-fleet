@@ -66,6 +66,8 @@ set_chart_version(repo, chart, version)
 
 Sets the `version` of every release that installs a chart.
 
+A newer version already there is kept, so a campaign never lowers one.
+
 **Arguments**
 
 | Name | Description |

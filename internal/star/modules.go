@@ -220,6 +220,13 @@ var semverModule = newModule("semver", map[string]builtin{
 		}
 		return starlark.String(strings.TrimPrefix(semver.MajorMinor(v[0]), "v")), nil
 	},
+	"lowers": func(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+		var current, target string
+		if err := starlark.UnpackPositionalArgs(b.Name(), args, kwargs, 2, &current, &target); err != nil {
+			return nil, err
+		}
+		return starlark.Bool(lowers(current, target)), nil
+	},
 	"max": func(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
 		if len(args) == 0 || len(kwargs) > 0 {
 			return nil, fmt.Errorf("%s: needs one or more versions", b.Name())
@@ -237,6 +244,50 @@ var semverModule = newModule("semver", map[string]builtin{
 		return starlark.String(bestRaw), nil
 	},
 })
+
+// versionNumber finds the first dotted number in a version string, such
+// as 13.17 in "^13.17" or 3.12 in "python3.12".
+var versionNumber = regexp.MustCompile(`\d+(?:\.\d+)*`)
+
+// lowers reports whether moving from current to target would lower a
+// version. Only the first dotted number in each string counts, so
+// constraints, prefixes and suffixes ("^8.3", "go1.22", "22-alpine")
+// compare by their versions. It is false whenever either string has no
+// number, such as a branch name, or is a commit SHA or digest, whose
+// digits mean nothing.
+func lowers(current, target string) bool {
+	if hashLike(current) || hashLike(target) {
+		return false
+	}
+	c, t := versionNumber.FindString(current), versionNumber.FindString(target)
+	if c == "" || t == "" {
+		return false
+	}
+	cs, ts := strings.Split(c, "."), strings.Split(t, ".")
+	for i := range max(len(cs), len(ts)) {
+		var a, b int
+		if i < len(cs) {
+			a, _ = strconv.Atoi(cs[i])
+		}
+		if i < len(ts) {
+			b, _ = strconv.Atoi(ts[i])
+		}
+		if a != b {
+			return b < a
+		}
+	}
+	return false
+}
+
+// hexRef matches an abbreviated or full commit SHA.
+var hexRef = regexp.MustCompile(`^[0-9a-f]{7,64}$`)
+
+// hashLike reports whether s is a commit SHA or a content digest rather
+// than a version.
+func hashLike(s string) bool {
+	s = strings.TrimSpace(s)
+	return strings.Contains(s, "sha256:") || strings.Contains(s, "sha512") || hexRef.MatchString(s) && strings.ContainsAny(s, "abcdef")
+}
 
 // regexps caches compiled patterns; they are immutable and safe to share.
 var regexps sync.Map
@@ -317,8 +368,9 @@ var reModule = newModule("re", map[string]builtin{
 		}
 		return toStarlark(re.Split(s, -1))
 	},
-	"sub": func(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
-		var pattern, repl, s string
+	"sub": func(thread *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
+		var pattern, s string
+		var repl starlark.Value
 		count := -1
 		if err := starlark.UnpackArgs(b.Name(), args, kwargs, "pattern", &pattern, "repl", &repl, "s", &s, "count?", &count); err != nil {
 			return nil, err
@@ -327,17 +379,41 @@ var reModule = newModule("re", map[string]builtin{
 		if err != nil {
 			return nil, err
 		}
-		if count < 0 {
-			return starlark.String(re.ReplaceAllString(s, repl)), nil
+		fn, isFn := repl.(starlark.Callable)
+		str, isStr := starlark.AsString(repl)
+		if !isFn && !isStr {
+			return nil, fmt.Errorf("%s: repl must be a string or a function, not %s", b.Name(), repl.Type())
 		}
 		var out strings.Builder
 		last, n := 0, 0
 		for _, m := range re.FindAllStringSubmatchIndex(s, -1) {
-			if n == count {
+			if count >= 0 && n == count {
 				break
 			}
 			out.WriteString(s[last:m[0]])
-			out.Write(re.ExpandString(nil, repl, s, m))
+			if isFn {
+				// A function gets the match and its groups, as re.groups
+				// returns them after the match, and returns the text to use.
+				groups := make([]starlark.Value, 0, len(m)/2)
+				for i := 0; i < len(m); i += 2 {
+					if m[i] < 0 {
+						groups = append(groups, starlark.String(""))
+					} else {
+						groups = append(groups, starlark.String(s[m[i]:m[i+1]]))
+					}
+				}
+				v, err := starlark.Call(thread, fn, starlark.Tuple{starlark.NewList(groups)}, nil)
+				if err != nil {
+					return nil, err
+				}
+				r, ok := starlark.AsString(v)
+				if !ok {
+					return nil, fmt.Errorf("%s: repl function returned %s, want string", b.Name(), v.Type())
+				}
+				out.WriteString(r)
+			} else {
+				out.Write(re.ExpandString(nil, str, s, m))
+			}
 			last, n = m[1], n+1
 		}
 		out.WriteString(s[last:])

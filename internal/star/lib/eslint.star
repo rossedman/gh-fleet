@@ -50,6 +50,10 @@ def _editable(repo):
 def set_rule(repo, rule, level, options = None):
     """Sets a rule's level, and optionally its options.
 
+    Without `options`, a rule that already has options keeps them and only
+    its level changes, so `["error", "allow-null"]` becomes
+    `["warn", "allow-null"]` rather than losing `allow-null`.
+
     Args:
         rule: the rule, such as `no-console` or `@typescript-eslint/no-unused-vars`.
         level: `off`, `warn` or `error` (or 0, 1, 2).
@@ -70,17 +74,12 @@ def set_rule(repo, rule, level, options = None):
             set_rule(repo, "no-console", "error", {"allow": ["warn", "error"]})
         after .eslintrc.json:
             {
-              "extends": [
-                "eslint:recommended"
-              ],
+              "extends": ["eslint:recommended"],
               "rules": {
                 "no-console": [
                   "error",
                   {
-                    "allow": [
-                      "warn",
-                      "error"
-                    ]
+                    "allow": ["warn", "error"]
                   }
                 ]
               }
@@ -94,9 +93,47 @@ def set_rule(repo, rule, level, options = None):
     keys = (["eslintConfig"] if path == "package.json" else []) + ["rules", rule]
     value = level if options == None else [level, options]
     if kind == "json":
+        current = _jget(repo, path, keys)
+        if options == None and type(current) == "list" and len(current) > 1:
+            value = [level] + current[1:]
         return _jset(repo, path, keys, value)
     if options != None:
         fail("eslint.set_rule: rule options need a JSON config; %s is YAML" % path)
+    return _set_yaml_level(repo, path, rule, level)
+
+def _set_yaml_level(repo, path, rule, level):
+    # Sets the level of a YAML rule, keeping options written after it in a
+    # flow list (rule: [error, opts]) or a block list (- error).
+    content = repo.read(path)
+    lines = content.split("\n")
+    in_rules = False
+    for i, line in enumerate(lines):
+        if re.matches(r"^rules:\s*(#.*)?$", line):
+            in_rules = True
+            continue
+        if in_rules and line.strip() and not line.startswith(" ") and not line.startswith("#"):
+            break
+        if not in_rules:
+            continue
+        g = re.groups(r"""^(\s+["']?""" + re.escape(rule) + r"""["']?\s*:\s*)(.*)$""", line)
+        if not g:
+            continue
+        flow = re.groups(r"^\[(\s*)[^,\]]+?(\s*(?:,.*)?\]\s*(?:#.*)?)$", g[1])
+        if flow:
+            lines[i] = g[0] + "[" + flow[0] + str(level) + flow[1]
+        elif g[1].strip() == "" or g[1].strip().startswith("#"):
+            item = re.groups(r"^(\s*-\s*)\S+(.*)$", lines[i + 1]) if i + 1 < len(lines) else None
+            if not item:
+                break
+            lines[i + 1] = item[0] + str(level) + item[1]
+        else:
+            break
+        updated = "\n".join(lines)
+        if updated == content:
+            return False
+        repo.write(path, updated)
+        return True
+    keys = (["eslintConfig"] if path == "package.json" else []) + ["rules", rule]
     return _yset(repo, path, keys, level)
 
 def add_extends(repo, preset):
@@ -113,12 +150,7 @@ def add_extends(repo, preset):
         call:
             add_extends(repo, "plugin:security/recommended")
         after .eslintrc.json:
-            {
-              "extends": [
-                "eslint:recommended",
-                "plugin:security/recommended"
-              ]
-            }
+            {"extends": ["eslint:recommended", "plugin:security/recommended"]}
         returns:
             True
     """

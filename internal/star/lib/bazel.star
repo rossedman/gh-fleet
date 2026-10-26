@@ -28,6 +28,8 @@ def version(repo):
 def set_version(repo, version):
     """Sets the Bazel version in .bazelversion, when the repo pins one.
 
+    A newer version already there is kept, so a campaign never lowers one.
+
     Args:
         version: the Bazel version, such as `7.4.1`.
     Returns:
@@ -43,7 +45,7 @@ def set_version(repo, version):
             True
     """
     content = repo.read(".bazelversion", default = None)
-    if content == None or content.strip() == version:
+    if content == None or content.strip() == version or semver.lowers(content.strip(), version):
         return False
     repo.write(".bazelversion", version + "\n")
     return True
@@ -53,6 +55,8 @@ def _module_files(repo):
 
 def set_dep(repo, name, version):
     """Sets the version of a `bazel_dep` in every MODULE.bazel that declares it.
+
+    A newer version already there is kept, so a campaign never lowers one.
 
     The call may span lines and its arguments may come in any order.
 
@@ -100,7 +104,7 @@ def set_dep(repo, name, version):
             if re.matches(r"""\bname\s*=\s*["']""" + re.escape(name) + r"""["']""", call):
                 for j in range(start, i + 1):
                     g = re.groups(r"""^(.*\bversion\s*=\s*["'])([^"']*)(["'].*)$""", lines[j])
-                    if g and g[1] != version:
+                    if g and g[1] != version and not semver.lowers(g[1], version):
                         lines[j] = g[0] + version + g[2]
             start = -1
         updated = "\n".join(lines)

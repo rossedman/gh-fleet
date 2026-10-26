@@ -41,12 +41,14 @@ def _set_in_line(line, name, spec, quoted):
     g = re.groups(pattern, line)
     if not g or _norm(g[1]) != _norm(name):
         return line
-    if (g[3] or "").strip() == spec:
+    if (g[3] or "").strip() == spec or semver.lowers(g[3] or "", spec):
         return line
     return g[0] + g[1] + g[2] + spec + g[4] + g[5]
 
 def set_requirement(repo, name, spec):
     """Sets a package's version specifier wherever it is already required.
+
+    A newer version already there is kept, so a campaign never lowers one.
 
     Changes requirements*.txt lines and the quoted entries of pyproject.toml
     dependency lists, keeping extras such as `[socks]`, environment markers
@@ -111,6 +113,8 @@ def requires_python(repo, path = "pyproject.toml"):
 def set_requires_python(repo, spec, path = "pyproject.toml"):
     """Sets `requires-python` in a pyproject.toml that already has it.
 
+    A newer version already there is kept, so a campaign never lowers one.
+
     Args:
         spec: the new specifier, such as `>=3.12`.
         path: the pyproject.toml to edit.
@@ -129,7 +133,8 @@ def set_requires_python(repo, spec, path = "pyproject.toml"):
             True
     """
     content = repo.read(path, default = None)
-    if content == None or requires_python(repo, path) in (None, spec):
+    current = requires_python(repo, path)
+    if content == None or current in (None, spec) or semver.lowers(current, spec):
         return False
     updated = re.sub(r"""(?m)^(\s*requires-python\s*=\s*["'])[^"']*(["'])""", "${1}" + spec.replace("$", "$$") + "${2}", content, count = 1)
     repo.write(path, updated)

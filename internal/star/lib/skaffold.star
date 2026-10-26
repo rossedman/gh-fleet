@@ -25,6 +25,8 @@ def files(repo):
 def set_helm_release_version(repo, chart, version):
     """Sets the `version` of every Helm release that installs a remote chart.
 
+    A newer version already there is kept, so a campaign never lowers one.
+
     Args:
         chart: the release's `remoteChart`, such as `bitnami/postgresql`.
         version: the new chart version.
@@ -50,4 +52,4 @@ def set_helm_release_version(repo, chart, version):
         returns:
             ["skaffold.yaml"]
     """
-    return [p for p in files(repo) if _set_sibling(repo, p, "remoteChart", chart, "version", version)]
+    return [p for p in files(repo) if _set_sibling(repo, p, "remoteChart", chart, "version", version, never_lower = True)]

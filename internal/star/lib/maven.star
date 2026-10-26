@@ -31,14 +31,14 @@ def _tag(line, tag):
     g = re.groups(r"<" + tag + r">\s*([^<]*?)\s*</" + tag + ">", line)
     return g[0] if g else None
 
-def _set_property(lines, name, value):
+def _set_property(lines, name, value, never_lower = False):
     inside = False
     changed = False
     for i, line in enumerate(lines):
         if "<properties>" in line:
             inside = True
         if inside and _tag(line, re.escape(name)) != None:
-            new = re.sub(r"(<" + re.escape(name) + r">)[^<]*(</" + re.escape(name) + ">)", "${1}" + _lit(value) + "${2}", line, count = 1)
+            new = re.sub(r"(<" + re.escape(name) + r">)([^<]*)(</" + re.escape(name) + ">)", lambda m: m[0] if never_lower and semver.lowers(m[2], value) else m[1] + value + m[3], line, count = 1)
             if new != line:
                 lines[i] = new
                 changed = True
@@ -85,6 +85,8 @@ def set_property(repo, name, value):
 
 def set_dependency(repo, group, artifact, version):
     """Sets the version of a dependency or plugin wherever a pom.xml declares one.
+
+    A newer version already there is kept, so a campaign never lowers one.
 
     Covers `<dependency>` and `<plugin>` entries, including those under
     `<dependencyManagement>` and `<pluginManagement>`. When the version is
@@ -166,11 +168,11 @@ def set_dependency(repo, group, artifact, version):
                     prop = re.groups(r"^\$\{([^}]+)\}$", current)
                     if prop:
                         props.append(prop[0])
-                    elif current != version:
+                    elif current != version and not semver.lowers(current, version):
                         lines[at] = re.sub(r"(<version>)[^<]*(</version>)", "${1}" + _lit(version) + "${2}", lines[at], count = 1)
                 block = None
         for p in props:
-            _set_property(lines, p, version)
+            _set_property(lines, p, version, never_lower = True)
         updated = "\n".join(lines)
         if updated != content:
             repo.write(path, updated)

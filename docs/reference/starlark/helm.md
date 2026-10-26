@@ -60,7 +60,7 @@ charts(repo)
 
 **Used in:** [`helm-image-tag`](https://github.com/rossedman/gh-fleet/tree/main/examples/helm-image-tag)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/helm.star#L12)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/helm.star#L20)
 
 ## set_chart_version
 
@@ -69,6 +69,8 @@ set_chart_version(repo, chart, version)
 ```
 
 Sets a chart's `version` in its Chart.yaml.
+
+A newer version already there is kept, so a campaign never lowers one.
 
 **Arguments**
 
@@ -111,7 +113,7 @@ set_chart_version(repo, "charts/api", "1.5.0")
 
 **Used in:** [`helm-image-tag`](https://github.com/rossedman/gh-fleet/tree/main/examples/helm-image-tag)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/helm.star#L29)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/helm.star#L37)
 
 ## set_app_version
 
@@ -120,6 +122,8 @@ set_app_version(repo, chart, version)
 ```
 
 Sets a chart's `appVersion` in its Chart.yaml, keeping its quotes.
+
+A newer version already there is kept, so a campaign never lowers one.
 
 **Arguments**
 
@@ -158,7 +162,7 @@ set_app_version(repo, "charts/api", "2.4.0")
 
 **Used in:** [`helm-image-tag`](https://github.com/rossedman/gh-fleet/tree/main/examples/helm-image-tag)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/helm.star#L55)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/helm.star#L65)
 
 ## set_dependency
 
@@ -167,6 +171,8 @@ set_dependency(repo, name, version)
 ```
 
 Sets the version of a chart dependency in every Chart.yaml that lists it.
+
+A newer version already there is kept, so a campaign never lowers one.
 
 **Arguments**
 
@@ -214,7 +220,7 @@ set_dependency(repo, "postgresql", "15.5.x")
         version: 17.0.0
     ```
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/helm.star#L77)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/helm.star#L89)
 
 ## set_image_tag
 
@@ -283,4 +289,4 @@ set_image_tag(repo, "ghcr.io/acme/api", "2.4.0")
 
 **Used in:** [`helm-image-tag`](https://github.com/rossedman/gh-fleet/tree/main/examples/helm-image-tag)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/helm.star#L152)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/helm.star#L169)

@@ -63,6 +63,8 @@ set_version(repo, version)
 
 Sets the Bazel version in .bazelversion, when the repo pins one.
 
+A newer version already there is kept, so a campaign never lowers one.
+
 **Arguments**
 
 | Name | Description |
@@ -106,6 +108,8 @@ set_dep(repo, name, version)
 ```
 
 Sets the version of a `bazel_dep` in every MODULE.bazel that declares it.
+
+A newer version already there is kept, so a campaign never lowers one.
 
 The call may span lines and its arguments may come in any order.
 
@@ -157,7 +161,7 @@ set_dep(repo, "rules_go", "0.50.1")
 
 **Used in:** [`bazel-module-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/bazel-module-bump)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/bazel.star#L54)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/bazel.star#L56)
 
 ## set_archive
 
@@ -217,4 +221,4 @@ set_archive(repo, "rules_python", "https://github.com/bazelbuild/rules_python/re
     )
     ```
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/bazel.star#L112)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/bazel.star#L116)

@@ -104,6 +104,8 @@ def bump_task(repo, task, major, from_major = None):
 def set_template_ref(repo, name, ref):
     """Sets the `ref` of a template repository under `resources.repositories`.
 
+    A newer version already there is kept, so a campaign never lowers one.
+
     The repository is matched by its `name` (the project/repo path), and a
     missing `ref` is added.
 
@@ -132,4 +134,4 @@ def set_template_ref(repo, name, ref):
         returns:
             ["azure-pipelines.yml"]
     """
-    return [p for p in pipelines(repo) if _set_sibling(repo, p, "name", name, "ref", ref)]
+    return [p for p in pipelines(repo) if _set_sibling(repo, p, "name", name, "ref", ref, never_lower = True)]

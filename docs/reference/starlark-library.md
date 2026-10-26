@@ -78,7 +78,7 @@ This reference is generated from the library's docstrings, and every example on 
 | [`prettier.star`](starlark/prettier.md) | Set Prettier options in whichever config a repo uses. | 3 |
 | [`python.star`](starlark/python.md) | Bump pinned Python requirements and the supported Python version. | 4 |
 | [`refs.star`](starlark/refs.md) | Find, bump and pin versioned references in any file: `name@ref`, `name#ref` and `source?ref=tag`. | 3 |
-| [`renovate.star`](starlark/renovate.md) | Edit Renovate configs: presets, package rules, schedules and other settings. | 5 |
+| [`renovate.star`](starlark/renovate.md) | Edit Renovate configs: presets, package rules, schedules and other settings. | 6 |
 | [`ruby.star`](starlark/ruby.md) | Bump gem versions, the Ruby version and Bundler, and set RuboCop's target Ruby. | 6 |
 | [`runtime.star`](starlark/runtime.md) | Set language versions in version files: .nvmrc, .python-version, .tool-versions and friends. | 2 |
 | [`sbt.star`](starlark/sbt.md) | Bump sbt, Scala, library dependencies and sbt plugins. | 5 |
@@ -98,7 +98,7 @@ This reference is generated from the library's docstrings, and every example on 
 | --- | --- |
 | [`gha.action_files`](starlark/gha.md#action_files) | Lists the workflows and every local action's metadata file. |
 | [`scanignore.add`](starlark/scanignore.md#add) | Adds entries to a scanner's ignore file, creating it if needed. |
-| [`scorecard.add_badge`](starlark/scorecard.md#add_badge) | Adds the OpenSSF Scorecard badge to the README, below its first heading. |
+| [`scorecard.add_badge`](starlark/scorecard.md#add_badge) | Adds the OpenSSF Scorecard badge to the README, next to its other badges. |
 | [`github.add_contact_link`](starlark/github.md#add_contact_link) | Adds a contact link to the new-issue page, unless one with this URL exists. |
 | [`changelog.add_entry`](starlark/changelog.md#add_entry) | Adds a bullet under the Unreleased release, in a section such as Changed or Security. |
 | [`eslint.add_extends`](starlark/eslint.md#add_extends) | Adds a preset to `extends` unless it is already there. |
@@ -146,7 +146,7 @@ This reference is generated from the library's docstrings, and every example on 
 | [`dependabot.ecosystems`](starlark/dependabot.md#ecosystems) | Detects the package ecosystems a repo uses, from files at its root. |
 | [`golangci.enable_linter`](starlark/golangci.md#enable_linter) | Enables a linter, removing it from `disable` if it was there. |
 | [`backstage.ensure`](starlark/backstage.md#ensure) | Writes a Component catalog file, unless the repo already has one. |
-| [`markdown.ensure_badge`](starlark/markdown.md#ensure_badge) | Adds a badge under the first heading of a Markdown file. |
+| [`markdown.ensure_badge`](starlark/markdown.md#ensure_badge) | Adds a badge to a Markdown file, next to the badges it already shows. |
 | [`files.ensure_lines`](starlark/files.md#ensure_lines) | Appends each of `lines` that a file does not already contain. |
 | [`gha.ensure_permissions`](starlark/gha.md#ensure_permissions) | Adds a top-level `permissions` block to each workflow that has none. |
 | [`backstage.entities`](starlark/backstage.md#entities) | Lists the entities in every catalog file. |
@@ -219,6 +219,7 @@ This reference is generated from the library's docstrings, and every example on 
 | [`renovate.remove_preset`](starlark/renovate.md#remove_preset) | Removes a preset from `extends`, such as a retired `config:base`. |
 | [`gha.rename_branch`](starlark/gha.md#rename_branch) | Renames a branch in workflow triggers and branch checks, as when `master` becomes `main`. |
 | [`files.replace_all`](starlark/files.md#replace_all) | Replaces every occurrence of a string with another, literally, in text files. |
+| [`renovate.replace_preset`](starlark/renovate.md#replace_preset) | Replaces a preset in `extends` where it is, such as `config:base` with `config:recommended`. |
 | [`ansible.requirements`](starlark/ansible.md#requirements) | Lists the repo's Ansible Galaxy requirements files. |
 | [`python.requirements_files`](starlark/python.md#requirements_files) | Lists the repo's requirements files. |
 | [`gomod.requires`](starlark/gomod.md#requires) | Reads every module a go.mod requires, in single-line and block form. |
@@ -341,7 +342,7 @@ This reference is generated from the library's docstrings, and every example on 
 | [`codeql.workflows`](starlark/codeql.md#workflows) | Lists the workflows that run CodeQL. |
 | [`gha.workflows`](starlark/gha.md#workflows) | Lists the repo's workflow files. |
 | [`gradle.wrapper_version`](starlark/gradle.md#wrapper_version) | Reads the Gradle version the wrapper downloads. |
-| [`jsonfile.write`](starlark/jsonfile.md#write) | Writes a value as JSON, using the indentation the file already has. |
+| [`jsonfile.write`](starlark/jsonfile.md#write) | Writes a value as JSON in the layout the file already has. |
 | [`dependabot.write_if_missing`](starlark/dependabot.md#write_if_missing) | Writes .github/dependabot.yml for the detected ecosystems unless a config exists. |
 | [`files.write_if_missing`](starlark/files.md#write_if_missing) | Writes a file unless it, or any of the alternative paths, already exists. |
 | [`npm.write_package`](starlark/npm.md#write_package) | Writes a dict as a package.json, keeping the file's indentation. |

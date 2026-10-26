@@ -78,6 +78,8 @@ def write_package(repo, path, pkg):
 def set_dependency(repo, name, version, sections = SECTIONS):
     """Sets a dependency's version range in every package.json that already lists it.
 
+    A newer version already there is kept, so a campaign never lowers one.
+
     Packages that do not depend on `name` are left alone, so this never adds
     a dependency. package-lock.json is not touched; follow with a `run` step
     such as `npm install --package-lock-only --ignore-scripts`.
@@ -114,7 +116,7 @@ def set_dependency(repo, name, version, sections = SECTIONS):
         dirty = False
         for section in sections:
             deps = pkg.get(section)
-            if type(deps) == "dict" and name in deps and deps[name] != version:
+            if type(deps) == "dict" and name in deps and deps[name] != version and not semver.lowers(deps[name], version):
                 deps[name] = version
                 dirty = True
         if dirty:
@@ -124,6 +126,8 @@ def set_dependency(repo, name, version, sections = SECTIONS):
 
 def set_package_manager(repo, spec, path = "package.json"):
     """Sets the `packageManager` field Corepack uses, such as `pnpm@9.12.0`, where a package already has one.
+
+    A newer version of the same package manager is kept.
 
     Args:
         spec: the package manager and version, such as `pnpm@9.12.0` or
@@ -150,7 +154,10 @@ def set_package_manager(repo, spec, path = "package.json"):
     if not repo.exists(path):
         return False
     pkg = read_package(repo, path)
-    if "packageManager" not in pkg or pkg["packageManager"] == spec:
+    have = pkg.get("packageManager")
+    if have == None or have == spec:
+        return False
+    if have.split("@")[0] == spec.split("@")[0] and semver.lowers(have, spec):
         return False
     pkg["packageManager"] = spec
     return write_package(repo, path, pkg)

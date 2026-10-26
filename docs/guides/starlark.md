@@ -115,10 +115,10 @@ def change(repo):
 
 | Name | Provides |
 | --- | --- |
-| `json` | `json.decode(s)`, `json.encode(x)`, `json.encode_indent(x, indent = "  ")`, `json.indent(s)`. Encoding keeps a dict's key order, so rewriting `package.json` only changes what you changed. |
+| `json` | `json.decode(s)`, `json.encode(x)`, `json.encode_indent(x, indent = "  ")`, `json.indent(s)`, and `json.encode_like(x, original)`, which writes `x` in the layout of the JSON text `original`: unchanged values keep their exact text, and changed or new ones follow the indentation and separators around them. Encoding keeps a dict's key order. |
 | `yaml` | `yaml.decode(s)` and `yaml.encode(x)`, with key order kept. `encode` writes a whole new document: comments are dropped and formatting is normalized, so use it for files you generate, not hand-edited ones. |
-| `semver` | `semver.compare(a, b)`, `semver.less(a, b)`, `semver.max(...)`, `semver.valid(v)`, `semver.major(v)`, `semver.major_minor(v)`. A leading `v` is optional. |
-| `re` | Go [RE2](https://github.com/google/re2/wiki/Syntax) regular expressions: `re.matches`, `re.search`, `re.groups`, `re.find_all`, `re.split`, `re.escape(s)` for a literal, and `re.sub(pattern, repl, s, count = -1)` with `$1` or `${name}` in `repl`. |
+| `semver` | `semver.compare(a, b)`, `semver.less(a, b)`, `semver.max(...)`, `semver.lowers(current, target)` (lenient: compares the first dotted number in each, so `^8.3` and `python3.12` work, and is false when either has none), `semver.valid(v)`, `semver.major(v)`, `semver.major_minor(v)`. A leading `v` is optional. |
+| `re` | Go [RE2](https://github.com/google/re2/wiki/Syntax) regular expressions: `re.matches`, `re.search`, `re.groups`, `re.find_all`, `re.split`, `re.escape(s)` for a literal, and `re.sub(pattern, repl, s, count = -1)` with `$1` or `${name}` in `repl`, or a function as `repl` that gets `[match, group1, ...]` and returns the replacement. |
 | `env` | the step's environment: `change.env` plus the step's own `env`, a read-only dict |
 
 The language is [Starlark](https://github.com/bazelbuild/starlark/blob/master/spec.md) with `while` loops, sets and top-level `if`/`for` allowed. Recursion isn't, and a run is limited by the step's `timeout` and an execution budget, so a runaway loop fails that repo instead of hanging the campaign.
@@ -129,7 +129,7 @@ gh fleet ships a library of helpers for the changes campaigns make most. It is e
 
 It has modules for files and text; editing any YAML, JSON or TOML file by key while keeping its comments; bumping and pinning any `name@ref`, `name#ref` or `?ref=` reference; CI (GitHub Actions, Buildkite, GitLab CI, CircleCI, Jenkins, Azure Pipelines, Bitbucket Pipelines, Drone, Woodpecker); build files (Make, CMake, Bazel, Go, npm, Python, Ruby, PHP, Cargo, Gradle, Android, Maven, sbt, .NET, Swift, CocoaPods, Elixir, Buf); deployment (Docker, Helm, Kustomize, Argo CD, Flux, Kubernetes, Terraform, Terragrunt, Ansible, Helmfile, Skaffold, AWS CDK, Serverless Framework, Packer); dev environments (Dev Containers, golangci-lint, Renovate, Prettier, ESLint, markdownlint, yamllint, hadolint, Backstage catalog files); security scanning (CodeQL, OpenSSF Scorecard, and Trivy, Semgrep and gitleaks ignore files); and repo hygiene (.github files, changelogs, licenses, .editorconfig, .gitattributes, runtime version files, pre-commit, Markdown, CODEOWNERS, Dependabot). The [Starlark library reference](../reference/starlark-library.md) lists them all, with a page per module.
 
-Every helper is idempotent, edits line by line where a YAML round trip would lose comments, and returns what it changed so a script can tell the PR about it:
+Every helper is idempotent, keeps the file's layout (YAML and TOML edits are line by line so comments survive, and JSON edits rewrite only the values that changed), never lowers a version a repo already has past the one you set, and returns what it changed so a script can tell the PR about it:
 
 ```python
 load("@fleet//docker.star", "bump_base_image")

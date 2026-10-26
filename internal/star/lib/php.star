@@ -29,6 +29,8 @@ def manifests(repo):
 def set_require(repo, package, constraint):
     """Sets a package's constraint wherever `require` or `require-dev` lists it.
 
+    A newer version already there is kept, so a campaign never lowers one.
+
     Packages a manifest doesn't require are left alone.
 
     Args:
@@ -67,7 +69,7 @@ def set_require(repo, package, constraint):
         dirty = False
         for section in ("require", "require-dev"):
             current = _get(repo, path, [section, package])
-            if current != None and current != constraint and _set(repo, path, [section, package], constraint):
+            if current != None and current != constraint and not semver.lowers(current, constraint) and _set(repo, path, [section, package], constraint):
                 dirty = True
         if dirty:
             changed.append(path)
@@ -75,6 +77,8 @@ def set_require(repo, package, constraint):
 
 def set_php(repo, constraint, platform = None):
     """Sets the PHP version a project requires, and optionally its `config.platform.php`.
+
+    A newer version already there is kept, so a campaign never lowers one.
 
     Args:
         constraint: the `require.php` constraint, such as `^8.2`.
@@ -112,8 +116,10 @@ def set_php(repo, constraint, platform = None):
     """
     changed = []
     for path in manifests(repo):
-        a = _get(repo, path, ["require", "php"]) != None and _set(repo, path, ["require", "php"], constraint)
-        b = platform != None and _get(repo, path, ["config", "platform", "php"]) != None and _set(repo, path, ["config", "platform", "php"], platform)
+        have = _get(repo, path, ["require", "php"])
+        a = have != None and not semver.lowers(have, constraint) and _set(repo, path, ["require", "php"], constraint)
+        have = _get(repo, path, ["config", "platform", "php"]) if platform != None else None
+        b = have != None and not semver.lowers(have, platform) and _set(repo, path, ["config", "platform", "php"], platform)
         if a or b:
             changed.append(path)
     return changed

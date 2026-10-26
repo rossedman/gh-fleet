@@ -39,5 +39,6 @@ duplicating them.
 * [gh fleet retry](gh_fleet_retry.md)	 - Run apply again for repos that failed or have no PR
 * [gh fleet status](gh_fleet_status.md)	 - Show every target's PR, state, checks, reviews and last error
 * [gh fleet targets](gh_fleet_targets.md)	 - List the repos a campaign will touch and why each matched
+* [gh fleet test](gh_fleet_test.md)	 - Run the change against local test cases, without GitHub
 * [gh fleet version](gh_fleet_version.md)	 - Print the version, commit and build date
 

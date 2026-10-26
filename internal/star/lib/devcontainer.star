@@ -159,6 +159,8 @@ def features(repo, path = ".devcontainer/devcontainer.json"):
 def set_feature_version(repo, feature, version):
     """Moves a feature to a new major version, such as `docker-in-docker:1` to `:2`.
 
+    A newer version already there is kept, so a campaign never lowers one.
+
     Args:
         feature: the feature ID without its version.
         version: the new version, as written after `:`.
@@ -186,7 +188,7 @@ def set_feature_version(repo, feature, version):
     changed = []
     for path in files(repo):
         content = repo.read(path)
-        updated = re.sub(pattern, "${1}" + _lit(version) + "${3}", content)
+        updated = re.sub(pattern, lambda m: m[0] if semver.lowers(m[2], version) else m[1] + version + m[3], content)
         if updated != content:
             repo.write(path, updated)
             changed.append(path)

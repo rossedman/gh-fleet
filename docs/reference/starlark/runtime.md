@@ -60,6 +60,8 @@ set_version(repo, runtime, version, create = None)
 
 Sets a runtime's version in every version file the repo already has.
 
+A newer version already pinned is kept, and so are aliases such as `lts/*`.
+
 Updates the dedicated files (.nvmrc and .node-version for node,
 .python-version for python, and so on) and the runtime's line in
 .tool-versions. A repo that pins the runtime nowhere is left alone unless
@@ -115,4 +117,4 @@ set_version(repo, "node", "22")
 
 **Used in:** [`elixir-phoenix`](https://github.com/rossedman/gh-fleet/tree/main/examples/elixir-phoenix), [`node-version`](https://github.com/rossedman/gh-fleet/tree/main/examples/node-version), [`python-version`](https://github.com/rossedman/gh-fleet/tree/main/examples/python-version)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/runtime.star#L51)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/runtime.star#L55)

@@ -72,7 +72,7 @@ build_files(repo)
     generated
     ```
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gradle.star#L12)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gradle.star#L18)
 
 ## set_dependency
 
@@ -81,6 +81,8 @@ set_dependency(repo, module, version)
 ```
 
 Sets a library's version wherever the build declares it.
+
+A newer version already there is kept, so a campaign never lowers one.
 
 Covers string coordinates in build scripts (`"group:name:1.0"`, in
 Groovy or Kotlin), and in version catalogs both `alias = "group:name:1.0"`
@@ -150,7 +152,7 @@ set_dependency(repo, "com.fasterxml.jackson.core:jackson-databind", "2.17.2")
 
 **Used in:** [`jvm-dependency-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/jvm-dependency-bump)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gradle.star#L34)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gradle.star#L40)
 
 ## wrapper_version
 
@@ -183,7 +185,7 @@ wrapper_version(repo)
     distributionUrl=https\://services.gradle.org/distributions/gradle-8.5-bin.zip
     ```
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gradle.star#L98)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gradle.star#L106)
 
 ## set_wrapper_version
 
@@ -236,7 +238,7 @@ set_wrapper_version(repo, "8.10.2")
 
 **Used in:** [`gradle-wrapper-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/gradle-wrapper-bump)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gradle.star#L114)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gradle.star#L122)
 
 ## set_plugin
 
@@ -245,6 +247,8 @@ set_plugin(repo, plugin, version)
 ```
 
 Sets the version of a Gradle plugin wherever the build applies or declares it.
+
+A newer version already there is kept, so a campaign never lowers one.
 
 Covers `id 'x' version 'v'` (Groovy), `id("x") version "v"` (Kotlin), and
 version catalog `[plugins]` entries, written as `{ id = "x", version = "v" }`,
@@ -312,7 +316,7 @@ set_plugin(repo, "com.android.application", "8.7.2")
     android-application = { id = "com.android.application", version.ref = "agp" }
     ```
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gradle.star#L159)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gradle.star#L167)
 
 ## set_kotlin_version
 
@@ -321,6 +325,8 @@ set_kotlin_version(repo, version)
 ```
 
 Moves every Kotlin Gradle plugin, and the Kotlin standard library, to one version.
+
+A newer version already there is kept, so a campaign never lowers one.
 
 Sets every `org.jetbrains.kotlin.*` plugin a build applies (in either
 DSL or a version catalog), the `kotlin-gradle-plugin` classpath
@@ -369,4 +375,4 @@ set_kotlin_version(repo, "2.0.21")
     }
     ```
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gradle.star#L227)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gradle.star#L237)

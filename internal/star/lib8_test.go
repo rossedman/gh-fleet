@@ -33,7 +33,7 @@ def change(repo):
     add_extends(repo, "prettier")
     set_rule(repo, "eqeqeq", "error")
 `,
-			want: map[string]string{"package.json": "{\n  \"prettier\": {\n    \"semi\": false\n  },\n  \"eslintConfig\": {\n    \"extends\": [\n      \"react-app\",\n      \"prettier\"\n    ],\n    \"rules\": {\n      \"eqeqeq\": \"error\"\n    }\n  }\n}\n"},
+			want: map[string]string{"package.json": "{\n  \"prettier\": {\"semi\": false},\n  \"eslintConfig\": {\n    \"extends\": [\n      \"react-app\",\n      \"prettier\"\n    ],\n    \"rules\": {\n      \"eqeqeq\": \"error\"\n    }\n  }\n}\n"},
 		},
 		"no configs": {
 			repo: map[string]string{"eslint.config.js": "export default []\n"},

@@ -45,7 +45,7 @@ def change(repo):
 			want: map[string]string{
 				"build.sbt":           "libraryDependencies += \"io.circe\" %%% \"circe-core\" % \"0.14.10\"\nscalaVersion := \"3.3.4\"\n",
 				"project/plugins.sbt": "addSbtPlugin(\"org.scalameta\" % \"sbt-scalafmt\" % \"2.5.2\")\n",
-				"composer.json":       "{\n  \"require-dev\": {\n    \"phpunit/phpunit\": \"^11\"\n  }\n}\n",
+				"composer.json":       "{\"require-dev\": {\"phpunit/phpunit\": \"^11\"}}\n",
 			},
 			vars: map[string]string{"props": "false", "absent": "[]", "php": "[]"},
 		},

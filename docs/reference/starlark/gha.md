@@ -126,7 +126,8 @@ Moves an action to a new version wherever a workflow or local action uses it.
 
 Steps that use a sub-path of the action (`owner/repo/path`) match too.
 Refs pinned to a full commit SHA are left alone; use `pin` for those.
-Quotes and trailing comments are kept.
+Without `from_ref`, refs newer than `to` are left alone too, so a bump
+never lowers a version. Quotes and trailing comments are kept.
 
 **Arguments**
 
@@ -179,7 +180,7 @@ bump_action(repo, "actions/checkout", "v4", from_ref = "v3")
 ## set_input
 
 ```python
-set_input(repo, key, value, match = None)
+set_input(repo, key, value, match = None, never_lower = False)
 ```
 
 Sets every `<key>: <value>` line in the workflows, such as an action input.
@@ -195,6 +196,7 @@ Quotes around the old value are kept.
 | `key` | The key to set. |
 | `value` | The new value. |
 | `match` | A regular expression the current value must match to be replaced; for example `r"^\d"` leaves `stable` and matrix expressions alone. |
+| `never_lower` | Leave values that are already a higher version, for inputs that hold versions. |
 
 **Returns:** The list of paths that changed.
 
@@ -235,7 +237,7 @@ set_input(repo, "go-version", "1.27", match = r"^\d")
 
 **Used in:** [`bump-go-version`](https://github.com/rossedman/gh-fleet/tree/main/examples/bump-go-version), [`node-version`](https://github.com/rossedman/gh-fleet/tree/main/examples/node-version), [`python-version`](https://github.com/rossedman/gh-fleet/tree/main/examples/python-version)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gha.star#L104)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gha.star#L105)
 
 ## ensure_permissions
 
@@ -294,7 +296,7 @@ ensure_permissions(repo, {"contents": "read"})
 
 **Used in:** [`workflow-permissions`](https://github.com/rossedman/gh-fleet/tree/main/examples/workflow-permissions)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gha.star#L156)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gha.star#L159)
 
 ## unpinned
 
@@ -339,7 +341,7 @@ unpinned(repo)
 
 **Used in:** [`pin-actions`](https://github.com/rossedman/gh-fleet/tree/main/examples/pin-actions)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gha.star#L206)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gha.star#L209)
 
 ## pin
 
@@ -389,7 +391,7 @@ pin(repo, {"actions/checkout@v4": "08eba0b27e820071cde6df949e0beb9ba4906955"})
 
 **Used in:** [`pin-actions`](https://github.com/rossedman/gh-fleet/tree/main/examples/pin-actions)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gha.star#L237)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gha.star#L240)
 
 ## rename_branch
 
@@ -457,4 +459,4 @@ rename_branch(repo, "master", "main")
 
 **Used in:** [`branch-rename`](https://github.com/rossedman/gh-fleet/tree/main/examples/branch-rename)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gha.star#L291)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gha.star#L294)

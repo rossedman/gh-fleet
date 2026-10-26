@@ -48,8 +48,14 @@ def version(repo, runtime):
             return fields[1]
     return None
 
+def _replaces(current, version):
+    # Aliases such as lts/* or latest, and newer versions, stay.
+    return current != version and re.matches(r"\d", current) and not semver.lowers(current, version)
+
 def set_version(repo, runtime, version, create = None):
     """Sets a runtime's version in every version file the repo already has.
+
+    A newer version already pinned is kept, and so are aliases such as `lts/*`.
 
     Updates the dedicated files (.nvmrc and .node-version for node,
     .python-version for python, and so on) and the runtime's line in
@@ -88,7 +94,7 @@ def set_version(repo, runtime, version, create = None):
         if content == None:
             continue
         pinned = True
-        if content.strip() != version:
+        if _replaces(content.strip(), version):
             repo.write(path, version + "\n")
             changed.append(path)
     tv = repo.read(".tool-versions", default = None)
@@ -98,7 +104,7 @@ def set_version(repo, runtime, version, create = None):
             g = re.groups(r"^(\s*" + re.escape(tool) + r"\s+)(\S+)(.*)$", line)
             if g:
                 pinned = True
-                if g[1] != version:
+                if _replaces(g[1], version):
                     lines[i] = g[0] + version + g[2]
         updated = "\n".join(lines)
         if updated != tv:

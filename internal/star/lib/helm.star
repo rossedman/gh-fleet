@@ -4,7 +4,15 @@ Edits are line-based, so comments and layout in Chart.yaml and values
 files stay as they were.
 """
 
-load("./yamlpath.star", _set = "set")
+load("./yamlpath.star", _get = "get", _set = "set")
+
+
+def _set_newer(repo, path, key, version):
+    # Sets key unless the chart already has a newer version.
+    have = _get(repo, path, key)
+    if have != None and semver.lowers(str(have), version):
+        return False
+    return _set(repo, path, key, version)
 
 def _lit(s):
     return s.replace("$", "$$")
@@ -29,6 +37,8 @@ def charts(repo):
 def set_chart_version(repo, chart, version):
     """Sets a chart's `version` in its Chart.yaml.
 
+    A newer version already there is kept, so a campaign never lowers one.
+
     Args:
         chart: the chart directory, as `charts` lists it.
         version: the new chart version.
@@ -50,10 +60,12 @@ def set_chart_version(repo, chart, version):
         returns:
             True
     """
-    return _set(repo, chart + "/Chart.yaml", "version", version)
+    return _set_newer(repo, chart + "/Chart.yaml", "version", version)
 
 def set_app_version(repo, chart, version):
     """Sets a chart's `appVersion` in its Chart.yaml, keeping its quotes.
+
+    A newer version already there is kept, so a campaign never lowers one.
 
     Args:
         chart: the chart directory, as `charts` lists it.
@@ -72,10 +84,12 @@ def set_app_version(repo, chart, version):
         returns:
             True
     """
-    return _set(repo, chart + "/Chart.yaml", "appVersion", version)
+    return _set_newer(repo, chart + "/Chart.yaml", "appVersion", version)
 
 def set_dependency(repo, name, version):
     """Sets the version of a chart dependency in every Chart.yaml that lists it.
+
+    A newer version already there is kept, so a campaign never lowers one.
 
     Args:
         name: the dependency's `name`.
@@ -114,6 +128,9 @@ def set_dependency(repo, name, version):
         for item in items:
             if item["name"] == name and item["version"] != None:
                 i = item["version"]
+                have = re.groups(r"""version:\s*["']?([^"'\s#]+)""", lines[i])
+                if have and semver.lowers(have[0], version):
+                    continue
                 lines[i] = re.sub(r"""^(\s*(?:-\s*)?version:\s*["']?)[^"'\s#]+""", "${1}" + _lit(version), lines[i], count = 1)
         updated = "\n".join(lines)
         if updated != content:

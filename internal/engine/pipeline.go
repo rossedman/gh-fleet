@@ -398,3 +398,34 @@ func (p *Pipeline) openLog(repo string) (io.Writer, func()) {
 	fmt.Fprintf(f, "# gh fleet %s\n", repo)
 	return f, func() { _ = f.Close() }
 }
+
+// Local is the outcome of running a change in a local directory.
+type Local struct {
+	// Vars are the variables the steps set.
+	Vars map[string]any
+	// Title, Body and CommitMessage are set by RenderLocal.
+	Title, Body, CommitMessage string
+
+	res runner.Result
+}
+
+// RunLocal runs every step of the change in dir as if dir were t's clone.
+// Nothing is staged, committed or pushed.
+func (p *Pipeline) RunLocal(ctx context.Context, dir string, t target.Target, log io.Writer) (Local, error) {
+	res, extra, err := p.runChange(ctx, dir, t, log)
+	if err != nil {
+		return Local{}, err
+	}
+	return Local{Vars: extra, res: res}, nil
+}
+
+// RenderLocal renders the PR a local run would open, as apply does for a
+// repo the change edited.
+func (p *Pipeline) RenderLocal(t target.Target, l Local) (Local, error) {
+	c, err := p.content(t, l.res, l.Vars)
+	if err != nil {
+		return l, fmt.Errorf("pr: %w", err)
+	}
+	l.Title, l.Body, l.CommitMessage = c.title, c.body, c.commit
+	return l, nil
+}

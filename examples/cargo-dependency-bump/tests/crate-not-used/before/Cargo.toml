@@ -1,0 +1,5 @@
+[package]
+name = "rg"
+
+[dependencies]
+serde = "1"

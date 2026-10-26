@@ -77,6 +77,8 @@ set_sbt_version(repo, version)
 
 Sets `sbt.version` in project/build.properties.
 
+A newer version already there is kept, so a campaign never lowers one.
+
 **Arguments**
 
 | Name | Description |
@@ -120,6 +122,8 @@ set_dependency(repo, organization, name, version)
 ```
 
 Sets the version of a library or sbt plugin wherever the build declares it.
+
+A newer version already there is kept, so a campaign never lowers one.
 
 Covers `"org" % "name" % "v"` and `"org" %% "name" % "v"` (with any
 configuration such as `% Test` after it), and `addSbtPlugin(...)`.
@@ -166,7 +170,7 @@ set_dependency(repo, "org.typelevel", "cats-core", "2.12.0")
     )
     ```
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/sbt.star#L57)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/sbt.star#L59)
 
 ## set_val
 
@@ -213,7 +217,7 @@ set_val(repo, "catsVersion", "2.12.0")
     }
     ```
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/sbt.star#L97)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/sbt.star#L101)
 
 ## set_scala_version
 
@@ -260,4 +264,4 @@ set_scala_version(repo, "2.13.15", from_version = "2.13.12")
 
 **Used in:** [`sbt-scala-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/sbt-scala-bump)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/sbt.star#L129)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/sbt.star#L133)

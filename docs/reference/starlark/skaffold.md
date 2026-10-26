@@ -60,6 +60,8 @@ set_helm_release_version(repo, chart, version)
 
 Sets the `version` of every Helm release that installs a remote chart.
 
+A newer version already there is kept, so a campaign never lowers one.
+
 **Arguments**
 
 | Name | Description |

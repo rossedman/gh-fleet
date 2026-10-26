@@ -80,6 +80,8 @@ def set_minimum_version(repo, version):
 def set_fetchcontent_tag(repo, name, tag):
     """Sets the `GIT_TAG` of a `FetchContent_Declare` dependency.
 
+    A newer version already there is kept, so a campaign never lowers one.
+
     The declaration may span several lines. Declarations of other names,
     and ones without a `GIT_TAG`, are left alone.
 
@@ -119,7 +121,7 @@ def set_fetchcontent_tag(repo, name, tag):
                 inside = True
             if inside:
                 g = re.groups(r"^(.*\bGIT_TAG\s+)([^\s)]+)(.*)$", line)
-                if g and g[1] != tag:
+                if g and g[1] != tag and not semver.lowers(g[1], tag):
                     lines[i] = g[0] + tag + g[2]
                 if ")" in line:
                     inside = False

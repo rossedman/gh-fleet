@@ -15,7 +15,7 @@ load("@fleet//scorecard.star", "workflow", "set_version", "add_workflow", "add_b
 | [`workflow`](#workflow) | Finds the workflow that runs Scorecard. |
 | [`set_version`](#set_version) | Moves `ossf/scorecard-action` to a new version. |
 | [`add_workflow`](#add_workflow) | Writes the Scorecard workflow, unless the repo already runs Scorecard. |
-| [`add_badge`](#add_badge) | Adds the OpenSSF Scorecard badge to the README, below its first heading. |
+| [`add_badge`](#add_badge) | Adds the OpenSSF Scorecard badge to the README, next to its other badges. |
 
 ## workflow
 
@@ -50,7 +50,7 @@ workflow(repo)
       - uses: ossf/scorecard-action@v2.3.1
     ```
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/scorecard.star#L12)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/scorecard.star#L13)
 
 ## set_version
 
@@ -97,7 +97,7 @@ set_version(repo, "v2.5.0")
       - uses: ossf/scorecard-action@v2.5.0 # pinned by hand
     ```
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/scorecard.star#L32)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/scorecard.star#L33)
 
 ## add_workflow
 
@@ -182,7 +182,7 @@ add_workflow(repo, branch = "main", publish = False)
 
 **Used in:** [`scorecard-rollout`](https://github.com/rossedman/gh-fleet/tree/main/examples/scorecard-rollout)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/scorecard.star#L56)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/scorecard.star#L57)
 
 ## add_badge
 
@@ -190,11 +190,11 @@ add_workflow(repo, branch = "main", publish = False)
 add_badge(repo, path = "README.md")
 ```
 
-Adds the OpenSSF Scorecard badge to the README, below its first heading.
+Adds the OpenSSF Scorecard badge to the README, next to its other badges.
 
-The badge needs published results (`add_workflow(publish = True)`).
-Badge lines that follow the heading, such as other badges, stay in
-front of it.
+The badge needs published results (`add_workflow(publish = True)`). It
+goes where `markdown.ensure_badge` puts badges: after the badges the
+README already shows, else under its title.
 
 **Arguments**
 
@@ -240,4 +240,4 @@ add_badge(repo)
 
 **Used in:** [`scorecard-rollout`](https://github.com/rossedman/gh-fleet/tree/main/examples/scorecard-rollout)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/scorecard.star#L161)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/scorecard.star#L162)

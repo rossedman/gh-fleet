@@ -1,0 +1,7 @@
+jobs:
+  build:
+    steps:
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.15"
+          allow-prereleases: true

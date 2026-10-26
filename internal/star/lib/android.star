@@ -114,6 +114,8 @@ def set_sdk(repo, compile = None, target = None, min = None):
 def set_agp_version(repo, version):
     """Moves the Android Gradle Plugin to a version.
 
+    A newer version already there is kept, so a campaign never lowers one.
+
     Sets the `com.android.*` plugins wherever they are declared (plugin
     blocks or a version catalog) and the
     `com.android.tools.build:gradle` classpath of older builds. Upgrading AGP

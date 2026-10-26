@@ -1,0 +1,2 @@
+wantVars:
+  eslint: ESLint uses a flat config (eslint.config.js); apply the rules there by hand.

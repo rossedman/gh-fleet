@@ -10,9 +10,9 @@ targets:
 
 change:
   steps:
-    # Sets packageManager (used by Corepack) to pnpm 9 where a package sets
-    # one, and turns on engine-strict in .npmrc so installs fail on the wrong
-    # Node version.
+    # Sets packageManager (used by Corepack) to pnpm 9 where it pins an
+    # older pnpm, and turns on engine-strict in .npmrc so installs fail on the
+    # wrong Node version. Repos on a newer pnpm are left alone.
     - name: node-pnpm-9
       starlark: ./change.star
       timeout: 1m

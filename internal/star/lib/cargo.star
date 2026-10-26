@@ -30,6 +30,8 @@ def _lit(s):
 def set_dependency(repo, name, version):
     """Sets a crate's version wherever a Cargo.toml already depends on it.
 
+    A newer version already there is kept, so a campaign never lowers one.
+
     Covers `[dependencies]`, `[dev-dependencies]`, `[build-dependencies]`,
     `[workspace.dependencies]` and their `[target.'...'.dependencies]` forms,
     written as `name = "1.0"` or `name = { version = "1.0", ... }`.
@@ -76,7 +78,7 @@ def set_dependency(repo, name, version):
             elif in_deps:
                 for pattern in (simple, table):
                     g = re.groups(pattern, line)
-                    if g and g[1] != version:
+                    if g and g[1] != version and not semver.lowers(g[1], version):
                         line = g[0] + version + g[2]
                         break
             out.append(line)

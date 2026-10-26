@@ -44,10 +44,7 @@ def add_preset(repo, preset):
             add_preset(repo, "github>acme/renovate-config")
         after renovate.json:
             {
-              "extends": [
-                "config:recommended",
-                "github>acme/renovate-config"
-              ]
+              "extends": ["config:recommended", "github>acme/renovate-config"]
             }
         returns:
             True
@@ -73,11 +70,7 @@ def remove_preset(repo, preset):
         call:
             remove_preset(repo, "config:base")
         after renovate.json:
-            {
-              "extends": [
-                ":semanticCommits"
-              ]
-            }
+            {"extends": [":semanticCommits"]}
         returns:
             True
     """
@@ -88,6 +81,43 @@ def remove_preset(repo, preset):
     if preset not in extends:
         return False
     return _set(repo, path, "extends", [p for p in extends if p != preset])
+
+def replace_preset(repo, old, new):
+    """Replaces a preset in `extends` where it is, such as `config:base` with `config:recommended`.
+
+    When `new` is already there too, `old` is just removed.
+
+    Args:
+        old: the preset to replace.
+        new: the preset to put in its place.
+    Returns:
+        True when the file changed.
+    Example:
+        before renovate.json:
+            {
+              "extends": ["config:base", ":semanticCommits"]
+            }
+        call:
+            replace_preset(repo, "config:base", "config:recommended")
+        after renovate.json:
+            {
+              "extends": ["config:recommended", ":semanticCommits"]
+            }
+        returns:
+            True
+    """
+    path = find(repo)
+    if path == None:
+        return False
+    extends = list(_read(repo, path).get("extends") or [])
+    if old not in extends:
+        return False
+    out = []
+    for p in extends:
+        p = new if p == old else p
+        if p not in out:
+            out.append(p)
+    return _set(repo, path, "extends", out)
 
 def add_package_rule(repo, rule):
     """Appends a rule to `packageRules` unless an identical rule is already there.
@@ -106,14 +136,10 @@ def add_package_rule(repo, rule):
             add_package_rule(repo, {"matchDepTypes": ["devDependencies"], "automerge": True})
         after renovate.json:
             {
-              "extends": [
-                "config:recommended"
-              ],
+              "extends": ["config:recommended"],
               "packageRules": [
                 {
-                  "matchDepTypes": [
-                    "devDependencies"
-                  ],
+                  "matchDepTypes": ["devDependencies"],
                   "automerge": true
                 }
               ]
@@ -147,12 +173,8 @@ def set_option(repo, key, value):
             set_option(repo, "schedule", ["before 6am on monday"])
         after renovate.json:
             {
-              "extends": [
-                "config:recommended"
-              ],
-              "schedule": [
-                "before 6am on monday"
-              ]
+              "extends": ["config:recommended"],
+              "schedule": ["before 6am on monday"]
             }
         returns:
             True

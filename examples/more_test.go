@@ -85,6 +85,12 @@ func TestCargoDependencyBump(t *testing.T) {
 	if strings.TrimSpace(readOr(log)) != "" {
 		t.Error("cargo ran without a Cargo.lock")
 	}
+	// A repo that doesn't depend on the crate: cargo update would fail.
+	path, log = stub(t, "cargo")
+	runScript(t, "cargo-dependency-bump", scratch(t, map[string]string{"Cargo.toml": "[dependencies]\nserde = \"1\"\n", "Cargo.lock": "# lock\n"}), path)
+	if strings.TrimSpace(readOr(log)) != "" {
+		t.Error("cargo ran although no dependency changed")
+	}
 }
 
 func TestPreCommitRev(t *testing.T) {

@@ -52,7 +52,7 @@ def set_rev(repo, url, rev, path = CONFIG):
     """Pins a hook repository to a new revision, keeping quotes and comments.
 
     The URL matches with or without a trailing `.git`. A config that does
-    not use the repository is left alone.
+    not use the repository is left alone, and so is a newer `rev`.
 
     Args:
         url: the hook repository URL.
@@ -90,7 +90,7 @@ def set_rev(repo, url, rev, path = CONFIG):
             continue
         g = re.groups(r"""^(\s*rev:\s*["']?)([^"'\s#]+)(.*)$""", line)
         if g and current != None and _same(current, url):
-            if g[1] != rev:
+            if g[1] != rev and not semver.lowers(g[1], rev):
                 lines[i] = g[0] + rev + g[2]
             current = None
     updated = "\n".join(lines)

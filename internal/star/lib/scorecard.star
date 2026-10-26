@@ -1,6 +1,7 @@
 """Set up OpenSSF Scorecard: add the workflow, move the action and add the README badge."""
 
 load("./gha.star", _bump_action = "bump_action", _workflows = "workflows")
+load("./markdown.star", _ensure_badge = "ensure_badge")
 
 _DEFAULT_VERSIONS = {
     "actions/checkout": "v7",
@@ -159,11 +160,11 @@ jobs:
     return True
 
 def add_badge(repo, path = "README.md"):
-    """Adds the OpenSSF Scorecard badge to the README, below its first heading.
+    """Adds the OpenSSF Scorecard badge to the README, next to its other badges.
 
-    The badge needs published results (`add_workflow(publish = True)`).
-    Badge lines that follow the heading, such as other badges, stay in
-    front of it.
+    The badge needs published results (`add_workflow(publish = True)`). It
+    goes where `markdown.ensure_badge` puts badges: after the badges the
+    README already shows, else under its title.
 
     Args:
         path: the README to edit.
@@ -196,25 +197,4 @@ def add_badge(repo, path = "README.md"):
     if "scorecard.dev/projects/" + project in content or "securityscorecards.dev/projects/" + project in content:
         return False
     badge = "[![OpenSSF Scorecard](https://api.scorecard.dev/projects/%s/badge)](https://scorecard.dev/viewer/?uri=%s)" % (project, project)
-    lines = content.split("\n")
-    head = -1
-    for i, line in enumerate(lines):
-        if line.startswith("# "):
-            head = i
-            break
-    if head < 0:
-        repo.write(path, badge + "\n\n" + content)
-        return True
-    last = -1
-    for j in range(head + 1, len(lines)):
-        if not lines[j].strip() and last < 0:
-            continue
-        if not re.matches(r"^\s*\[?!\[", lines[j]):
-            break
-        last = j
-    if last >= 0:
-        lines.insert(last + 1, badge)
-    else:
-        lines = lines[:head + 1] + ["", badge] + lines[head + 1:]
-    repo.write(path, "\n".join(lines))
-    return True
+    return _ensure_badge(repo, path, badge)

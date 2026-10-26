@@ -337,7 +337,7 @@ def set_in(text, key, value):
     """
     return _set_text(text, key, value, "text")
 
-def set_sibling(repo, path, match_key, match_value, key, value):
+def set_sibling(repo, path, match_key, match_value, key, value, never_lower = False):
     """Sets `key` in every mapping where `match_key` has the value `match_value`, list items included.
 
     This is the common "set the version next to the name" edit: the `tag`
@@ -352,6 +352,8 @@ def set_sibling(repo, path, match_key, match_value, key, value):
         match_value: the value `match_key` must have, compared unquoted.
         key: the sibling key to set.
         value: a string, number, boolean or None.
+        never_lower: leave an existing value alone when it is a higher
+            version than `value`.
     Returns:
         True when the file changed.
     Example:
@@ -396,7 +398,8 @@ def set_sibling(repo, path, match_key, match_value, key, value):
         if at >= 0:
             head, _, rest = lines[at].partition(":")
             v, comment = _split_comment(rest.strip())
-            lines[at] = head + ": " + _format(value, v.strip()) + comment
+            if not (never_lower and semver.lowers(_unquote(v.strip()), str(value))):
+                lines[at] = head + ": " + _format(value, v.strip()) + comment
         else:
             lines = lines[:end + 1] + [" " * col + key + ": " + _format(value)] + lines[end + 1:]
             end += 1

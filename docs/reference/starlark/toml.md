@@ -60,6 +60,8 @@ get(repo, "pyproject.toml", "tool.ruff", "line-length")
     target-version = "py39"
     ```
 
+**Used in:** [`ruff-config`](https://github.com/rossedman/gh-fleet/tree/main/examples/ruff-config)
+
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/toml.star#L123)
 
 ## set

@@ -134,6 +134,7 @@ action upgrades and SHA pinning, pre-commit hooks, Dependabot, CODEOWNERS,
 | `gh fleet init [name]` | Scaffold a campaign file with commented defaults |
 | `gh fleet targets` | Resolve and list the repos a campaign will touch, with the reason each matched |
 | `gh fleet plan` | Clone, run the change, and show per-repo diffs without pushing |
+| `gh fleet test` | Run the change against local test cases (or a local directory) and check the result, without GitHub |
 | `gh fleet apply` | Run the change, push branches, open or update PRs |
 | `gh fleet status` | Every target's PR link, state, checks, reviews and last error |
 | `gh fleet retry` | Re-run only repos that failed or have no PR |

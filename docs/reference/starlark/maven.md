@@ -126,6 +126,8 @@ set_dependency(repo, group, artifact, version)
 
 Sets the version of a dependency or plugin wherever a pom.xml declares one.
 
+A newer version already there is kept, so a campaign never lowers one.
+
 Covers `<dependency>` and `<plugin>` entries, including those under
 `<dependencyManagement>` and `<pluginManagement>`. When the version is
 a property reference such as `${jackson.version}`, the property is set

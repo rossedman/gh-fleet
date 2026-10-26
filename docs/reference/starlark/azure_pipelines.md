@@ -179,6 +179,8 @@ set_template_ref(repo, name, ref)
 
 Sets the `ref` of a template repository under `resources.repositories`.
 
+A newer version already there is kept, so a campaign never lowers one.
+
 The repository is matched by its `name` (the project/repo path), and a
 missing `ref` is added.
 

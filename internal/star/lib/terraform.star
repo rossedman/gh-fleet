@@ -30,6 +30,8 @@ def _lit(s):
 def set_required_version(repo, constraint):
     """Sets every `required_version` constraint.
 
+    A newer version already there is kept, so a campaign never lowers one.
+
     Args:
         constraint: the new constraint, such as `>= 1.9`.
     Returns:
@@ -48,11 +50,11 @@ def set_required_version(repo, constraint):
         returns:
             ["versions.tf"]
     """
-    pattern = r"""(?m)^(\s*required_version\s*=\s*")[^"]*(")"""
+    pattern = r"""(?m)^(\s*required_version\s*=\s*")([^"]*)(")"""
     changed = []
     for path in files(repo):
         content = repo.read(path)
-        updated = re.sub(pattern, "${1}" + _lit(constraint) + "${2}", content)
+        updated = re.sub(pattern, lambda m: m[0] if semver.lowers(m[2], constraint) else m[1] + constraint + m[3], content)
         if updated != content:
             repo.write(path, updated)
             changed.append(path)
@@ -60,6 +62,8 @@ def set_required_version(repo, constraint):
 
 def set_provider_version(repo, source, constraint):
     """Sets the version constraint of a provider in `required_providers`.
+
+    A newer version already there is kept, so a campaign never lowers one.
 
     Works on entries written as a block or on one line
     (`aws = { source = "hashicorp/aws", version = "~> 5.0" }`), and on
@@ -118,7 +122,7 @@ def set_provider_version(repo, source, constraint):
                         break
             for j in range(start, end + 1):
                 g = re.groups(version, lines[j])
-                if g and g[1] != constraint:
+                if g and g[1] != constraint and not semver.lowers(g[1], constraint):
                     lines[j] = re.sub(version, "${1}" + _lit(constraint) + "${3}", lines[j], count = 1)
         updated = "\n".join(lines)
         if updated != content:

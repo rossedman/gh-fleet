@@ -11,9 +11,9 @@ targets:
 
 change:
   steps:
-    # Sets [tool.ruff] line-length and [tool.ruff.lint] select in
-    # pyproject.toml, adding the tables if needed, without touching
-    # comments or the rest of the file.
+    # Adds the shared rules to [tool.ruff.lint] extend-select, and sets
+    # [tool.ruff] line-length where the project hasn't picked one, adding the
+    # tables if needed, without touching comments or the rest of the file.
     - name: pyproject.toml
       starlark: ./change.star
       timeout: 1m
@@ -21,8 +21,9 @@ change:
 pr:
   title: "chore: standard ruff settings"
   body: |
-    Applies the org's ruff settings to {{ .Repo.Name }}: 100-character
-    lines, and pyflakes, pycodestyle and import-sorting rules.
+    Applies the org's ruff settings to {{ .Repo.Name }}: pyflakes,
+    pycodestyle and import-sorting rules on top of the project's own, and
+    100-character lines unless it already sets a line length.
 
     Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
   labels: [fleet]

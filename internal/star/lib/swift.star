@@ -30,6 +30,8 @@ def manifests(repo):
 def set_package(repo, url, version):
     """Sets the version of a package dependency wherever a manifest declares it.
 
+    A newer version already there is kept, so a campaign never lowers one.
+
     Covers `from:`, `exact:`, `.upToNextMajor(from:)` and
     `.upToNextMinor(from:)` requirements; the kind of requirement stays.
     Packages pinned to a branch or revision are left alone. The URL matches
@@ -61,7 +63,7 @@ def set_package(repo, url, version):
     changed = []
     for path in manifests(repo):
         content = repo.read(path)
-        updated = re.sub(pattern, "${1}" + _lit(version) + "${3}", content)
+        updated = re.sub(pattern, lambda m: m[0] if semver.lowers(m[2], version) else m[1] + version + m[3], content)
         if updated != content:
             repo.write(path, updated)
             changed.append(path)

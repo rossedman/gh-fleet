@@ -68,7 +68,8 @@ def bump(repo, files, name, to, sep = "@", from_ref = None, exclude = []):
 
     References pinned to a full commit SHA are left alone unless
     `from_ref` names that SHA. With `from_ref`, only that exact ref is
-    replaced, so `v3` never matches `v3.5.0`.
+    replaced, so `v3` never matches `v3.5.0`. Without it, refs newer than
+    `to` are left alone too, so a bump never lowers a version.
 
     Args:
         files: glob patterns of the files to edit.
@@ -101,7 +102,7 @@ def bump(repo, files, name, to, sep = "@", from_ref = None, exclude = []):
             for m in re.find_all(pattern, line):
                 g = re.groups(pattern, m)
                 ref = g[2]
-                if ref == to or (from_ref != None and ref != from_ref) or (from_ref == None and _sha(ref)):
+                if ref == to or (from_ref != None and ref != from_ref) or (from_ref == None and (_sha(ref) or semver.lowers(ref, to))):
                     continue
                 line = line.replace(m, g[0] + g[1] + sep + to, 1)
             lines[i] = line

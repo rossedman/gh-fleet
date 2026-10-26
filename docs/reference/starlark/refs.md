@@ -78,7 +78,8 @@ Moves every reference to `name` to a new ref.
 
 References pinned to a full commit SHA are left alone unless
 `from_ref` names that SHA. With `from_ref`, only that exact ref is
-replaced, so `v3` never matches `v3.5.0`.
+replaced, so `v3` never matches `v3.5.0`. Without it, refs newer than
+`to` are left alone too, so a bump never lowers a version.
 
 **Arguments**
 
@@ -176,4 +177,4 @@ pin(repo, [".buildkite/*.yml"], "docker-compose", {"docker-compose#v4.14.0": "11
               run: app
     ```
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/refs.star#L114)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/refs.star#L115)

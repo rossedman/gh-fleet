@@ -73,6 +73,8 @@ set_package(repo, url, version)
 
 Sets the version of a package dependency wherever a manifest declares it.
 
+A newer version already there is kept, so a campaign never lowers one.
+
 Covers `from:`, `exact:`, `.upToNextMajor(from:)` and
 `.upToNextMinor(from:)` requirements; the kind of requirement stays.
 Packages pinned to a branch or revision are left alone. The URL matches
@@ -165,4 +167,4 @@ set_tools_version(repo, "5.10")
 
 **Used in:** [`swift-package-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/swift-package-bump)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/swift.star#L70)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/swift.star#L72)

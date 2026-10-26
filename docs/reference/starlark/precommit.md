@@ -70,7 +70,7 @@ set_rev(repo, url, rev, path = CONFIG)
 Pins a hook repository to a new revision, keeping quotes and comments.
 
 The URL matches with or without a trailing `.git`. A config that does
-not use the repository is left alone.
+not use the repository is left alone, and so is a newer `rev`.
 
 **Arguments**
 

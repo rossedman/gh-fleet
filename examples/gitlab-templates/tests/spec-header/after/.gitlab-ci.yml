@@ -1,0 +1,12 @@
+spec:
+  inputs:
+    release:
+      type: boolean
+      default: false
+---
+variables:
+  GO_VERSION: "1.23"
+test:
+  script: go test ./...
+default:
+  interruptible: true

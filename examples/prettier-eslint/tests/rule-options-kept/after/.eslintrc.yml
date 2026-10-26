@@ -1,0 +1,8 @@
+root: true
+env:
+  node: true
+rules:
+  eol-last: error
+  eqeqeq: [error, allow-null]
+  indent: [error, 2, { MemberExpression: "off", SwitchCase: 1 }]
+  no-console: error

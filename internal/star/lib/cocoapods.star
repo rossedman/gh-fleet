@@ -28,6 +28,8 @@ def podfiles(repo):
 def set_pod(repo, name, requirement):
     """Sets a pod's version requirement wherever a Podfile lists it with one.
 
+    A newer version already there is kept, so a campaign never lowers one.
+
     Pods without a version, or pinned to a `:git` source, are left alone.
     Subspecs match by their full name, such as `Firebase/Analytics`.
 
@@ -56,7 +58,7 @@ def set_pod(repo, name, requirement):
     changed = []
     for path in podfiles(repo):
         content = repo.read(path)
-        updated = re.sub(pattern, "${1}" + _lit(requirement) + "${4}", content)
+        updated = re.sub(pattern, lambda m: m[0] if semver.lowers(m[3], requirement) else m[1] + requirement + m[4], content)
         if updated != content:
             repo.write(path, updated)
             changed.append(path)

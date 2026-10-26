@@ -102,11 +102,17 @@ type FailedError struct {
 	N int
 	// Hint is appended to the message, e.g. where to look next.
 	Hint string
+	// Noun is what failed; defaults to repo.
+	Noun string
 }
 
 // Error describes the failure count.
 func (e *FailedError) Error() string {
-	msg := plural(e.N, "repo") + " failed"
+	noun := e.Noun
+	if noun == "" {
+		noun = "repo"
+	}
+	msg := plural(e.N, noun) + " failed"
 	if e.Hint != "" {
 		msg += "; " + e.Hint
 	}

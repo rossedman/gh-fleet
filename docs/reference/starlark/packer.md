@@ -65,6 +65,8 @@ set_plugin_version(repo, source, constraint)
 
 Sets the `version` of a plugin in `required_plugins`, matched by its `source`.
 
+A newer version already there is kept, so a campaign never lowers one.
+
 **Arguments**
 
 | Name | Description |

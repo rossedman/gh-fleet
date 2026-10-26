@@ -140,6 +140,8 @@ set_include_ref(repo, project, ref)
 
 Sets the `ref` of every `include` that pulls templates from another project.
 
+A newer version already there is kept, so a campaign never lowers one.
+
 **Arguments**
 
 | Name | Description |
@@ -218,7 +220,7 @@ components(repo)
       - component: $CI_SERVER_FQDN/acme/components/sast@~latest
     ```
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gitlab.star#L111)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gitlab.star#L113)
 
 ## bump_component
 
@@ -270,7 +272,7 @@ bump_component(repo, "gitlab.com/acme/components/go-build", "1.3.0")
 
 **Used in:** [`gitlab-templates`](https://github.com/rossedman/gh-fleet/tree/main/examples/gitlab-templates)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gitlab.star#L134)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gitlab.star#L136)
 
 ## set_default
 
@@ -281,7 +283,9 @@ set_default(repo, key, value)
 Sets a key under `default:` in .gitlab-ci.yml, adding `default:` if needed.
 
 Use it for settings every job should inherit, such as `interruptible`,
-`timeout` or `retry`.
+`timeout` or `retry`. In a config that starts with a `spec:` header
+for its inputs, the key goes in the pipeline after the `---`, not the
+header.
 
 **Arguments**
 
@@ -327,4 +331,4 @@ set_default(repo, "interruptible", True)
 
 **Used in:** [`gitlab-templates`](https://github.com/rossedman/gh-fleet/tree/main/examples/gitlab-templates)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gitlab.star#L163)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gitlab.star#L165)
