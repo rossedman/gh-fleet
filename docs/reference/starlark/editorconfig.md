@@ -116,6 +116,6 @@ set(repo, "Makefile", "indent_style", "tab")
     indent_style = tab
     ```
 
-**Used in:** [`editor-defaults`](https://github.com/rossedman/gh-fleet/tree/main/examples/editor-defaults)
+**Used in:** [`editor-defaults`](../examples/editor-defaults.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/editorconfig.star#L55)

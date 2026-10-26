@@ -148,6 +148,6 @@ set_var(repo, "GO_VERSION", "1.27.3")
     export GOFLAGS = -mod=mod
     ```
 
-**Used in:** [`make-go-version`](https://github.com/rossedman/gh-fleet/tree/main/examples/make-go-version)
+**Used in:** [`make-go-version`](../examples/make-go-version.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/make.star#L53)

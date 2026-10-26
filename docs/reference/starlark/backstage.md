@@ -112,7 +112,7 @@ doesn't set is None.
       owner: payments
     ```
 
-**Used in:** [`backstage-team-rename`](https://github.com/rossedman/gh-fleet/tree/main/examples/backstage-team-rename)
+**Used in:** [`backstage-team-rename`](../examples/backstage-team-rename.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/backstage.star#L87)
 
@@ -179,7 +179,7 @@ set_owner(repo, "group:billing", from_owner = "payments")
       owner: discovery
     ```
 
-**Used in:** [`backstage-team-rename`](https://github.com/rossedman/gh-fleet/tree/main/examples/backstage-team-rename)
+**Used in:** [`backstage-team-rename`](../examples/backstage-team-rename.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/backstage.star#L139)
 
@@ -321,7 +321,7 @@ set_annotation(repo, "backstage.io/techdocs-ref", "dir:.")
         backstage.io/techdocs-ref: dir:.
     ```
 
-**Used in:** [`backstage-onboarding`](https://github.com/rossedman/gh-fleet/tree/main/examples/backstage-onboarding)
+**Used in:** [`backstage-onboarding`](../examples/backstage-onboarding.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/backstage.star#L246)
 
@@ -395,7 +395,7 @@ add_tag(repo, "pci")
       tags: [pci]
     ```
 
-**Used in:** [`backstage-onboarding`](https://github.com/rossedman/gh-fleet/tree/main/examples/backstage-onboarding)
+**Used in:** [`backstage-onboarding`](../examples/backstage-onboarding.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/backstage.star#L314)
 
@@ -461,6 +461,6 @@ ensure(repo, "group:payments", system = "billing", description = "Billing API.")
       system: billing
     ```
 
-**Used in:** [`backstage-onboarding`](https://github.com/rossedman/gh-fleet/tree/main/examples/backstage-onboarding)
+**Used in:** [`backstage-onboarding`](../examples/backstage-onboarding.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/backstage.star#L366)

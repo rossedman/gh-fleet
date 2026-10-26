@@ -72,7 +72,7 @@ ensure_lines(repo, ".gitignore", [".env", ".env.local"], header = "# Local")
     .env.local
     ```
 
-**Used in:** [`gitignore-entries`](https://github.com/rossedman/gh-fleet/tree/main/examples/gitignore-entries)
+**Used in:** [`gitignore-entries`](../examples/gitignore-entries.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/files.star#L17)
 
@@ -182,7 +182,7 @@ replace_all(repo, "https://docs.acme.io", "https://docs.acme.dev")
     const docs = "https://docs.acme.dev";
     ```
 
-**Used in:** [`find-replace`](https://github.com/rossedman/gh-fleet/tree/main/examples/find-replace)
+**Used in:** [`find-replace`](../examples/find-replace.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/files.star#L98)
 
@@ -223,7 +223,7 @@ write_if_missing(repo, ".github/CODEOWNERS", "* @acme/web\n", also = ["CODEOWNER
     * @acme/web
     ```
 
-**Used in:** [`security-policy`](https://github.com/rossedman/gh-fleet/tree/main/examples/security-policy)
+**Used in:** [`security-policy`](../examples/security-policy.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/files.star#L136)
 
@@ -292,6 +292,6 @@ sync(repo, "files")
     ## What and why
     ```
 
-**Used in:** [`sync-files`](https://github.com/rossedman/gh-fleet/tree/main/examples/sync-files)
+**Used in:** [`sync-files`](../examples/sync-files.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/files.star#L161)

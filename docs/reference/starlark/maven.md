@@ -202,6 +202,6 @@ set_dependency(repo, "org.slf4j", "slf4j-api", "2.0.16")
     </project>
     ```
 
-**Used in:** [`jvm-dependency-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/jvm-dependency-bump)
+**Used in:** [`jvm-dependency-bump`](../examples/jvm-dependency-bump.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/maven.star#L86)

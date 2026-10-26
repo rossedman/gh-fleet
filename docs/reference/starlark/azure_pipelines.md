@@ -113,7 +113,7 @@ set_vm_image(repo, "ubuntu-24.04", from_image = "ubuntu-20.04")
           vmImage: windows-2022
     ```
 
-**Used in:** [`azure-ubuntu-24`](https://github.com/rossedman/gh-fleet/tree/main/examples/azure-ubuntu-24)
+**Used in:** [`azure-ubuntu-24`](../examples/azure-ubuntu-24.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/azure_pipelines.star#L29)
 
@@ -167,7 +167,7 @@ bump_task(repo, "Docker", "2")
       - task: DockerCompose@0
     ```
 
-**Used in:** [`azure-ubuntu-24`](https://github.com/rossedman/gh-fleet/tree/main/examples/azure-ubuntu-24)
+**Used in:** [`azure-ubuntu-24`](../examples/azure-ubuntu-24.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/azure_pipelines.star#L75)
 

@@ -72,7 +72,7 @@ set_plugin_version(repo, "buf.build/protocolbuffers/go", "v1.35.1")
         out: gen/go
     ```
 
-**Used in:** [`buf-plugins`](https://github.com/rossedman/gh-fleet/tree/main/examples/buf-plugins)
+**Used in:** [`buf-plugins`](../examples/buf-plugins.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/buf.star#L14)
 

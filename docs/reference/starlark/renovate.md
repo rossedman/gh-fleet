@@ -191,7 +191,7 @@ replace_preset(repo, "config:base", "config:recommended")
     }
     ```
 
-**Used in:** [`renovate-automerge`](https://github.com/rossedman/gh-fleet/tree/main/examples/renovate-automerge)
+**Used in:** [`renovate-automerge`](../examples/renovate-automerge.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/renovate.star#L85)
 
@@ -245,7 +245,7 @@ add_package_rule(repo, {"matchDepTypes": ["devDependencies"], "automerge": True}
     }
     ```
 
-**Used in:** [`renovate-automerge`](https://github.com/rossedman/gh-fleet/tree/main/examples/renovate-automerge)
+**Used in:** [`renovate-automerge`](../examples/renovate-automerge.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/renovate.star#L122)
 

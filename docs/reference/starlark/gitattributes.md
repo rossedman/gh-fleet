@@ -65,7 +65,7 @@ set(repo, "*.png", "binary")
     *.png binary
     ```
 
-**Used in:** [`editor-defaults`](https://github.com/rossedman/gh-fleet/tree/main/examples/editor-defaults)
+**Used in:** [`editor-defaults`](../examples/editor-defaults.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gitattributes.star#L8)
 

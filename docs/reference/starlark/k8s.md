@@ -103,7 +103,7 @@ file and document order.
       name: api
     ```
 
-**Used in:** [`k8s-api-migration`](https://github.com/rossedman/gh-fleet/tree/main/examples/k8s-api-migration)
+**Used in:** [`k8s-api-migration`](../examples/k8s-api-migration.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/k8s.star#L92)
 
@@ -167,7 +167,7 @@ migrate_api_versions(repo)
       name: api
     ```
 
-**Used in:** [`k8s-api-migration`](https://github.com/rossedman/gh-fleet/tree/main/examples/k8s-api-migration)
+**Used in:** [`k8s-api-migration`](../examples/k8s-api-migration.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/k8s.star#L124)
 
@@ -238,6 +238,6 @@ set_label(repo, "team", "payments")
             team: payments
     ```
 
-**Used in:** [`k8s-labels`](https://github.com/rossedman/gh-fleet/tree/main/examples/k8s-labels)
+**Used in:** [`k8s-labels`](../examples/k8s-labels.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/k8s.star#L177)

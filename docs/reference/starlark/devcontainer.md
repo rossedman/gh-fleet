@@ -61,7 +61,7 @@ files(repo)
     {}
     ```
 
-**Used in:** [`devcontainer-image`](https://github.com/rossedman/gh-fleet/tree/main/examples/devcontainer-image)
+**Used in:** [`devcontainer-image`](../examples/devcontainer-image.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/devcontainer.star#L12)
 
@@ -156,7 +156,7 @@ bump_image(repo, "mcr.microsoft.com/devcontainers/go", "1.22", "1.23")
     }
     ```
 
-**Used in:** [`devcontainer-image`](https://github.com/rossedman/gh-fleet/tree/main/examples/devcontainer-image)
+**Used in:** [`devcontainer-image`](../examples/devcontainer-image.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/devcontainer.star#L91)
 
@@ -313,7 +313,7 @@ add_feature(repo, "ghcr.io/devcontainers/features/github-cli:1")
     }
     ```
 
-**Used in:** [`devcontainer-image`](https://github.com/rossedman/gh-fleet/tree/main/examples/devcontainer-image)
+**Used in:** [`devcontainer-image`](../examples/devcontainer-image.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/devcontainer.star#L200)
 

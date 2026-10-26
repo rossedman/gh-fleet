@@ -160,7 +160,7 @@ set_go_version(repo, "1.27.3")
     go 1.27.3
     ```
 
-**Used in:** [`bump-go-version`](https://github.com/rossedman/gh-fleet/tree/main/examples/bump-go-version), [`make-go-version`](https://github.com/rossedman/gh-fleet/tree/main/examples/make-go-version)
+**Used in:** [`bump-go-version`](../examples/bump-go-version.md), [`make-go-version`](../examples/make-go-version.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gomod.star#L44)
 
@@ -249,7 +249,7 @@ outdated(repo, "golang.org/x/net", "v0.33.0")
     require golang.org/x/net v0.40.0
     ```
 
-**Used in:** [`go-module-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/go-module-bump)
+**Used in:** [`go-module-bump`](../examples/go-module-bump.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gomod.star#L133)
 

@@ -99,7 +99,7 @@ ecosystems(repo)
     on: push
     ```
 
-**Used in:** [`dependabot-ecosystems`](https://github.com/rossedman/gh-fleet/tree/main/examples/dependabot-ecosystems)
+**Used in:** [`dependabot-ecosystems`](../examples/dependabot-ecosystems.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/dependabot.star#L36)
 
@@ -197,7 +197,7 @@ write_if_missing(repo, group = False)
           prefix: "build(deps)"
     ```
 
-**Used in:** [`add-dependabot`](https://github.com/rossedman/gh-fleet/tree/main/examples/add-dependabot)
+**Used in:** [`add-dependabot`](../examples/add-dependabot.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/dependabot.star#L95)
 
@@ -267,7 +267,7 @@ add_update(repo, "docker")
           prefix: "build(deps)"
     ```
 
-**Used in:** [`dependabot-ecosystems`](https://github.com/rossedman/gh-fleet/tree/main/examples/dependabot-ecosystems)
+**Used in:** [`dependabot-ecosystems`](../examples/dependabot-ecosystems.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/dependabot.star#L153)
 
@@ -336,6 +336,6 @@ set_option(repo, "open-pull-requests-limit", 5, ecosystem = "npm")
           interval: weekly
     ```
 
-**Used in:** [`dependabot-ecosystems`](https://github.com/rossedman/gh-fleet/tree/main/examples/dependabot-ecosystems)
+**Used in:** [`dependabot-ecosystems`](../examples/dependabot-ecosystems.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/dependabot.star#L222)

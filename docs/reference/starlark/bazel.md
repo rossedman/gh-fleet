@@ -97,7 +97,7 @@ set_version(repo, "7.4.1")
     7.4.1
     ```
 
-**Used in:** [`bazel-module-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/bazel-module-bump)
+**Used in:** [`bazel-module-bump`](../examples/bazel-module-bump.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/bazel.star#L28)
 
@@ -159,7 +159,7 @@ set_dep(repo, "rules_go", "0.50.1")
     )
     ```
 
-**Used in:** [`bazel-module-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/bazel-module-bump)
+**Used in:** [`bazel-module-bump`](../examples/bazel-module-bump.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/bazel.star#L56)
 

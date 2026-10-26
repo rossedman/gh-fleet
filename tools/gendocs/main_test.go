@@ -16,7 +16,7 @@ func TestRunWritesEveryPage(t *testing.T) {
 	if err := run(dir, "", "../../examples"); err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"campaign.md", "starlark-library.md", "starlark/files.md", "starlark/gha.md", "commands/gh_fleet.md", "commands/gh_fleet_apply.md", "commands/gh_fleet_exec.md"} {
+	for _, name := range []string{"campaign.md", "starlark-library.md", "starlark/files.md", "starlark/gha.md", "commands/gh_fleet.md", "commands/gh_fleet_apply.md", "commands/gh_fleet_exec.md", "examples/pin-actions.md"} {
 		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
 			t.Errorf("%s not written", name)
 		}
@@ -97,7 +97,7 @@ func TestLibPages(t *testing.T) {
 		"# returns [\".env.local\"]",
 		"=== \"Before\"\n\n    `.gitignore`\n\n    ```text\n    node_modules\n",
 		"`files/.editorconfig` next to the campaign file",
-		"**Used in:** [`gitignore-entries`](https://github.com/rossedman/gh-fleet/tree/main/examples/gitignore-entries)",
+		"**Used in:** [`gitignore-entries`](../examples/gitignore-entries.md)",
 		"[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/files.star#L",
 	} {
 		if !strings.Contains(page, want) {
@@ -118,14 +118,14 @@ func TestLibPages(t *testing.T) {
 
 func TestUpdateNav(t *testing.T) {
 	t.Parallel()
-	docs := []star.LibDoc{{Name: "a.star"}, {Name: "b.star"}}
+	entries := []string{"Overview: reference/starlark-library.md", "a.star: reference/starlark/a.md", "b.star: reference/starlark/b.md"}
 	p := filepath.Join(t.TempDir(), "mkdocs.yml")
 	in := "nav:\n  - Lib:\n      " + navBegin + "\n      - old: x.md\n      " + navEnd + "\n  - Next: n.md\n"
 	if err := os.WriteFile(p, []byte(in), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	for range 2 {
-		if err := updateNav(p, docs); err != nil {
+		if err := updateNavBlock(p, navBegin, navEnd, entries); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -136,15 +136,18 @@ func TestUpdateNav(t *testing.T) {
 	if err := os.WriteFile(p, []byte("nav: []\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := updateNav(p, docs); err == nil || !strings.Contains(err.Error(), "block") {
+	if err := updateNavBlock(p, navBegin, navEnd, entries); err == nil || !strings.Contains(err.Error(), "block") {
 		t.Errorf("missing markers: %v", err)
 	}
-	if err := updateNav(filepath.Join(t.TempDir(), "none.yml"), docs); err == nil {
+	if err := updateNavBlock(filepath.Join(t.TempDir(), "none.yml"), navBegin, navEnd, entries); err == nil {
 		t.Error("missing file accepted")
 	}
 	dir := t.TempDir()
-	if err := writeLib(dir, filepath.Join(dir, "none.yml"), ""); err == nil {
+	if err := writeLib(dir, filepath.Join(dir, "none.yml"), nil); err == nil {
 		t.Error("writeLib ignored a missing mkdocs.yml")
+	}
+	if err := writeExamples(dir, filepath.Join(dir, "none.yml"), "../../examples", nil); err == nil {
+		t.Error("writeExamples ignored a missing mkdocs.yml")
 	}
 }
 

@@ -68,7 +68,7 @@ workflows(repo)
     not a workflow
     ```
 
-**Used in:** [`runner-label`](https://github.com/rossedman/gh-fleet/tree/main/examples/runner-label)
+**Used in:** [`runner-label`](../examples/runner-label.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gha.star#L11)
 
@@ -173,7 +173,7 @@ bump_action(repo, "actions/checkout", "v4", from_ref = "v3")
           - uses: actions/setup-go@v5
     ```
 
-**Used in:** [`upgrade-action`](https://github.com/rossedman/gh-fleet/tree/main/examples/upgrade-action)
+**Used in:** [`upgrade-action`](../examples/upgrade-action.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gha.star#L53)
 
@@ -235,7 +235,7 @@ set_input(repo, "go-version", "1.27", match = r"^\d")
           go-version: stable
     ```
 
-**Used in:** [`bump-go-version`](https://github.com/rossedman/gh-fleet/tree/main/examples/bump-go-version), [`node-version`](https://github.com/rossedman/gh-fleet/tree/main/examples/node-version), [`python-version`](https://github.com/rossedman/gh-fleet/tree/main/examples/python-version)
+**Used in:** [`bump-go-version`](../examples/bump-go-version.md), [`node-version`](../examples/node-version.md), [`python-version`](../examples/python-version.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gha.star#L105)
 
@@ -294,7 +294,7 @@ ensure_permissions(repo, {"contents": "read"})
         runs-on: ubuntu-latest
     ```
 
-**Used in:** [`workflow-permissions`](https://github.com/rossedman/gh-fleet/tree/main/examples/workflow-permissions)
+**Used in:** [`workflow-permissions`](../examples/workflow-permissions.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gha.star#L159)
 
@@ -339,7 +339,7 @@ unpinned(repo)
       - uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b # v5
     ```
 
-**Used in:** [`pin-actions`](https://github.com/rossedman/gh-fleet/tree/main/examples/pin-actions)
+**Used in:** [`pin-actions`](../examples/pin-actions.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gha.star#L209)
 
@@ -389,7 +389,7 @@ pin(repo, {"actions/checkout@v4": "08eba0b27e820071cde6df949e0beb9ba4906955"})
       - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
     ```
 
-**Used in:** [`pin-actions`](https://github.com/rossedman/gh-fleet/tree/main/examples/pin-actions)
+**Used in:** [`pin-actions`](../examples/pin-actions.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gha.star#L240)
 
@@ -457,6 +457,6 @@ rename_branch(repo, "master", "main")
         if: github.ref == 'refs/heads/main'
     ```
 
-**Used in:** [`branch-rename`](https://github.com/rossedman/gh-fleet/tree/main/examples/branch-rename)
+**Used in:** [`branch-rename`](../examples/branch-rename.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gha.star#L294)

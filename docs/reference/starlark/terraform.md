@@ -111,7 +111,7 @@ set_required_version(repo, ">= 1.9")
     }
     ```
 
-**Used in:** [`terraform-provider-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/terraform-provider-bump)
+**Used in:** [`terraform-provider-bump`](../examples/terraform-provider-bump.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/terraform.star#L30)
 
@@ -177,6 +177,6 @@ set_provider_version(repo, "hashicorp/aws", "~> 5.0")
     }
     ```
 
-**Used in:** [`terraform-provider-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/terraform-provider-bump)
+**Used in:** [`terraform-provider-bump`](../examples/terraform-provider-bump.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/terraform.star#L63)

@@ -115,6 +115,6 @@ set_version(repo, "node", "22")
     python 3.12.1
     ```
 
-**Used in:** [`elixir-phoenix`](https://github.com/rossedman/gh-fleet/tree/main/examples/elixir-phoenix), [`node-version`](https://github.com/rossedman/gh-fleet/tree/main/examples/node-version), [`python-version`](https://github.com/rossedman/gh-fleet/tree/main/examples/python-version)
+**Used in:** [`elixir-phoenix`](../examples/elixir-phoenix.md), [`node-version`](../examples/node-version.md), [`python-version`](../examples/python-version.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/runtime.star#L55)

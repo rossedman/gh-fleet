@@ -58,7 +58,7 @@ charts(repo)
     name: worker
     ```
 
-**Used in:** [`helm-image-tag`](https://github.com/rossedman/gh-fleet/tree/main/examples/helm-image-tag)
+**Used in:** [`helm-image-tag`](../examples/helm-image-tag.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/helm.star#L20)
 
@@ -111,7 +111,7 @@ set_chart_version(repo, "charts/api", "1.5.0")
     appVersion: "2.3.1"
     ```
 
-**Used in:** [`helm-image-tag`](https://github.com/rossedman/gh-fleet/tree/main/examples/helm-image-tag)
+**Used in:** [`helm-image-tag`](../examples/helm-image-tag.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/helm.star#L37)
 
@@ -160,7 +160,7 @@ set_app_version(repo, "charts/api", "2.4.0")
     appVersion: "2.4.0"
     ```
 
-**Used in:** [`helm-image-tag`](https://github.com/rossedman/gh-fleet/tree/main/examples/helm-image-tag)
+**Used in:** [`helm-image-tag`](../examples/helm-image-tag.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/helm.star#L65)
 
@@ -287,6 +287,6 @@ set_image_tag(repo, "ghcr.io/acme/api", "2.4.0")
         tag: v1.29.0
     ```
 
-**Used in:** [`helm-image-tag`](https://github.com/rossedman/gh-fleet/tree/main/examples/helm-image-tag)
+**Used in:** [`helm-image-tag`](../examples/helm-image-tag.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/helm.star#L169)

@@ -44,37 +44,33 @@ gh fleet init node-22 --from node-version --org acme
 gh fleet test        # the copied test cases pass before you change anything
 ```
 
-Open it and edit the targets and the change. The examples in this guide use the [`pin-actions` example](examples.md), which pins every `uses:` in `.github/workflows` to a commit SHA:
+Open it and edit the targets and the change. The examples in this guide use the [`pin-actions` example](reference/examples/pin-actions.md), which pins every `uses:` in `.github/workflows` to a commit SHA:
 
-```yaml title="fleet.yaml"
-apiVersion: fleet.gh/v1
-name: pin-actions
-description: Pin every third-party GitHub Action to a full commit SHA
+=== "fleet.yaml"
 
-targets:
-  orgs: [acme]
-  include:
-    files: [.github/workflows]
+    ```yaml
+    --8<-- "examples/pin-actions/fleet.yaml"
+    ```
 
-change:
-  steps:
-    - name: find refs
-      starlark: ./change.star    # load("@fleet//gha.star", "unpinned")
-    - name: resolve              # shell only where a tool is needed
-      run: |
-        set -e
-        shas=""
-        for ref in ${FLEET_VAR_REFS//,/ }; do
-          shas="$shas $ref=$(gh api "repos/${ref%@*}/commits/${ref#*@}" --jq .sha)"
-        done
-        echo "shas=$shas" >> "$FLEET_OUTPUT/vars"
-    - name: pin
-      starlark: ./pin.star       # load("@fleet//gha.star", "pin")
+=== "change.star"
 
-pr:
-  title: "ci: pin GitHub Actions to commit SHAs"
-  labels: [fleet, security]
-```
+    ```python
+    --8<-- "examples/pin-actions/change.star"
+    ```
+
+=== "pin.star"
+
+    ```python
+    --8<-- "examples/pin-actions/pin.star"
+    ```
+
+=== "pr-body.md"
+
+    ```markdown
+    --8<-- "examples/pin-actions/pr-body.md"
+    ```
+
+The work is done in Starlark. `change.star` finds every action used at a tag or branch with [`gha.unpinned`](reference/starlark/gha.md#unpinned) and hands the list to the next step. The `resolve` step is the one place a real tool is needed: it asks GitHub for each tag's commit with `gh api`. `pin.star` then rewrites each `uses:` with [`gha.pin`](reference/starlark/gha.md#pin). Every Starlark step runs sandboxed in the clone, with no shell and no network; see [Starlark changes](guides/starlark.md).
 
 The [configuration page](configuration.md) walks through every section.
 

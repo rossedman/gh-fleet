@@ -180,7 +180,7 @@ add_workflow(repo, branch = "main", publish = False)
               sarif_file: results.sarif
     ```
 
-**Used in:** [`scorecard-rollout`](https://github.com/rossedman/gh-fleet/tree/main/examples/scorecard-rollout)
+**Used in:** [`scorecard-rollout`](../examples/scorecard-rollout.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/scorecard.star#L57)
 
@@ -238,6 +238,6 @@ add_badge(repo)
     The API service.
     ```
 
-**Used in:** [`scorecard-rollout`](https://github.com/rossedman/gh-fleet/tree/main/examples/scorecard-rollout)
+**Used in:** [`scorecard-rollout`](../examples/scorecard-rollout.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/scorecard.star#L162)

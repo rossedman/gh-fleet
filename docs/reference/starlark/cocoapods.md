@@ -111,7 +111,7 @@ set_pod(repo, "Alamofire", "~> 5.9")
     end
     ```
 
-**Used in:** [`cocoapods-ios-15`](https://github.com/rossedman/gh-fleet/tree/main/examples/cocoapods-ios-15)
+**Used in:** [`cocoapods-ios-15`](../examples/cocoapods-ios-15.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/cocoapods.star#L28)
 
@@ -158,6 +158,6 @@ set_platform(repo, "ios", "15.0")
     use_frameworks!
     ```
 
-**Used in:** [`cocoapods-ios-15`](https://github.com/rossedman/gh-fleet/tree/main/examples/cocoapods-ios-15)
+**Used in:** [`cocoapods-ios-15`](../examples/cocoapods-ios-15.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/cocoapods.star#L67)

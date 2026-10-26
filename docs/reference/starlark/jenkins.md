@@ -156,7 +156,7 @@ bump_library(repo, "ci-lib", "v3.0.0")
     }
     ```
 
-**Used in:** [`jenkins-shared-library`](https://github.com/rossedman/gh-fleet/tree/main/examples/jenkins-shared-library)
+**Used in:** [`jenkins-shared-library`](../examples/jenkins-shared-library.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/jenkins.star#L70)
 
@@ -227,7 +227,7 @@ bump_image(repo, "node", "18", "22")
     }
     ```
 
-**Used in:** [`jenkins-agent-image`](https://github.com/rossedman/gh-fleet/tree/main/examples/jenkins-agent-image)
+**Used in:** [`jenkins-agent-image`](../examples/jenkins-agent-image.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/jenkins.star#L100)
 
@@ -287,6 +287,6 @@ set_tool(repo, "jdk", "jdk21")
     }
     ```
 
-**Used in:** [`jenkins-agent-image`](https://github.com/rossedman/gh-fleet/tree/main/examples/jenkins-agent-image)
+**Used in:** [`jenkins-agent-image`](../examples/jenkins-agent-image.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/jenkins.star#L155)

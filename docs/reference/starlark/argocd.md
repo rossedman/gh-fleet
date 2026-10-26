@@ -118,6 +118,6 @@ set_target_revision(repo, "https://github.com/acme/deploy.git", "v1.5.0")
         targetRevision: v1.5.0
     ```
 
-**Used in:** [`argocd-revision`](https://github.com/rossedman/gh-fleet/tree/main/examples/argocd-revision)
+**Used in:** [`argocd-revision`](../examples/argocd-revision.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/argocd.star#L33)

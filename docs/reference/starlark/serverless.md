@@ -118,6 +118,6 @@ set_runtime(repo, "nodejs20.x", from_runtime = "nodejs16.x")
         runtime: python3.12
     ```
 
-**Used in:** [`serverless-runtime`](https://github.com/rossedman/gh-fleet/tree/main/examples/serverless-runtime)
+**Used in:** [`serverless-runtime`](../examples/serverless-runtime.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/serverless.star#L28)

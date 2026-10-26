@@ -139,6 +139,6 @@ set_option(repo, "trailingComma", "all")
     }
     ```
 
-**Used in:** [`prettier-eslint`](https://github.com/rossedman/gh-fleet/tree/main/examples/prettier-eslint)
+**Used in:** [`prettier-eslint`](../examples/prettier-eslint.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/prettier.star#L69)

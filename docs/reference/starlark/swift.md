@@ -119,7 +119,7 @@ set_package(repo, "https://github.com/apple/swift-log", "1.6.1")
     ]
     ```
 
-**Used in:** [`swift-package-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/swift-package-bump)
+**Used in:** [`swift-package-bump`](../examples/swift-package-bump.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/swift.star#L30)
 
@@ -165,6 +165,6 @@ set_tools_version(repo, "5.10")
     import PackageDescription
     ```
 
-**Used in:** [`swift-package-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/swift-package-bump)
+**Used in:** [`swift-package-bump`](../examples/swift-package-bump.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/swift.star#L72)

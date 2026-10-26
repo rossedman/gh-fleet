@@ -91,7 +91,7 @@ config_version(repo)
       default: standard
     ```
 
-**Used in:** [`golangci-v2`](https://github.com/rossedman/gh-fleet/tree/main/examples/golangci-v2)
+**Used in:** [`golangci-v2`](../examples/golangci-v2.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/golangci.star#L32)
 
@@ -147,7 +147,7 @@ enable_linter(repo, "gosec")
         - gosec
     ```
 
-**Used in:** [`golangci-v2`](https://github.com/rossedman/gh-fleet/tree/main/examples/golangci-v2)
+**Used in:** [`golangci-v2`](../examples/golangci-v2.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/golangci.star#L128)
 

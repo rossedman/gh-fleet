@@ -125,7 +125,7 @@ set_dependency(repo, "serde", "1.0.210")
     serde = "1.0.210"
     ```
 
-**Used in:** [`cargo-dependency-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/cargo-dependency-bump)
+**Used in:** [`cargo-dependency-bump`](../examples/cargo-dependency-bump.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/cargo.star#L30)
 

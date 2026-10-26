@@ -16,9 +16,8 @@ import (
 
 // Links the library pages point at.
 const (
-	repoURL    = "https://github.com/rossedman/gh-fleet"
-	sourceURL  = repoURL + "/blob/main/internal/star/lib/"
-	exampleURL = repoURL + "/tree/main/examples/"
+	repoURL   = "https://github.com/rossedman/gh-fleet"
+	sourceURL = repoURL + "/blob/main/internal/star/lib/"
 )
 
 // Markers around the generated Starlark library entries in mkdocs.yml.
@@ -45,13 +44,10 @@ func libDocs() ([]star.LibDoc, error) {
 }
 
 // writeLib writes the library index to out/starlark-library.md, a page per
-// module under out/starlark/, and the matching nav entries into nav.
-func writeLib(out, nav, examples string) error {
+// module under out/starlark/, and the matching nav entries into nav. used
+// maps "module.star/function" to the examples that call it.
+func writeLib(out, nav string, used map[string][]string) error {
 	docs, err := libDocs()
-	if err != nil {
-		return err
-	}
-	used, err := usedIn(examples)
 	if err != nil {
 		return err
 	}
@@ -74,7 +70,11 @@ func writeLib(out, nav, examples string) error {
 	if nav == "" {
 		return nil
 	}
-	return updateNav(nav, docs)
+	entries := []string{"Overview: reference/starlark-library.md"}
+	for _, d := range docs {
+		entries = append(entries, fmt.Sprintf("%s: reference/starlark/%s.md", d.Name, module(d)))
+	}
+	return updateNavBlock(nav, navBegin, navEnd, entries)
 }
 
 // module is a module's name without .star.
@@ -171,7 +171,7 @@ func writeFunc(b *bytes.Buffer, d star.LibDoc, f star.LibFunc, used []string) {
 	if len(used) > 0 {
 		links := make([]string, len(used))
 		for i, u := range used {
-			links[i] = fmt.Sprintf("[`%s`](%s%s)", u, exampleURL, u)
+			links[i] = fmt.Sprintf("[`%s`](../examples/%s.md)", u, u)
 		}
 		fmt.Fprintf(b, "**Used in:** %s\n\n", strings.Join(links, ", "))
 	}
@@ -254,6 +254,12 @@ func lang(p string) string {
 		return "hcl"
 	case ".md":
 		return "markdown"
+	case ".star":
+		return "python"
+	case ".sh":
+		return "bash"
+	case ".csv":
+		return "text"
 	case ".ts":
 		return "typescript"
 	}
@@ -349,9 +355,9 @@ func contains(list []string, s string) bool {
 	return false
 }
 
-// updateNav rewrites the lines between the gendocs markers in mkdocs.yml
-// with an entry per library page, indented like the begin marker.
-func updateNav(nav string, docs []star.LibDoc) error {
+// updateNavBlock rewrites the lines between the begin and end markers in
+// mkdocs.yml with one "- entry" line each, indented like the begin marker.
+func updateNavBlock(nav, navBegin, navEnd string, entries []string) error {
 	b, err := os.ReadFile(nav)
 	if err != nil {
 		return err
@@ -370,11 +376,11 @@ func updateNav(nav string, docs []star.LibDoc) error {
 		return fmt.Errorf("%s: no %q ... %q block", nav, navBegin, navEnd)
 	}
 	indent := lines[begin][:len(lines[begin])-len(strings.TrimLeft(lines[begin], " "))]
-	entries := []string{indent + "- Overview: reference/starlark-library.md"}
-	for _, d := range docs {
-		entries = append(entries, fmt.Sprintf("%s- %s: reference/starlark/%s.md", indent, d.Name, module(d)))
+	block := make([]string, len(entries))
+	for i, e := range entries {
+		block[i] = indent + "- " + e
 	}
-	out := append(append(append([]string{}, lines[:begin+1]...), entries...), lines[end:]...)
+	out := append(append(append([]string{}, lines[:begin+1]...), block...), lines[end:]...)
 	updated := strings.Join(out, "\n")
 	if updated == string(b) {
 		return nil

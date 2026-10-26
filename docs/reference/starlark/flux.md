@@ -121,7 +121,7 @@ set_chart_version(repo, "redis", "19.x")
             name: bitnami
     ```
 
-**Used in:** [`flux-chart-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/flux-chart-bump)
+**Used in:** [`flux-chart-bump`](../examples/flux-chart-bump.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/flux.star#L36)
 

@@ -123,7 +123,7 @@ set_section(repo, "README.md", "Security", "Report issues to security@acme.dev."
     Report issues to security@acme.dev.
     ```
 
-**Used in:** [`readme-section`](https://github.com/rossedman/gh-fleet/tree/main/examples/readme-section)
+**Used in:** [`readme-section`](../examples/readme-section.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/markdown.star#L53)
 
@@ -180,6 +180,6 @@ ensure_badge(repo, "README.md", "[![CI](https://github.com/acme/api/actions/work
     Intro.
     ```
 
-**Used in:** [`readme-section`](https://github.com/rossedman/gh-fleet/tree/main/examples/readme-section)
+**Used in:** [`readme-section`](../examples/readme-section.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/markdown.star#L112)

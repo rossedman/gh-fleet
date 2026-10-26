@@ -207,6 +207,6 @@ prune_expired(repo, "2026-01-15")
     CVE-2023-9999
     ```
 
-**Used in:** [`trivy-ignore-prune`](https://github.com/rossedman/gh-fleet/tree/main/examples/trivy-ignore-prune)
+**Used in:** [`trivy-ignore-prune`](../examples/trivy-ignore-prune.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/scanignore.star#L181)

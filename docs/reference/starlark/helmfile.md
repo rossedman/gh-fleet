@@ -115,6 +115,6 @@ set_chart_version(repo, "bitnami/redis", "20.2.1")
         version: 4.9.0
     ```
 
-**Used in:** [`helmfile-chart`](https://github.com/rossedman/gh-fleet/tree/main/examples/helmfile-chart)
+**Used in:** [`helmfile-chart`](../examples/helmfile-chart.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/helmfile.star#L27)

@@ -111,6 +111,6 @@ bump_image(repo, "plugins/docker", "20", "21")
         image: plugins/docker:21
     ```
 
-**Used in:** [`drone-golang`](https://github.com/rossedman/gh-fleet/tree/main/examples/drone-golang)
+**Used in:** [`drone-golang`](../examples/drone-golang.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/drone.star#L29)

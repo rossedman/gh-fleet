@@ -114,6 +114,6 @@ set_plugin_version(repo, "github.com/hashicorp/amazon", ">= 1.3.3")
     }
     ```
 
-**Used in:** [`packer-plugins`](https://github.com/rossedman/gh-fleet/tree/main/examples/packer-plugins)
+**Used in:** [`packer-plugins`](../examples/packer-plugins.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/packer.star#L27)

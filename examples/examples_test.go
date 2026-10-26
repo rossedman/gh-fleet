@@ -249,3 +249,15 @@ func TestBumpGoVersion(t *testing.T) {
 		t.Errorf("workflow = %q", got)
 	}
 }
+
+// TestReadmeShowsPinActions keeps the Starlark the README shows in step
+// with the example it comes from.
+func TestReadmeShowsPinActions(t *testing.T) {
+	t.Parallel()
+	readme := read(t, "../README.md")
+	for _, f := range []string{"change.star", "pin.star"} {
+		if block := "```python\n" + read(t, filepath.Join("pin-actions", f)) + "```"; !strings.Contains(readme, block) {
+			t.Errorf("README.md doesn't show pin-actions/%s as it is:\n%s", f, block)
+		}
+	}
+}

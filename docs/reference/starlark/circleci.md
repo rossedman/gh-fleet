@@ -95,7 +95,7 @@ orbs(repo)
       aws-cli: "circleci/aws-cli@4.0"
     ```
 
-**Used in:** [`circleci-orbs`](https://github.com/rossedman/gh-fleet/tree/main/examples/circleci-orbs)
+**Used in:** [`circleci-orbs`](../examples/circleci-orbs.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/circleci.star#L29)
 
@@ -145,7 +145,7 @@ bump_orb(repo, "circleci/node", "5.2.0")
       slack: circleci/slack@4.12.0
     ```
 
-**Used in:** [`circleci-orbs`](https://github.com/rossedman/gh-fleet/tree/main/examples/circleci-orbs), [`jenkins-shared-library`](https://github.com/rossedman/gh-fleet/tree/main/examples/jenkins-shared-library)
+**Used in:** [`circleci-orbs`](../examples/circleci-orbs.md), [`jenkins-shared-library`](../examples/jenkins-shared-library.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/circleci.star#L60)
 
@@ -202,7 +202,7 @@ bump_image(repo, "cimg/node", "18.20", "22.11")
           - image: cimg/postgres:15.4
     ```
 
-**Used in:** [`circleci-machine-image`](https://github.com/rossedman/gh-fleet/tree/main/examples/circleci-machine-image)
+**Used in:** [`circleci-machine-image`](../examples/circleci-machine-image.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/circleci.star#L86)
 
@@ -315,6 +315,6 @@ set_machine_image(repo, "ubuntu-2404:2024.08.1", from_image = "ubuntu-2004:*")
           - image: cimg/base:2024.01
     ```
 
-**Used in:** [`circleci-machine-image`](https://github.com/rossedman/gh-fleet/tree/main/examples/circleci-machine-image)
+**Used in:** [`circleci-machine-image`](../examples/circleci-machine-image.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/circleci.star#L178)

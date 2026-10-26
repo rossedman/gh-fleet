@@ -106,7 +106,7 @@ languages(repo)
               languages: ${{ matrix.language }}
     ```
 
-**Used in:** [`codeql-setup`](https://github.com/rossedman/gh-fleet/tree/main/examples/codeql-setup)
+**Used in:** [`codeql-setup`](../examples/codeql-setup.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/codeql.star#L81)
 
@@ -175,7 +175,7 @@ add_language(repo, "actions")
           - uses: github/codeql-action/init@v4
     ```
 
-**Used in:** [`codeql-setup`](https://github.com/rossedman/gh-fleet/tree/main/examples/codeql-setup)
+**Used in:** [`codeql-setup`](../examples/codeql-setup.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/codeql.star#L158)
 
@@ -226,7 +226,7 @@ set_version(repo, "v4")
       - uses: github/codeql-action/analyze@v4
     ```
 
-**Used in:** [`codeql-setup`](https://github.com/rossedman/gh-fleet/tree/main/examples/codeql-setup)
+**Used in:** [`codeql-setup`](../examples/codeql-setup.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/codeql.star#L209)
 
@@ -314,6 +314,6 @@ add_workflow(repo, ["go", "actions"], branch = "main")
               category: /language:${{ matrix.language }}
     ```
 
-**Used in:** [`codeql-setup`](https://github.com/rossedman/gh-fleet/tree/main/examples/codeql-setup)
+**Used in:** [`codeql-setup`](../examples/codeql-setup.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/codeql.star#L235)

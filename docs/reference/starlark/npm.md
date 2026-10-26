@@ -66,7 +66,7 @@ packages(repo)
     {"name": "x"}
     ```
 
-**Used in:** [`node-engines`](https://github.com/rossedman/gh-fleet/tree/main/examples/node-engines)
+**Used in:** [`node-engines`](../examples/node-engines.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/npm.star#L12)
 
@@ -102,7 +102,7 @@ read_package(repo)["name"]
     {"name": "web", "private": true}
     ```
 
-**Used in:** [`node-engines`](https://github.com/rossedman/gh-fleet/tree/main/examples/node-engines), [`node-pnpm-9`](https://github.com/rossedman/gh-fleet/tree/main/examples/node-pnpm-9)
+**Used in:** [`node-engines`](../examples/node-engines.md), [`node-pnpm-9`](../examples/node-pnpm-9.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/npm.star#L31)
 
@@ -157,7 +157,7 @@ write_package(repo, "package.json", pkg)
     }
     ```
 
-**Used in:** [`node-engines`](https://github.com/rossedman/gh-fleet/tree/main/examples/node-engines)
+**Used in:** [`node-engines`](../examples/node-engines.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/npm.star#L48)
 
@@ -223,7 +223,7 @@ set_dependency(repo, "axios", "^1.7.9")
     }
     ```
 
-**Used in:** [`changelog-entry`](https://github.com/rossedman/gh-fleet/tree/main/examples/changelog-entry), [`npm-package-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/npm-package-bump)
+**Used in:** [`changelog-entry`](../examples/changelog-entry.md), [`npm-package-bump`](../examples/npm-package-bump.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/npm.star#L78)
 
@@ -276,7 +276,7 @@ set_package_manager(repo, "pnpm@9.12.0")
     }
     ```
 
-**Used in:** [`node-pnpm-9`](https://github.com/rossedman/gh-fleet/tree/main/examples/node-pnpm-9)
+**Used in:** [`node-pnpm-9`](../examples/node-pnpm-9.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/npm.star#L127)
 
@@ -328,6 +328,6 @@ set_npmrc(repo, "engine-strict", "true")
     engine-strict=true
     ```
 
-**Used in:** [`node-pnpm-9`](https://github.com/rossedman/gh-fleet/tree/main/examples/node-pnpm-9)
+**Used in:** [`node-pnpm-9`](../examples/node-pnpm-9.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/npm.star#L165)

@@ -128,7 +128,7 @@ bump_image(repo, "postgres", "15", "17")
       script: npm test
     ```
 
-**Used in:** [`gitlab-image-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/gitlab-image-bump)
+**Used in:** [`gitlab-image-bump`](../examples/gitlab-image-bump.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gitlab.star#L35)
 
@@ -183,7 +183,7 @@ set_include_ref(repo, "acme/ci-templates", "v2.0.0")
       - local: .gitlab/ci/test.yml
     ```
 
-**Used in:** [`gitlab-templates`](https://github.com/rossedman/gh-fleet/tree/main/examples/gitlab-templates)
+**Used in:** [`gitlab-templates`](../examples/gitlab-templates.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gitlab.star#L83)
 
@@ -270,7 +270,7 @@ bump_component(repo, "gitlab.com/acme/components/go-build", "1.3.0")
           go_version: "1.22"
     ```
 
-**Used in:** [`gitlab-templates`](https://github.com/rossedman/gh-fleet/tree/main/examples/gitlab-templates)
+**Used in:** [`gitlab-templates`](../examples/gitlab-templates.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gitlab.star#L136)
 
@@ -329,6 +329,6 @@ set_default(repo, "interruptible", True)
       script: npm test
     ```
 
-**Used in:** [`gitlab-templates`](https://github.com/rossedman/gh-fleet/tree/main/examples/gitlab-templates)
+**Used in:** [`gitlab-templates`](../examples/gitlab-templates.md)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gitlab.star#L165)
