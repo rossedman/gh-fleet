@@ -140,7 +140,7 @@ def _format_scalar(value, old = ""):
         return "'" + value.replace("'", "''") + "'"
     if old[:1] == '"':
         return json.encode(value)
-    plain = re.matches(r"^[A-Za-z0-9_./@+][A-Za-z0-9_./@+ -]*$", value) and not value.endswith(" ")
+    plain = re.matches(r"^[A-Za-z0-9_./@+][A-Za-z0-9_./@+: -]*$", value) and not value.endswith(" ") and not value.endswith(":") and ": " not in value
     special = value.lower() in ("true", "false", "yes", "no", "on", "off", "null", "~", "y", "n") or re.matches(r"^[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?$", value)
     return value if plain and not special else json.encode(value)
 

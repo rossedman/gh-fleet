@@ -138,7 +138,7 @@ def change(repo):
     set_target_revision(repo, "https://charts.acme.dev", "1.1.0")
 `,
 			want: map[string]string{
-				"k/kustomization.yaml": "images:\n  - name: api\n    newTag: v1\n  - name: worker\n    newName: ghcr.io/acme/worker\n    newTag: v2\n    digest: \"sha256:abc\"\n",
+				"k/kustomization.yaml": "images:\n  - name: api\n    newTag: v1\n  - name: worker\n    newName: ghcr.io/acme/worker\n    newTag: v2\n    digest: sha256:abc\n",
 				"apps/a.yaml":          "apiVersion: argoproj.io/v1alpha1\nkind: Application\nspec:\n  sources:\n    - repoURL: https://charts.acme.dev\n      chart: api\n      targetRevision: 1.1.0\n    - repoURL: https://github.com/acme/values.git\n      targetRevision: main\n",
 				"apps/other.yaml":      "repoURL: https://charts.acme.dev\ntargetRevision: 1.0.0\n",
 			},

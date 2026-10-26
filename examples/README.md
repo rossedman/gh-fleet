@@ -76,6 +76,8 @@ campaign is safe.
 | [`devcontainer-image`](devcontainer-image/) | Moves Dev Containers to Go 1.23 and adds the GitHub CLI feature | `devcontainer` edits that keep JSONC comments |
 | [`prettier-eslint`](prettier-eslint/) | Sets shared Prettier options and an ESLint rule, reporting flat configs for review | `prettier.set_option`, `eslint.set_rule` and `eslint.find` |
 | [`lint-configs`](lint-configs/) | Sets markdownlint and yamllint rules and adds a hadolint ignore | `lintconfig` helpers across three config formats |
+| [`backstage-onboarding`](backstage-onboarding/) | Writes `catalog-info.yaml` where missing, owned by the repo's `team` custom property, with TechDocs and language tags | `backstage.ensure`, `set_annotation` and `add_tag` with `repo.properties` |
+| [`backstage-team-rename`](backstage-team-rename/) | Moves catalog entities from one team to another after a reorg | `backstage.set_owner` matching every form of the group ref |
 
 ## Runtimes
 

@@ -30,6 +30,7 @@ This reference is generated from the library's docstrings, and every example on 
 | [`ansible.star`](starlark/ansible.md) | Bump Ansible role and collection versions in requirements files. | 2 |
 | [`argocd.star`](starlark/argocd.md) | Edit Argo CD Application manifests: move an application to a new revision or chart version. | 2 |
 | [`azure_pipelines.star`](starlark/azure_pipelines.md) | Edit Azure Pipelines YAML: hosted agent images, task versions and template refs. | 4 |
+| [`backstage.star`](starlark/backstage.md) | Edit Backstage catalog-info.yaml files: owners, annotations, tags and other entity fields. | 7 |
 | [`bazel.star`](starlark/bazel.md) | Bump Bazel itself, Bzlmod module dependencies and http_archive downloads. | 4 |
 | [`bitbucket.star`](starlark/bitbucket.md) | Edit Bitbucket Pipelines: step images and pipe versions. | 3 |
 | [`buf.star`](starlark/buf.md) | Bump Buf remote plugins, module dependencies and the buf.yaml format. | 2 |
@@ -106,6 +107,7 @@ This reference is generated from the library's docstrings, and every example on 
 | [`renovate.add_package_rule`](starlark/renovate.md#add_package_rule) | Appends a rule to `packageRules` unless an identical rule is already there. |
 | [`renovate.add_preset`](starlark/renovate.md#add_preset) | Adds a preset to `extends` unless it is already there. |
 | [`github.add_release_category`](starlark/github.md#add_release_category) | Adds a category to the release notes GitHub generates, unless one with this title exists. |
+| [`backstage.add_tag`](starlark/backstage.md#add_tag) | Adds a tag to `metadata.tags`, keeping the list's flow or block style. |
 | [`dependabot.add_update`](starlark/dependabot.md#add_update) | Adds an update entry to an existing Dependabot config, unless one covers that ecosystem and directory. |
 | [`codeql.add_workflow`](starlark/codeql.md#add_workflow) | Writes a CodeQL workflow, unless the repo already runs CodeQL. |
 | [`scorecard.add_workflow`](starlark/scorecard.md#add_workflow) | Writes the Scorecard workflow, unless the repo already runs Scorecard. |
@@ -143,11 +145,14 @@ This reference is generated from the library's docstrings, and every example on 
 | [`docker.dockerfiles`](starlark/docker.md#dockerfiles) | Lists the repo's Dockerfiles. |
 | [`dependabot.ecosystems`](starlark/dependabot.md#ecosystems) | Detects the package ecosystems a repo uses, from files at its root. |
 | [`golangci.enable_linter`](starlark/golangci.md#enable_linter) | Enables a linter, removing it from `disable` if it was there. |
+| [`backstage.ensure`](starlark/backstage.md#ensure) | Writes a Component catalog file, unless the repo already has one. |
 | [`markdown.ensure_badge`](starlark/markdown.md#ensure_badge) | Adds a badge under the first heading of a Markdown file. |
 | [`files.ensure_lines`](starlark/files.md#ensure_lines) | Appends each of `lines` that a file does not already contain. |
 | [`gha.ensure_permissions`](starlark/gha.md#ensure_permissions) | Adds a top-level `permissions` block to each workflow that has none. |
+| [`backstage.entities`](starlark/backstage.md#entities) | Lists the entities in every catalog file. |
 | [`scanignore.entries`](starlark/scanignore.md#entries) | Lists the entries in a scanner's ignore file. |
 | [`devcontainer.features`](starlark/devcontainer.md#features) | Lists the features a config installs, with their versions. |
+| [`backstage.files`](starlark/backstage.md#files) | Lists the repo's Backstage catalog files. |
 | [`cmake.files`](starlark/cmake.md#files) | Lists the repo's CMake files. |
 | [`devcontainer.files`](starlark/devcontainer.md#files) | Lists the repo's Dev Container configs. |
 | [`helmfile.files`](starlark/helmfile.md#files) | Lists the repo's Helmfiles. |
@@ -230,6 +235,7 @@ This reference is generated from the library's docstrings, and every example on 
 | [`toml.set`](starlark/toml.md#set) | Sets a key, adding it, and its table, when missing. |
 | [`yamlpath.set`](starlark/yamlpath.md#set) | Sets a key to a value, adding the key and any missing parents if needed. |
 | [`android.set_agp_version`](starlark/android.md#set_agp_version) | Moves the Android Gradle Plugin to a version. |
+| [`backstage.set_annotation`](starlark/backstage.md#set_annotation) | Sets a `metadata.annotations` entry, such as `backstage.io/techdocs-ref`. |
 | [`helm.set_app_version`](starlark/helm.md#set_app_version) | Sets a chart's `appVersion` in its Chart.yaml, keeping its quotes. |
 | [`bazel.set_archive`](starlark/bazel.md#set_archive) | Points an `http_archive` at a new download, with its checksum. |
 | [`github.set_blank_issues`](starlark/github.md#set_blank_issues) | Allows or disallows issues that don't use a template. |
@@ -251,6 +257,7 @@ This reference is generated from the library's docstrings, and every example on 
 | [`elixir.set_elixir`](starlark/elixir.md#set_elixir) | Sets the `elixir:` requirement in each project definition. |
 | [`devcontainer.set_feature_version`](starlark/devcontainer.md#set_feature_version) | Moves a feature to a new major version, such as `docker-in-docker:1` to `:2`. |
 | [`cmake.set_fetchcontent_tag`](starlark/cmake.md#set_fetchcontent_tag) | Sets the `GIT_TAG` of a `FetchContent_Declare` dependency. |
+| [`backstage.set_field`](starlark/backstage.md#set_field) | Sets any entity field by key path, such as `spec.lifecycle` or `spec.system`. |
 | [`github.set_funding`](starlark/github.md#set_funding) | Sets a sponsor link in .github/FUNDING.yml, such as `github: [acme]`. |
 | [`ruby.set_gem`](starlark/ruby.md#set_gem) | Sets a gem's version requirement wherever a Gemfile or gemspec lists it. |
 | [`flux.set_git_tag`](starlark/flux.md#set_git_tag) | Sets `ref.tag` of every GitRepository that points at a URL. |
@@ -270,6 +277,7 @@ This reference is generated from the library's docstrings, and every example on 
 | [`dependabot.set_option`](starlark/dependabot.md#set_option) | Sets an option on update entries, such as `open-pull-requests-limit` or `rebase-strategy`. |
 | [`prettier.set_option`](starlark/prettier.md#set_option) | Sets an option in the Prettier config, keeping its format. |
 | [`renovate.set_option`](starlark/renovate.md#set_option) | Sets a top-level or nested option, such as `schedule` or `lockFileMaintenance.enabled`. |
+| [`backstage.set_owner`](starlark/backstage.md#set_owner) | Sets `spec.owner`, such as after a team is renamed or a service changes hands. |
 | [`codeowners.set_owners`](starlark/codeowners.md#set_owners) | Makes a list of users or teams the owners of a pattern. |
 | [`dotnet.set_package`](starlark/dotnet.md#set_package) | Sets a NuGet package's version wherever a project already references it. |
 | [`swift.set_package`](starlark/swift.md#set_package) | Sets the version of a package dependency wherever a manifest declares it. |

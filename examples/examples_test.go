@@ -126,8 +126,8 @@ func read(t *testing.T, path string) string {
 func TestExamplesLoad(t *testing.T) {
 	t.Parallel()
 	dirs, _ := filepath.Glob("*/fleet.yaml")
-	if len(dirs) != 78 {
-		t.Fatalf("want 78 examples, got %v", dirs)
+	if len(dirs) != 80 {
+		t.Fatalf("want 80 examples, got %v", dirs)
 	}
 	for _, f := range dirs {
 		c, err := campaign.Load(f)
@@ -147,7 +147,7 @@ func TestExamplesLoad(t *testing.T) {
 				t.Errorf("%s: step %d has no name", f, i)
 			}
 		}
-		vars := map[string]any{"node": 22, "previous": "unset", "files": "requirements.txt", "jobs": "test", "license": "MIT", "overlays": "deploy/prod", "resources": "CronJob/nightly", "format": "1", "added": "docker", "scala": "2.13.15", "pnpm": "pnpm@9.12.0", "eslint": "", "languages": "actions, go", "expired": "CVE-2024-1234"}
+		vars := map[string]any{"node": 22, "previous": "unset", "files": "requirements.txt", "jobs": "test", "license": "MIT", "overlays": "deploy/prod", "resources": "CronJob/nightly", "format": "1", "added": "docker", "scala": "2.13.15", "pnpm": "pnpm@9.12.0", "eslint": "", "languages": "actions, go", "expired": "CVE-2024-1234", "owner": "group:platform", "entities": "api"}
 		for k, v := range c.Vars.Default {
 			vars[k] = v
 		}
