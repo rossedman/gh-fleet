@@ -429,3 +429,115 @@ func TestResolveOnly(t *testing.T) {
 		t.Errorf("lookup error = %v", err)
 	}
 }
+
+func TestResolveOnlyIncludeRepos(t *testing.T) {
+	t.Parallel()
+	resolve := func(t *testing.T, f *fake.Client, tg campaign.Targets) *Result {
+		t.Helper()
+		res, err := (&Resolver{Client: f}).Resolve(context.Background(), tg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return res
+	}
+	acme := []string{"acme", "other"}
+
+	// orgs with only include.repos targets just those repos, without
+	// listing any org.
+	f := newFake()
+	res := resolve(t, f, campaign.Targets{Orgs: acme, Include: campaign.Include{Repos: []string{"acme/api", "api", "legacy", "nope"}}})
+	if got := res.Names(); !slices.Equal(got, []string{"acme/api", "other/legacy"}) {
+		t.Fatalf("targets = %v", got)
+	}
+	if f.CallCount("ListOwnerRepos") != 0 || f.CallCount("OwnerProperties") != 0 || f.CallCount("RepoProperties") != 0 {
+		t.Errorf("calls = %v", f.Calls)
+	}
+	if res.Targets[0].Reasons[0] != "include.repos" {
+		t.Errorf("reasons = %v", res.Targets[0].Reasons)
+	}
+
+	// A pattern lists only the orgs it can match in, keeping the matches.
+	f = newFake()
+	res = resolve(t, f, campaign.Targets{Orgs: []string{"acme"}, Include: campaign.Include{Repos: []string{"*b", "w*"}}})
+	if got := res.Names(); !slices.Equal(got, []string{"acme/lib", "acme/web"}) {
+		t.Fatalf("pattern targets = %v", got)
+	}
+	if n := f.CallCount("ListOwnerRepos"); n != 1 {
+		t.Errorf("ListOwnerRepos called %d times", n)
+	}
+
+	// With any include filter, include.repos adds to the org's matches.
+	res = resolve(t, newFake(), campaign.Targets{Orgs: []string{"acme"}, Include: campaign.Include{Languages: []string{"TypeScript"}, Repos: []string{"lib"}}})
+	if got := res.Names(); !slices.Equal(got, []string{"acme/lib", "acme/web"}) {
+		t.Fatalf("filter plus repos = %v", got)
+	}
+
+	// A lookup error other than not found fails the run.
+	f = newFake()
+	f.Errors["GetRepo"] = errors.New("boom")
+	if _, err := (&Resolver{Client: f}).Resolve(context.Background(), campaign.Targets{Orgs: acme, Include: campaign.Include{Repos: []string{"api"}}}); err == nil {
+		t.Error("lookup error swallowed")
+	}
+	f = newFake()
+	f.Errors["ListOwnerRepos"] = errors.New("boom")
+	if _, err := (&Resolver{Client: f}).Resolve(context.Background(), campaign.Targets{Orgs: acme, Include: campaign.Include{Repos: []string{"a*"}}}); err == nil {
+		t.Error("listing error swallowed")
+	}
+}
+
+func TestPropertiesOnlyWhenUsed(t *testing.T) {
+	t.Parallel()
+	f := newFake()
+	cache := &Cache{Dir: t.TempDir()}
+	tg := campaign.Targets{Orgs: []string{"acme"}}
+	if _, err := (&Resolver{Client: f, Cache: cache}).Resolve(context.Background(), tg); err != nil {
+		t.Fatal(err)
+	}
+	if f.CallCount("OwnerProperties") != 0 {
+		t.Error("properties fetched for a campaign that doesn't use them")
+	}
+	// A campaign that needs them doesn't take the listing cached without
+	// them, and its own listing then serves both.
+	for range 2 {
+		if _, err := (&Resolver{Client: f, Cache: cache, RequireProperties: true}).Resolve(context.Background(), tg); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := (&Resolver{Client: f, Cache: cache}).Resolve(context.Background(), tg); err != nil {
+		t.Fatal(err)
+	}
+	if f.CallCount("ListOwnerRepos") != 2 || f.CallCount("OwnerProperties") != 1 {
+		t.Errorf("ListOwnerRepos %d, OwnerProperties %d", f.CallCount("ListOwnerRepos"), f.CallCount("OwnerProperties"))
+	}
+
+	// A listing whose optional properties failed isn't cached as one with
+	// properties.
+	f = newFake()
+	f.Errors["OwnerProperties"] = errors.New("forbidden")
+	pf := campaign.Targets{Orgs: []string{"acme"}, Include: campaign.Include{Properties: map[string]campaign.StringList{"tier": {"1"}}}}
+	cache = &Cache{Dir: t.TempDir()}
+	for range 2 {
+		if _, err := (&Resolver{Client: f, Cache: cache}).Resolve(context.Background(), pf); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if f.CallCount("OwnerProperties") != 2 {
+		t.Errorf("OwnerProperties %d, want a retry", f.CallCount("OwnerProperties"))
+	}
+}
+
+func TestEvaluateOnlyRepos(t *testing.T) {
+	t.Parallel()
+	tg := campaign.Targets{Orgs: []string{"acme"}, Include: campaign.Include{Repos: []string{"acme/api"}}}
+	if d := Evaluate(tg, ghapi.Repo{Owner: "acme", Name: "web"}, Facts{}); d.Match {
+		t.Fatalf("repo not in include.repos matched: %+v", d)
+	}
+	if d := Evaluate(tg, ghapi.Repo{Owner: "acme", Name: "api"}, Facts{}); !d.Match {
+		t.Fatalf("include.repos repo not matched: %+v", d)
+	}
+	// With another filter, include.repos adds to the filter's matches.
+	tg.Include.Topics = []string{"web"}
+	if d := Evaluate(tg, ghapi.Repo{Owner: "acme", Name: "web", Topics: []string{"web"}}, Facts{}); !d.Match {
+		t.Fatalf("filter match lost: %+v", d)
+	}
+}

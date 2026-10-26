@@ -62,7 +62,11 @@ func (v *Vars) RowRepos() []string {
 }
 
 // UsesProperties reports whether the campaign depends on custom property
-// values: in its target filters, its vars rules or its PR templates.
+// values: in its target filters, its vars rules, its PR templates, or its
+// steps (FLEET_PROP_ in a shell script, .properties in Starlark). A
+// Starlark script that loads code from another repo can't be checked, so
+// it counts as using them. Fetching properties costs a call per 100 repos
+// of each org, so campaigns that don't use them skip it.
 func (c *Campaign) UsesProperties() bool {
 	if len(c.Targets.Include.Properties) > 0 || len(c.Targets.Exclude.Properties) > 0 {
 		return true
@@ -81,6 +85,55 @@ func (c *Campaign) UsesProperties() bool {
 	}
 	for _, t := range texts {
 		if strings.Contains(t, ".Properties") {
+			return true
+		}
+	}
+	return c.stepsUseProperties()
+}
+
+// stepsUseProperties reports whether a step reads custom properties.
+func (c *Campaign) stepsUseProperties() bool {
+	read := func(p string) string {
+		b, _ := os.ReadFile(p) // a missing file fails the run elsewhere
+		return string(b)
+	}
+	for _, s := range c.Change.Steps {
+		if s.Run != "" {
+			script := s.Run
+			if p := c.fileRef(s.Run); p != "" {
+				script = read(p)
+			}
+			if strings.Contains(script, "FLEET_PROP_") {
+				return true
+			}
+		}
+		if s.Starlark != "" && starlarkUsesProperties(filepath.Join(c.Dir(), s.Starlark), read, map[string]bool{}) {
+			return true
+		}
+	}
+	return false
+}
+
+// Loads in a Starlark script: a local one ("./x.star", relative to the
+// script) and one from another repo ("host/owner/repo@sha:x.star").
+var (
+	localLoad  = regexp.MustCompile(`load\(\s*["'](\.{1,2}/[^"']+)["']`)
+	remoteLoad = regexp.MustCompile(`load\(\s*["'][^"'@]+/[^"']*@`)
+)
+
+// starlarkUsesProperties reports whether the script at p, or a local
+// script it loads, reads repo.properties or loads code from another repo.
+func starlarkUsesProperties(p string, read func(string) string, seen map[string]bool) bool {
+	if seen[p] {
+		return false
+	}
+	seen[p] = true
+	src := read(p)
+	if strings.Contains(src, ".properties") || remoteLoad.MatchString(src) {
+		return true
+	}
+	for _, m := range localLoad.FindAllStringSubmatch(src, -1) {
+		if starlarkUsesProperties(filepath.Join(filepath.Dir(p), m[1]), read, seen) {
 			return true
 		}
 	}

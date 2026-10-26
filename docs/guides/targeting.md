@@ -8,9 +8,27 @@ The `targets` section decides which repositories a campaign touches. This guide 
 
 ## Where candidates come from
 
-`orgs` lists organizations (or users) whose repositories are candidates. Each org is listed with one paginated GraphQL query, and the listing is cached for 10 minutes, so running `targets`, `plan` and `apply` in a row costs one listing. `include.repos` adds individual `owner/name` repos, even from other owners.
+`orgs` lists organizations (or users) whose repositories are candidates. Each org is listed with one paginated GraphQL query, 100 repos per page, and the listing is cached for 10 minutes, so running `targets`, `plan` and `apply` in a row costs one listing. `include.repos` adds individual repos, even from other owners.
 
 A campaign needs `orgs`, `include.repos`, or both.
+
+### Just some repos
+
+To change a handful of repos, list them in `include.repos` with no other include filter. The campaign then targets only those repos, however big the org is:
+
+```yaml
+targets:
+  orgs: [acme]          # scopes the bare names below
+  include:
+    repos: [api, web, tools/cli]
+```
+
+Only what you name is fetched:
+- **`owner/name`:** that repo is looked up by itself.
+- **A bare name:** looked up in each org, and skipped where it doesn't exist.
+- **A pattern:** its owner, or `orgs` for a bare pattern like `*-domain`, is listed once and only the matches are kept.
+
+No org listing runs for exact names, so this costs a lookup per repo even in an org of thousands. Add any include filter, such as `topics`, and `include.repos` goes back to adding its repos to the org's matches.
 
 ## Include filters
 
@@ -31,9 +49,9 @@ targets:
 | `search` | a code search query has a hit in it, scoped to your `orgs` automatically |
 | `names` | its name matches any of these [patterns](#name-patterns), such as `service-*` |
 | `properties` | every listed [custom property](#custom-properties) has one of its values |
-| `repos` | always, bypassing the filters above; names or [patterns](#name-patterns) |
+| `repos` | always, bypassing the filters above; names or [patterns](#name-patterns). [Alone, it's the whole selection.](#just-some-repos) |
 
-**Different keys combine with AND, and the values within one key with OR.** The example above selects Go repos that have the `service` topic and a `go.mod`. With no filters at all, every non-excluded repo in the org matches.
+**Different keys combine with AND, and the values within one key with OR.** The example above selects Go repos that have the `service` topic and a `go.mod`. With no filters at all, every non-excluded repo in the org matches, unless `include.repos` is set: then only the repos it names do.
 
 !!! note "Code search"
     `search` uses GitHub's code search API, which has its own rate limit. gh fleet waits for it to reset instead of failing. Prefer `files` when a path check is enough: it is checked in batched queries of 50 repos.
@@ -80,6 +98,9 @@ Matching ignores case. A pattern without a slash matches the repo's name, and on
 A pattern that doesn't parse, such as `acme/[ab`, is an error when the campaign loads, with its line and column.
 
 On the command line, `--exclude` and `--exclude-file` take patterns too (quote them so the shell leaves them alone); `--repo` and `--repo-file` take exact names, so a typo is an error rather than an empty run.
+
+!!! note "Custom properties cost a call per 100 repos"
+    gh fleet only reads custom properties when the campaign uses them, in filters, `vars` rules, PR templates, `FLEET_PROP_*` in a script, or `repo.properties` in Starlark. A campaign that doesn't use them never pays for them.
 
 ## Custom properties
 

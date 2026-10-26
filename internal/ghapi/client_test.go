@@ -41,7 +41,13 @@ func (s *apiServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		_ = json.Unmarshal(body, &req)
 		data, code := s.gql(req.Query, req.Variables)
 		w.WriteHeader(code)
-		_ = json.NewEncoder(w).Encode(map[string]any{"data": data})
+		resp := map[string]any{"data": data}
+		// A "__errors" key in the data becomes the response's GraphQL
+		// errors, as GitHub sends them alongside partial data.
+		if m, ok := data.(map[string]any); ok && m["__errors"] != nil {
+			resp = map[string]any{"data": nil, "errors": m["__errors"]}
+		}
+		_ = json.NewEncoder(w).Encode(resp)
 		return
 	}
 	key := r.Method + " " + r.URL.Path
@@ -120,6 +126,9 @@ func TestGetRepo(t *testing.T) {
 		if vars["name"] == "gone" {
 			return map[string]any{"repository": nil}, 200
 		}
+		if vars["name"] == "hidden" {
+			return map[string]any{"__errors": []any{map[string]any{"type": "NOT_FOUND", "path": []any{"repository"}, "message": "Could not resolve to a Repository"}}}, 200
+		}
 		return map[string]any{"repository": repoNode("acme", "api", "ADMIN")}, 200
 	}}
 	c := newClient(t, s)
@@ -127,8 +136,10 @@ func TestGetRepo(t *testing.T) {
 	if err != nil || r.FullName() != "acme/api" || !r.CanPush {
 		t.Fatalf("repo = %+v, %v", r, err)
 	}
-	if _, err := c.GetRepo(context.Background(), "acme/gone"); err == nil {
-		t.Fatal("expected not found")
+	for _, name := range []string{"acme/gone", "acme/hidden"} {
+		if _, err := c.GetRepo(context.Background(), name); !errors.Is(err, ErrNotFound) {
+			t.Fatalf("%s: err = %v, want ErrNotFound", name, err)
+		}
 	}
 	if _, err := c.GetRepo(context.Background(), "bad"); err == nil {
 		t.Fatal("expected invalid name error")
