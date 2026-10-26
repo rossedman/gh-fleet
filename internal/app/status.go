@@ -85,7 +85,7 @@ func (a *App) status(ctx context.Context, o StatusOptions) (rows []state.RepoSta
 	if err != nil {
 		return nil, err
 	}
-	res, err := a.resolve(ctx, client, camp, c.Repos, true)
+	res, err := a.resolve(ctx, c, client, camp, c.Repos, true)
 	if err != nil {
 		return nil, err
 	}

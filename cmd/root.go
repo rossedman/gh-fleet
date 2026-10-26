@@ -183,7 +183,8 @@ var newApp = func(cmd *cobra.Command) (*app.App, error) {
 		errOut = colorprofile.NewWriter(errOut, os.Environ())
 	}
 	interactive := t.IsTerminalOutput() && isTerminal(os.Stdin) && os.Getenv("GH_PROMPT_DISABLED") == ""
-	return app.Default(out, errOut, cmd.InOrStdin(), t.IsTerminalOutput(), interactive, color)
+	errTTY := isTerminal(os.Stderr) || os.Getenv("GH_FORCE_TTY") != ""
+	return app.Default(out, errOut, cmd.InOrStdin(), t.IsTerminalOutput(), errTTY, interactive, color)
 }
 
 // isTerminal reports whether f is a character device.

@@ -25,7 +25,7 @@ func (a *App) Targets(ctx context.Context, c Common) error {
 	if err != nil {
 		return err
 	}
-	res, err := a.resolve(ctx, client, camp, c.Repos, true)
+	res, err := a.resolve(ctx, c, client, camp, c.Repos, true)
 	if err != nil {
 		return err
 	}

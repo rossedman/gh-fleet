@@ -3,6 +3,7 @@ package ghapi
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -89,6 +90,13 @@ func TestSecondaryLimitPausesAllWorkersAndResumes(t *testing.T) {
 		_, _ = io.WriteString(w, `{}`)
 	})
 	tr, clock := newTestTransport(h)
+	var waits atomic.Int64
+	tr.OnWait = func(why string, d time.Duration) {
+		if why != "secondary rate limit" || d != 30*time.Second {
+			t.Errorf("OnWait(%q, %s)", why, d)
+		}
+		waits.Add(1)
+	}
 	start := clock.Now()
 
 	const workers = 8
@@ -115,8 +123,8 @@ func TestSecondaryLimitPausesAllWorkersAndResumes(t *testing.T) {
 	for err := range errs {
 		t.Fatalf("request failed: %v", err)
 	}
-	if tr.Pauses() != 1 {
-		t.Fatalf("pauses = %d", tr.Pauses())
+	if tr.Pauses() != 1 || waits.Load() != 1 {
+		t.Fatalf("pauses = %d, waits reported = %d", tr.Pauses(), waits.Load())
 	}
 	if calls.Load() != workers+1 {
 		t.Fatalf("calls = %d, want %d", calls.Load(), workers+1)
@@ -217,10 +225,15 @@ func TestSearchQuotaWaitsForReset(t *testing.T) {
 	t.Parallel()
 	start := time.Unix(1_700_000_000, 0)
 	tr, clock := newTestTransport(quotaHandler("search", 0, start.Add(40*time.Second)))
+	var told []string
+	tr.OnWait = func(why string, d time.Duration) { told = append(told, fmt.Sprintf("%s %s", why, d)) }
 	get(t, tr, "/search/issues?q=x")
 	get(t, tr, "/search/issues?q=x")
 	if len(clock.slept) != 1 || clock.slept[0] != 40*time.Second {
 		t.Fatalf("slept %v", clock.slept)
+	}
+	if strings.Join(told, ",") != "search rate limit 40s" {
+		t.Fatalf("OnWait = %v", told)
 	}
 }
 
