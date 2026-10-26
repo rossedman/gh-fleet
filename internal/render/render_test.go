@@ -72,7 +72,7 @@ func TestSummaryProgressAndDiff(t *testing.T) {
 		t.Fatalf("diff:\n%s", b.String())
 	}
 	// Colored styles render every status.
-	c := Printer{Out: &b, Styles: ui.Color()}
+	c := Printer{Out: &b, Styles: ui.ColorFor(true)}
 	for _, s := range []state.Status{state.Merged, state.PROpen, state.Failed, state.Skipped, state.Noop} {
 		_ = c.StatusStyle(s).Render(string(s))
 	}

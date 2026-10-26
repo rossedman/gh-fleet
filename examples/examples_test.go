@@ -126,8 +126,8 @@ func read(t *testing.T, path string) string {
 func TestExamplesLoad(t *testing.T) {
 	t.Parallel()
 	dirs, _ := filepath.Glob("*/fleet.yaml")
-	if len(dirs) != 80 {
-		t.Fatalf("want 80 examples, got %v", dirs)
+	if len(dirs) != 81 {
+		t.Fatalf("want 81 examples, got %v", dirs)
 	}
 	for _, f := range dirs {
 		c, err := campaign.Load(f)

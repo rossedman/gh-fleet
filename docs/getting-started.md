@@ -36,7 +36,7 @@ gh fleet init pin-actions --org acme
 
 This writes `fleet.yaml` in the current directory, with a `yaml-language-server` header so editors validate and complete it. The name defaults to the directory's name, and `--file` writes it elsewhere.
 
-Or start from one of the [80 tested examples](examples.md), with its scripts and test cases:
+Or start from one of the [81 tested examples](examples.md), with its scripts and test cases:
 
 ```sh
 gh fleet init --list

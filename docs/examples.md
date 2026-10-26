@@ -68,6 +68,7 @@ campaign is safe.
 | [`cmake-minimum`](reference/examples/cmake-minimum.md) | Raises `cmake_minimum_required` and moves a FetchContent tag | `cmake.set_minimum_version` keeping `...max` ranges |
 | [`node-engines`](reference/examples/node-engines.md) | Requires Node 22 in every `package.json`, never lowering a newer requirement | JSON edited as data with key order kept, values handed back to the PR |
 | [`docker-base-image`](reference/examples/docker-base-image.md) | Moves `FROM node:18` to `node:22`, keeping variants and stages | `docker.bump_base_image`, draft PRs |
+| [`docker-replace-image`](reference/examples/docker-replace-image.md) | Replaces the whole `FROM python:…` image with one from an internal registry | `docker.replace_base_image` at any tag or digest, keeping stages |
 | [`compose-image-bump`](reference/examples/compose-image-bump.md) | Moves `image: redis:7` to `redis:8` in Compose files, Kubernetes manifests and Dockerfiles | `docker.bump_image` |
 | [`add-dependabot`](reference/examples/add-dependabot.md) | Writes `.github/dependabot.yml` for the ecosystems a repo uses | detecting what a repo contains with `dependabot.ecosystems` |
 | [`dependabot-ecosystems`](reference/examples/dependabot-ecosystems.md) | Adds docker and github-actions entries to existing Dependabot configs | `dependabot.add_update` and `dependabot.set_option` |

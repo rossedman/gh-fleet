@@ -5,25 +5,52 @@ package ui
 
 import (
 	"errors"
+	"image/color"
 	"io"
 	"log/slog"
 	"os"
+	"sync"
 
 	"charm.land/huh/v2"
 	"charm.land/lipgloss/v2"
-	"charm.land/lipgloss/v2/compat"
 	"charm.land/log/v2"
+	"github.com/charmbracelet/x/term"
 )
+
+// Adaptive is a color with a variant for light and for dark terminals.
+type Adaptive struct {
+	Light, Dark color.Color
+}
+
+// For picks the variant for a dark or light background.
+func (a Adaptive) For(dark bool) color.Color {
+	if dark {
+		return a.Dark
+	}
+	return a.Light
+}
 
 // Brand palette, as adaptive colors that read on light and dark terminals.
 var (
-	Brand = compat.AdaptiveColor{Light: lipgloss.Color("#0B7A75"), Dark: lipgloss.Color("#3DDBD9")}
-	OK    = compat.AdaptiveColor{Light: lipgloss.Color("#1A7F37"), Dark: lipgloss.Color("#56D364")}
-	Warn  = compat.AdaptiveColor{Light: lipgloss.Color("#9A6700"), Dark: lipgloss.Color("#E3B341")}
-	Bad   = compat.AdaptiveColor{Light: lipgloss.Color("#CF222E"), Dark: lipgloss.Color("#FF7B72")}
-	Info  = compat.AdaptiveColor{Light: lipgloss.Color("#0969DA"), Dark: lipgloss.Color("#79C0FF")}
-	Dim   = compat.AdaptiveColor{Light: lipgloss.Color("#656D76"), Dark: lipgloss.Color("#8B949E")}
+	Brand = Adaptive{Light: lipgloss.Color("#0B7A75"), Dark: lipgloss.Color("#3DDBD9")}
+	OK    = Adaptive{Light: lipgloss.Color("#1A7F37"), Dark: lipgloss.Color("#56D364")}
+	Warn  = Adaptive{Light: lipgloss.Color("#9A6700"), Dark: lipgloss.Color("#E3B341")}
+	Bad   = Adaptive{Light: lipgloss.Color("#CF222E"), Dark: lipgloss.Color("#FF7B72")}
+	Info  = Adaptive{Light: lipgloss.Color("#0969DA"), Dark: lipgloss.Color("#79C0FF")}
+	Dim   = Adaptive{Light: lipgloss.Color("#656D76"), Dark: lipgloss.Color("#8B949E")}
 )
+
+// darkBackground asks the terminal for its background color, once, and
+// only when stdin and stderr are both terminals. Asking otherwise can
+// block: on Windows, lipgloss opens the console itself and waits for a
+// reply, which hung test binaries that imported this package when the
+// query ran at startup. Without an answer, it assumes dark.
+var darkBackground = sync.OnceValue(func() bool {
+	if !term.IsTerminal(os.Stdin.Fd()) || !term.IsTerminal(os.Stderr.Fd()) {
+		return true
+	}
+	return lipgloss.HasDarkBackground(os.Stdin, os.Stderr)
+})
 
 // Styles is the set of styles for one output stream. The zero value (from
 // Plain) renders text unchanged, for pipes and NO_COLOR.
@@ -47,21 +74,26 @@ func Plain() Styles {
 	return Styles{Bold: s, Header: s, Brand: s, OK: s, Warn: s, Bad: s, Info: s, Dim: s, Add: s, Del: s, Hunk: s}
 }
 
-// Color returns the styled set.
+// Color returns the styled set for the terminal's background.
 func Color() Styles {
+	return ColorFor(darkBackground())
+}
+
+// ColorFor returns the styled set for a dark or light background.
+func ColorFor(dark bool) Styles {
 	s := lipgloss.NewStyle()
 	return Styles{
 		Bold:   s.Bold(true),
-		Header: s.Bold(true).Foreground(Brand),
-		Brand:  s.Foreground(Brand),
-		OK:     s.Foreground(OK),
-		Warn:   s.Foreground(Warn),
-		Bad:    s.Foreground(Bad),
-		Info:   s.Foreground(Info),
-		Dim:    s.Foreground(Dim),
-		Add:    s.Foreground(OK),
-		Del:    s.Foreground(Bad),
-		Hunk:   s.Foreground(Info),
+		Header: s.Bold(true).Foreground(Brand.For(dark)),
+		Brand:  s.Foreground(Brand.For(dark)),
+		OK:     s.Foreground(OK.For(dark)),
+		Warn:   s.Foreground(Warn.For(dark)),
+		Bad:    s.Foreground(Bad.For(dark)),
+		Info:   s.Foreground(Info.For(dark)),
+		Dim:    s.Foreground(Dim.For(dark)),
+		Add:    s.Foreground(OK.For(dark)),
+		Del:    s.Foreground(Bad.For(dark)),
+		Hunk:   s.Foreground(Info.For(dark)),
 	}
 }
 
@@ -95,7 +127,7 @@ func Accessible() bool {
 func Theme() huh.Theme {
 	return huh.ThemeFunc(func(isDark bool) *huh.Styles {
 		t := huh.ThemeBase(isDark)
-		brand := lipgloss.LightDark(isDark)(Brand.Light, Brand.Dark)
+		brand := Brand.For(isDark)
 		t.Focused.Title = t.Focused.Title.Foreground(brand).Bold(true)
 		t.Focused.FocusedButton = t.Focused.FocusedButton.Background(brand)
 		return t

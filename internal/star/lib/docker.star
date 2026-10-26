@@ -1,4 +1,4 @@
-"""Find Dockerfiles and move images to a new tag in Dockerfiles, Compose files and Kubernetes manifests."""
+"""Find Dockerfiles, replace base images, and move images to a new tag in Dockerfiles, Compose files and Kubernetes manifests."""
 
 def _lit(s):
     return s.replace("$", "$$")
@@ -59,6 +59,57 @@ def bump_base_image(repo, image, from_tag, to_tag):
     """
     pattern = r"(?im)^(\s*FROM\s+(?:--platform=\S+\s+)?)" + re.escape(image) + ":" + re.escape(from_tag) + r"([-@\s]|$)"
     repl = "${1}" + _lit(image) + ":" + _lit(to_tag) + "${2}"
+    changed = []
+    for path in dockerfiles(repo):
+        content = repo.read(path)
+        updated = re.sub(pattern, repl, content)
+        if updated != content:
+            repo.write(path, updated)
+            changed.append(path)
+    return changed
+
+def replace_base_image(repo, from_image, to_image):
+    """Replaces a whole image reference in the `FROM` lines of every Dockerfile.
+
+    Use it to move to another image entirely, such as from Docker Hub to
+    your own registry, where `bump_base_image` only changes the tag.
+
+    `from_image` is matched as written. A bare name, such as `python` or
+    `ghcr.io/acme/base`, matches that image at any tag or digest, so
+    `python:3.12-slim` and `python@sha256:...` are both replaced; it doesn't
+    match `python-dev` or `python/tools`. A name with a tag or digest, such
+    as `python:3.12-slim`, matches only that exact reference. The whole
+    reference is replaced by `to_image`, and `--platform` flags and stage
+    names are kept.
+
+    Args:
+        from_image: the image to replace: a name, or a name with a tag or digest.
+        to_image: the full reference to put in its place, such as `registry.acme.io/python:3.14-slim`.
+    Returns:
+        The list of paths that changed.
+    Example:
+        before Dockerfile:
+            FROM --platform=linux/amd64 python:3.12-slim AS build
+            RUN pip install -r requirements.txt
+            FROM python:3.12-slim
+            FROM python-dev:1
+        call:
+            replace_base_image(repo, "python", "registry.acme.io/library/python/3.14-slim:main-latest")
+        after Dockerfile:
+            FROM --platform=linux/amd64 registry.acme.io/library/python/3.14-slim:main-latest AS build
+            RUN pip install -r requirements.txt
+            FROM registry.acme.io/library/python/3.14-slim:main-latest
+            FROM python-dev:1
+        returns:
+            ["Dockerfile"]
+    """
+    name = from_image[from_image.rfind("/") + 1:]
+    ref = re.escape(from_image)
+    if ":" not in name and "@" not in from_image:
+        # Any tag, then any digest, or neither.
+        ref += r"(?::[^\s@]+)?(?:@\S+)?"
+    pattern = r"(?im)^(\s*FROM\s+(?:--platform=\S+\s+)?)" + ref + r"(\s|$)"
+    repl = "${1}" + _lit(to_image) + "${2}"
     changed = []
     for path in dockerfiles(repo):
         content = repo.read(path)

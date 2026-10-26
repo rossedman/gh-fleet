@@ -44,7 +44,7 @@ func TestFleetTestCases(t *testing.T) {
 // gh fleet init --from.
 func TestEmbedded(t *testing.T) {
 	t.Parallel()
-	if got := len(examples.Names()); got != 80 {
+	if got := len(examples.Names()); got != 81 {
 		t.Fatalf("embedded %d examples", got)
 	}
 	err := filepath.WalkDir(".", func(p string, d fs.DirEntry, err error) error {

@@ -30,7 +30,7 @@ func TestLib(t *testing.T) {
 
 	for _, args := range [][]string{{"docker"}, {"docker.star"}, {"@fleet//docker.star"}} {
 		out, _, err = lib(t, LibOptions{Args: args})
-		if err != nil || !strings.Contains(out, "@fleet//docker.star\n") || !strings.Contains(out, `load("@fleet//docker.star", "dockerfiles", "bump_base_image", "bump_image")`) ||
+		if err != nil || !strings.Contains(out, "@fleet//docker.star\n") || !strings.Contains(out, `load("@fleet//docker.star", "dockerfiles", "bump_base_image", "replace_base_image", "bump_image")`) ||
 			!strings.Contains(out, "\nbump_base_image(repo, image, from_tag, to_tag)\n    Moves `FROM` lines") || !strings.Contains(out, "gh fleet lib docker.<function>") {
 			t.Fatalf("%v: %v\n%s", args, err, out)
 		}
@@ -93,7 +93,7 @@ func TestLibErrors(t *testing.T) {
 	}{
 		{LibOptions{Args: []string{"dokcer"}}, "no module dokcer in the library; close names: docker"},
 		{LibOptions{Args: []string{"xyz"}}, "gh fleet lib lists them"},
-		{LibOptions{Args: []string{"docker.nope"}}, "no function nope in docker.star; it has dockerfiles, bump_base_image, bump_image"},
+		{LibOptions{Args: []string{"docker.nope"}}, "no function nope in docker.star; it has dockerfiles, bump_base_image, replace_base_image, bump_image"},
 		{LibOptions{Args: []string{"docker.bump_image", "x"}}, "name the function once"},
 		{LibOptions{Args: []string{"a", "b", "c"}}, "at most one function"},
 		{LibOptions{Search: "x", Args: []string{"docker"}}, "--search takes no module"},
