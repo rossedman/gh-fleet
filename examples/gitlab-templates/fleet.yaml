@@ -1,0 +1,32 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: gitlab-ci-templates-v2
+description: Move every project to the shared CI templates and components v2
+
+targets:
+  orgs: [acme]
+  include:
+    files: [.gitlab-ci.yml]
+
+change:
+  steps:
+    # Sets the ref of `include: project: acme/ci-templates`, moves every
+    # acme CI/CD component to 2.0.0, and makes jobs interruptible by default
+    # so new pushes cancel stale pipelines.
+    - name: gitlab-templates
+      starlark: ./change.star
+      timeout: 1m
+  env:
+    TEMPLATES: acme/ci-templates
+    REF: v2.0.0
+    COMPONENTS: "gitlab.com/acme/components/*"
+    VERSION: "2.0.0"
+
+pr:
+  title: "ci: shared templates and components v2"
+  body: |
+    Moves {{ .Repo.Name }} to the v2 CI templates and components, and makes
+    jobs interruptible by default.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet]

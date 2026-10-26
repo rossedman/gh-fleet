@@ -119,8 +119,6 @@ bump(repo, ["Jenkinsfile", "**/Jenkinsfile"], "ci-lib", "v3.0")
     pipeline { agent any }
     ```
 
-**Used in:** [`jenkins-shared-library`](https://github.com/rossedman/gh-fleet/tree/main/examples/jenkins-shared-library)
-
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/refs.star#L66)
 
 ## pin

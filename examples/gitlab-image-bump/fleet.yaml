@@ -1,0 +1,31 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: gitlab-node-22
+description: Move every GitLab CI job and service from Node 18 to Node 22
+
+targets:
+  orgs: [acme]
+  include:
+    files: [.gitlab-ci.yml]
+
+change:
+  steps:
+    # Rewrites node:18 images in job `image:` keys (plain or `name:` form)
+    # and `services`, keeping variants such as -alpine, in .gitlab-ci.yml
+    # and the files it includes from .gitlab/.
+    - name: gitlab-image-bump
+      starlark: ./change.star
+      timeout: 1m
+  env:
+    IMAGE: node
+    FROM_TAG: "18"
+    TO_TAG: "22"
+
+pr:
+  title: "ci: node 22 in GitLab CI"
+  body: |
+    Moves {{ .Repo.Name }}'s CI jobs from Node 18, which is out of support,
+    to Node 22.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet]

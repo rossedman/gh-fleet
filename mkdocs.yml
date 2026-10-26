@@ -101,6 +101,7 @@ nav:
           - buildkite.star: reference/starlark/buildkite.md
           - cargo.star: reference/starlark/cargo.md
           - changelog.star: reference/starlark/changelog.md
+          - circleci.star: reference/starlark/circleci.md
           - cmake.star: reference/starlark/cmake.md
           - codeowners.star: reference/starlark/codeowners.md
           - dependabot.star: reference/starlark/dependabot.md
@@ -111,9 +112,11 @@ nav:
           - flux.star: reference/starlark/flux.md
           - gha.star: reference/starlark/gha.md
           - gitattributes.star: reference/starlark/gitattributes.md
+          - gitlab.star: reference/starlark/gitlab.md
           - gomod.star: reference/starlark/gomod.md
           - gradle.star: reference/starlark/gradle.md
           - helm.star: reference/starlark/helm.md
+          - jenkins.star: reference/starlark/jenkins.md
           - jsonfile.star: reference/starlark/jsonfile.md
           - k8s.star: reference/starlark/k8s.md
           - kustomize.star: reference/starlark/kustomize.md

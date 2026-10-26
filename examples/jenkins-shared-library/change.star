@@ -1,5 +1,6 @@
-load("@fleet//refs.star", "bump")
+load("@fleet//circleci.star", "bump_orb")
+load("@fleet//jenkins.star", "bump_library")
 
 def change(repo):
-    bump(repo, ["Jenkinsfile", "**/Jenkinsfile", "**/*.groovy"], "ci-lib", env["VERSION"])
-    bump(repo, [".circleci/*.yml", ".circleci/*.yaml"], "acme/ci-orb", env["ORB"])
+    bump_library(repo, "ci-lib", env["VERSION"])
+    bump_orb(repo, "acme/ci-orb", env["ORB"])
