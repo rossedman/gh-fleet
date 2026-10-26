@@ -42,4 +42,4 @@ The content creation limits are GitHub's and can't be raised. Each new PR is one
 API quota: core 4,871/5,000 · graphql 4,962/5,000
 ```
 
-Reads are batched to stay cheap: org listings are one paginated GraphQL query each and are cached for 10 minutes, and file checks and PR lookups run 50 repos per query.
+Reads are batched to stay cheap: org listings fetch 100 repos per page, 4 pages at a time, and are cached for 10 minutes; repo lookups, file checks and PR lookups run 50 repos per query, 4 queries at a time. When GitHub times out on a query (a `502` or `504`, retried once), gh fleet splits it in half and tries each half, down to a single repo, instead of failing the run.

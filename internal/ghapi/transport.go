@@ -210,7 +210,11 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 			continue
 		}
 		t.secondaries.Store(0)
-		if isRetryableStatus(resp.StatusCode) && !last {
+		// A GraphQL query that timed out twice will time out again; the
+		// caller splits it instead.
+		gaveUp := resource == "graphql" && attempt >= 2 &&
+			(resp.StatusCode == http.StatusBadGateway || resp.StatusCode == http.StatusGatewayTimeout)
+		if isRetryableStatus(resp.StatusCode) && !last && !gaveUp {
 			drain(resp)
 			t.retries.Add(1)
 			d := baseBackoff << (attempt - 1)

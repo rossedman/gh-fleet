@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/cli/go-gh/v2/pkg/api"
-	"golang.org/x/sync/errgroup"
 )
 
 // BatchSize is how many repos or PRs go into one batched GraphQL query.
@@ -125,49 +124,6 @@ func (g gqlRepo) toRepo() Repo {
 	return r
 }
 
-// ListOwnerRepos pages through every repository of an org or user.
-func (c *GitHub) ListOwnerRepos(ctx context.Context, owner string) ([]Repo, error) {
-	query := `query($login: String!, $after: String) {
-  repositoryOwner(login: $login) {
-    repositories(first: 100, after: $after, orderBy: {field: NAME, direction: ASC}) {
-      pageInfo { hasNextPage endCursor }
-      nodes { ` + repoFields + ` }
-    }
-  }
-}`
-	var out []Repo
-	var after *string
-	for {
-		var resp struct {
-			RepositoryOwner *struct {
-				Repositories struct {
-					PageInfo struct {
-						HasNextPage bool   `json:"hasNextPage"`
-						EndCursor   string `json:"endCursor"`
-					} `json:"pageInfo"`
-					Nodes []gqlRepo `json:"nodes"`
-				} `json:"repositories"`
-			} `json:"repositoryOwner"`
-		}
-		vars := map[string]any{"login": owner, "after": after}
-		if err := c.gql.DoWithContext(ctx, query, vars, &resp); err != nil {
-			return nil, fmt.Errorf("list repos of %s: %w", owner, err)
-		}
-		if resp.RepositoryOwner == nil {
-			return nil, fmt.Errorf("list repos of %s: no such user or organization", owner)
-		}
-		for _, n := range resp.RepositoryOwner.Repositories.Nodes {
-			out = append(out, n.toRepo())
-		}
-		pi := resp.RepositoryOwner.Repositories.PageInfo
-		if !pi.HasNextPage {
-			return out, nil
-		}
-		cursor := pi.EndCursor
-		after = &cursor
-	}
-}
-
 // ErrNotFound is returned when a repository doesn't exist, or the token
 // can't see it.
 var ErrNotFound = errors.New("not found")
@@ -176,28 +132,37 @@ var ErrNotFound = errors.New("not found")
 // query. The result is keyed by the lower-cased name asked for; a repo that
 // doesn't exist, or that the token can't see, is absent.
 func (c *GitHub) GetRepos(ctx context.Context, names []string) (map[string]Repo, error) {
+	for _, n := range names {
+		if _, _, err := SplitRepo(n); err != nil {
+			return nil, err
+		}
+	}
 	out := map[string]Repo{}
-	for start := 0; start < len(names); start += BatchSize {
-		batch := names[start:min(start+BatchSize, len(names))]
+	var mu sync.Mutex
+	err := forBatches(ctx, len(names), func(ctx context.Context, lo, hi int) error {
+		batch := names[lo:hi]
 		var q strings.Builder
 		q.WriteString("query {")
 		for i, n := range batch {
-			owner, name, err := SplitRepo(n)
-			if err != nil {
-				return nil, err
-			}
+			owner, name, _ := SplitRepo(n)
 			fmt.Fprintf(&q, " r%d: repository(owner: %s, name: %s) { %s }", i, gqlString(owner), gqlString(name), repoFields)
 		}
 		q.WriteString(" }")
 		var resp map[string]*gqlRepo
 		if err := c.gql.DoWithContext(ctx, q.String(), nil, &resp); err != nil && !onlyNotFound(err) {
-			return nil, fmt.Errorf("look up repos: %w", err)
+			return fmt.Errorf("look up repos: %w", err)
 		}
+		mu.Lock()
+		defer mu.Unlock()
 		for i, n := range batch {
 			if r := resp["r"+strconv.Itoa(i)]; r != nil {
 				out[strings.ToLower(n)] = r.toRepo()
 			}
 		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	return out, nil
 }
@@ -224,9 +189,6 @@ func gqlString(s string) string {
 	return string(b)
 }
 
-// batchConcurrency is how many batched read queries run at once.
-const batchConcurrency = 4
-
 // PathsExist checks paths on each repo's default branch with batched
 // object(expression:) lookups, BatchSize repos per query and
 // batchConcurrency queries at a time.
@@ -236,22 +198,17 @@ func (c *GitHub) PathsExist(ctx context.Context, repos []Repo, paths []string) (
 		return out, nil
 	}
 	var mu sync.Mutex
-	g, gctx := errgroup.WithContext(ctx)
-	g.SetLimit(batchConcurrency)
-	for start := 0; start < len(repos); start += BatchSize {
-		batch := repos[start:min(start+BatchSize, len(repos))]
-		g.Go(func() error {
-			found, err := c.pathsExist(gctx, batch, paths)
-			if err != nil {
-				return err
-			}
-			mu.Lock()
-			maps.Copy(out, found)
-			mu.Unlock()
-			return nil
-		})
-	}
-	if err := g.Wait(); err != nil {
+	err := forBatches(ctx, len(repos), func(ctx context.Context, lo, hi int) error {
+		found, err := c.pathsExist(ctx, repos[lo:hi], paths)
+		if err != nil {
+			return err
+		}
+		mu.Lock()
+		maps.Copy(out, found)
+		mu.Unlock()
+		return nil
+	})
+	if err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -538,18 +495,21 @@ func (p gqlPR) toPR(repo string) PR {
 }
 
 // PRsByHead looks up the newest PR from head in each repo, BatchSize repos
-// per GraphQL query.
+// per GraphQL query and batchConcurrency queries at a time.
 func (c *GitHub) PRsByHead(ctx context.Context, repos []string, head string) (map[string]PR, error) {
+	for _, r := range repos {
+		if _, _, err := SplitRepo(r); err != nil {
+			return nil, err
+		}
+	}
 	out := map[string]PR{}
-	for start := 0; start < len(repos); start += BatchSize {
-		batch := repos[start:min(start+BatchSize, len(repos))]
+	var mu sync.Mutex
+	err := forBatches(ctx, len(repos), func(ctx context.Context, lo, hi int) error {
+		batch := repos[lo:hi]
 		var q strings.Builder
 		q.WriteString("query {")
 		for i, r := range batch {
-			owner, name, err := SplitRepo(r)
-			if err != nil {
-				return nil, err
-			}
+			owner, name, _ := SplitRepo(r)
 			fmt.Fprintf(&q, ` r%d: repository(owner: %s, name: %s) { pullRequests(headRefName: %s, first: 1, orderBy: {field: CREATED_AT, direction: DESC}) { nodes {
   id number url state title body isDraft headRefName headRefOid baseRefName reviewDecision updatedAt mergeStateStatus
   autoMergeRequest { enabledAt }
@@ -564,8 +524,10 @@ func (c *GitHub) PRsByHead(ctx context.Context, repos []string, head string) (ma
 			} `json:"pullRequests"`
 		}
 		if err := c.gql.DoWithContext(ctx, q.String(), nil, &resp); err != nil {
-			return nil, fmt.Errorf("look up PRs: %w", err)
+			return fmt.Errorf("look up PRs: %w", err)
 		}
+		mu.Lock()
+		defer mu.Unlock()
 		for i, r := range batch {
 			node := resp["r"+strconv.Itoa(i)]
 			if node == nil || len(node.PullRequests.Nodes) == 0 {
@@ -573,6 +535,10 @@ func (c *GitHub) PRsByHead(ctx context.Context, repos []string, head string) (ma
 			}
 			out[r] = node.PullRequests.Nodes[0].toPR(r)
 		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	return out, nil
 }
@@ -750,31 +716,28 @@ func isNotFound(err error) bool {
 	return errors.As(err, &he) && he.StatusCode == http.StatusNotFound
 }
 
-// OwnerProperties pages through an organization's custom property values.
-// A 404 (a user account, or no access to properties) means none.
+// OwnerProperties lists an organization's custom property values, its
+// pages fetched batchConcurrency at a time. A 404 (a user account, or no
+// access to properties) means none.
 func (c *GitHub) OwnerProperties(ctx context.Context, owner string) (map[string]map[string]string, error) {
+	type repoProps struct {
+		FullName   string         `json:"repository_full_name"`
+		Properties []restProperty `json:"properties"`
+	}
+	items, err := restPages[repoProps](ctx, c, fmt.Sprintf("orgs/%s/properties/values?per_page=100", url.PathEscape(owner)))
+	if isNotFound(err) {
+		return map[string]map[string]string{}, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("custom properties of %s: %w", owner, err)
+	}
 	out := map[string]map[string]string{}
-	for page := 1; ; page++ {
-		var resp []struct {
-			FullName   string         `json:"repository_full_name"`
-			Properties []restProperty `json:"properties"`
-		}
-		path := fmt.Sprintf("orgs/%s/properties/values?per_page=100&page=%d", url.PathEscape(owner), page)
-		if err := c.rest.DoWithContext(ctx, http.MethodGet, path, nil, &resp); err != nil {
-			if isNotFound(err) {
-				return out, nil
-			}
-			return nil, fmt.Errorf("custom properties of %s: %w", owner, err)
-		}
-		for _, r := range resp {
-			if m := propertyMap(r.Properties); len(m) > 0 {
-				out[r.FullName] = m
-			}
-		}
-		if len(resp) < 100 {
-			return out, nil
+	for _, r := range items {
+		if m := propertyMap(r.Properties); len(m) > 0 {
+			out[r.FullName] = m
 		}
 	}
+	return out, nil
 }
 
 // RepoProperties returns one repo's custom property values.

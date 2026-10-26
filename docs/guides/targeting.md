@@ -8,7 +8,7 @@ The `targets` section decides which repositories a campaign touches. This guide 
 
 ## Where candidates come from
 
-`orgs` lists organizations (or users) whose repositories are candidates. Each org is listed with one paginated GraphQL query, 100 repos per page, and the listing is cached for 10 minutes, so running `targets`, `plan` and `apply` in a row costs one listing. `include.repos` adds individual repos, even from other owners.
+`orgs` lists organizations (or users) whose repositories are candidates. Each org is listed 100 repos per page, 4 pages at a time, so an org of 5,000 repos takes about 13 rounds of requests rather than 50 in a row. The listing is cached for 10 minutes, so running `targets`, `plan` and `apply` in a row costs one listing. `include.repos` adds individual repos, even from other owners.
 
 A campaign needs `orgs`, `include.repos`, or both.
 
@@ -112,7 +112,7 @@ On the command line, `--exclude` and `--exclude-file` take patterns too (quote t
 
 ## Custom properties
 
-Organizations can define [custom properties](https://docs.github.com/en/organizations/managing-organization-settings/managing-custom-properties-for-repositories-in-your-organization) on their repos, such as `team`, `tier` or `pci`. They are often a better handle than topics, because the org controls them and every repo has a value. gh fleet reads them with the org listing, in one paginated call per org, and caches them with it.
+Organizations can define [custom properties](https://docs.github.com/en/organizations/managing-organization-settings/managing-custom-properties-for-repositories-in-your-organization) on their repos, such as `team`, `tier` or `pci`. They are often a better handle than topics, because the org controls them and every repo has a value. gh fleet reads them with the org listing, 100 repos per page and 4 pages at a time, and caches them with it.
 
 ```yaml
 targets:
