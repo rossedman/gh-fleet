@@ -35,7 +35,7 @@ func (a *App) Close(ctx context.Context, o CloseOptions) error {
 	if err != nil {
 		return err
 	}
-	res, err := a.resolve(ctx, client, camp, o.Repos, true)
+	res, err := a.resolve(ctx, o.Common, client, camp, o.Repos, true)
 	if err != nil {
 		return err
 	}
@@ -97,17 +97,17 @@ func (a *App) Close(ctx context.Context, o CloseOptions) error {
 		rs.Status = state.Closed
 		return rs, nil
 	})
+	tr, stop := a.track(o.Common, "Closing PRs in", len(targets), concurrency(o.Common, camp), true)
 	results, fatal := engine.Run(ctx, targets, proc, engine.Options{
 		Concurrency: concurrency(o.Common, camp),
 		OnResult: func(rs state.RepoState) {
 			if rs.Status == state.Closed {
 				st.Set(rs, a.Store.Time())
 			}
-			if !p.Machine() {
-				progress.Progress(rs)
-			}
+			tr.Result(rs)
 		},
 	})
+	stop()
 	if err := a.Store.Save(st); err != nil {
 		return err
 	}

@@ -87,6 +87,9 @@ type Resolver struct {
 	// AllowReadOnly keeps repos without push access as targets, for
 	// commands that only read.
 	AllowReadOnly bool
+	// Progress, when set, is told what resolution is doing, so a long
+	// listing or file check isn't silent.
+	Progress func(msg string)
 	// RequireProperties makes a failure to read custom properties an
 	// error. Without it, repos whose properties can't be read (for example
 	// with a token that lacks access) simply have none.
@@ -157,6 +160,7 @@ func (rs *Resolver) Resolve(ctx context.Context, t campaign.Targets) (*Result, e
 
 	files := map[string][]string{}
 	if len(t.Include.Files) > 0 && len(live) > 0 {
+		rs.progress(fmt.Sprintf("Checking %s in %s", strings.Join(t.Include.Files, ", "), countRepos(len(live))))
 		var err error
 		files, err = rs.Client.PathsExist(ctx, live, t.Include.Files)
 		if err != nil {
@@ -165,6 +169,7 @@ func (rs *Resolver) Resolve(ctx context.Context, t campaign.Targets) (*Result, e
 	}
 	hits := map[string]bool{}
 	if t.Include.Search != "" {
+		rs.progress(fmt.Sprintf("Searching code for %q", t.Include.Search))
 		owners := t.Orgs
 		if len(owners) == 0 {
 			owners = []string{""}
@@ -204,13 +209,16 @@ func (rs *Resolver) Resolve(ctx context.Context, t campaign.Targets) (*Result, e
 func (rs *Resolver) listOwner(ctx context.Context, owner string) ([]ghapi.Repo, error) {
 	if rs.Cache != nil {
 		if repos, ok := rs.Cache.Get(owner); ok {
+			rs.progress(fmt.Sprintf("Listed %s: %s, from the cache", owner, countRepos(len(repos))))
 			return repos, nil
 		}
 	}
+	rs.progress("Listing " + owner + "'s repos")
 	repos, err := rs.Client.ListOwnerRepos(ctx, owner)
 	if err != nil {
 		return nil, err
 	}
+	rs.progress(fmt.Sprintf("Listed %s: %s", owner, countRepos(len(repos))))
 	props, err := rs.Client.OwnerProperties(ctx, owner)
 	if err != nil && rs.RequireProperties {
 		return nil, err
@@ -294,4 +302,19 @@ func (c *Cache) Put(owner string, repos []ghapi.Repo) {
 	if os.WriteFile(tmp, b, 0o600) == nil {
 		_ = os.Rename(tmp, c.path(owner))
 	}
+}
+
+// progress reports a resolution step, when anyone is listening.
+func (rs *Resolver) progress(msg string) {
+	if rs.Progress != nil {
+		rs.Progress(msg)
+	}
+}
+
+// countRepos formats a count of repos.
+func countRepos(n int) string {
+	if n == 1 {
+		return "1 repo"
+	}
+	return fmt.Sprintf("%d repos", n)
 }

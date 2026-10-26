@@ -16,6 +16,7 @@ gh fleet status | awk -F'\t' '$2 == "failed" { print $1 }'
 ```
 
 - **Styling is for terminals only.** Nothing is colored when output is piped, or when `NO_COLOR` or `CLICOLOR=0` is set. `CLICOLOR_FORCE=1` forces color, and `GH_FORCE_TTY` makes gh fleet lay output out as if it were writing to a terminal.
+- **Long runs report progress on stderr.** `plan`, `apply`, `retry`, `merge`, `close` and `exec` first say what they're resolving (listing each org, checking files, searching code, looking up PRs). Then they list each repo as it finishes. In a terminal, a status line at the bottom shows how many repos are done, how many failed, the elapsed time and an estimate of what's left. In a log, the same line prints every 30 seconds. When GitHub's rate limit pauses every request, gh fleet says so and for how long. With `--json` and stderr not a terminal, only the heartbeat and rate limit lines print.
 - **Errors are one plain line on stderr.** They read the same in a terminal, a CI log or a file.
 
 ## JSON, jq and templates

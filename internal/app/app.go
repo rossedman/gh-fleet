@@ -14,6 +14,8 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/rossedman/gh-fleet/internal/campaign"
 	"github.com/rossedman/gh-fleet/internal/ghapi"
@@ -38,6 +40,16 @@ type App struct {
 	// TTY is true when stdout is a terminal (or GH_FORCE_TTY is set).
 	// Without it tables are tab-separated with no header row.
 	TTY bool
+	// ErrTTY is true when stderr is a terminal, where progress is a live
+	// status line rather than periodic heartbeat lines.
+	ErrTTY bool
+
+	// trackMu guards tracker, the progress of the run in flight.
+	trackMu sync.Mutex
+	tracker *render.Tracker
+	// progressEvery overrides how often progress redraws or prints, for
+	// tests.
+	progressEvery time.Duration
 	// NewClient builds a GitHub client with the given write rate.
 	NewClient  func(writeRate float64) (ghapi.Client, error)
 	Store      *state.Store
@@ -53,7 +65,7 @@ type App struct {
 }
 
 // Default wires the real GitHub client, state dir, cache and git.
-func Default(out, errOut io.Writer, in io.Reader, tty, interactive, color bool) (*App, error) {
+func Default(out, errOut io.Writer, in io.Reader, tty, errTTY, interactive, color bool) (*App, error) {
 	stateDir, err := state.DefaultDir()
 	if err != nil {
 		return nil, err
@@ -62,11 +74,8 @@ func Default(out, errOut io.Writer, in io.Reader, tty, interactive, color bool) 
 	if err != nil {
 		cacheDir = os.TempDir()
 	}
-	return &App{
-		Out: out, Err: errOut, In: in, TTY: tty, Interactive: interactive, Color: color,
-		NewClient: func(rate float64) (ghapi.Client, error) {
-			return ghapi.New(ghapi.Options{WriteRate: rate})
-		},
+	a := &App{
+		Out: out, Err: errOut, In: in, TTY: tty, ErrTTY: errTTY, Interactive: interactive, Color: color,
 		Store:      &state.Store{Dir: stateDir},
 		Cache:      &target.Cache{Dir: filepath.Join(cacheDir, "gh-fleet", "repos")},
 		Workspaces: &workspace.Manager{},
@@ -74,7 +83,58 @@ func Default(out, errOut io.Writer, in io.Reader, tty, interactive, color bool) 
 		Confirm: func(title string) (bool, error) {
 			return ui.Confirm(in, errOut, title)
 		},
-	}, nil
+	}
+	a.NewClient = func(rate float64) (ghapi.Client, error) {
+		gh, err := ghapi.New(ghapi.Options{WriteRate: rate})
+		if err == nil {
+			gh.Transport.OnWait = a.rateLimitWait
+		}
+		return gh, err
+	}
+	return a, nil
+}
+
+// rateLimitWait says why every request has stopped, so a long rate limit
+// pause doesn't look like a hang.
+func (a *App) rateLimitWait(why string, d time.Duration) {
+	a.note(fmt.Sprintf("GitHub %s: waiting %s before the next request", why, d.Round(time.Second)))
+}
+
+// note prints a line about what's happening to stderr, above the live
+// progress line when one is drawn.
+func (a *App) note(msg string) {
+	a.trackMu.Lock()
+	t := a.tracker
+	a.trackMu.Unlock()
+	if t != nil {
+		t.Note(msg)
+		return
+	}
+	fmt.Fprintln(a.Err, msg)
+}
+
+// quiet reports whether progress notes would only clutter: machine output
+// with nobody watching stderr.
+func (a *App) quiet(c Common) bool {
+	return (c.JSON || c.JQ != "" || c.Template != "") && !a.ErrTTY
+}
+
+// track starts reporting progress over total repos, verb naming the run,
+// until the returned stop is called. With lines false, finished repos
+// are counted but not listed.
+func (a *App) track(c Common, verb string, total, concurrency int, lines bool) (*render.Tracker, func()) {
+	machine := c.JSON || c.JQ != "" || c.Template != ""
+	t := &render.Tracker{Printer: a.errPrinter(c), Live: a.ErrTTY, Quiet: machine || !lines, Verb: verb, Total: total, Interval: a.progressEvery}
+	a.trackMu.Lock()
+	a.tracker = t
+	a.trackMu.Unlock()
+	t.Start(concurrency)
+	return t, func() {
+		t.Stop()
+		a.trackMu.Lock()
+		a.tracker = nil
+		a.trackMu.Unlock()
+	}
 }
 
 // Common holds the flags most commands share.
@@ -233,8 +293,11 @@ func (a *App) scripts(ctx context.Context, camp *campaign.Campaign) (map[int]*st
 
 // resolve resolves a campaign's targets, applies --repo and works out each
 // target's variables.
-func (a *App) resolve(ctx context.Context, client ghapi.Client, camp *campaign.Campaign, repos []string, requirePush bool) (*target.Result, error) {
+func (a *App) resolve(ctx context.Context, c Common, client ghapi.Client, camp *campaign.Campaign, repos []string, requirePush bool) (*target.Result, error) {
 	rs := &target.Resolver{Client: client, Cache: a.Cache, AllowReadOnly: !requirePush, RequireProperties: camp.UsesProperties()}
+	if !a.quiet(c) {
+		rs.Progress = a.note
+	}
 	res, err := rs.Resolve(ctx, camp.Targets)
 	if err != nil {
 		return nil, err

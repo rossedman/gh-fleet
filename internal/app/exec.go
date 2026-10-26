@@ -83,31 +83,36 @@ func (a *App) Exec(ctx context.Context, o ExecOptions) error {
 	if err != nil {
 		return err
 	}
-	res, err := a.resolve(ctx, client, camp, repos, false)
+	res, err := a.resolve(ctx, o.Common, client, camp, repos, false)
 	if err != nil {
 		return err
 	}
 	p := a.printer(o.Common)
 	progress := a.errPrinter(o.Common)
 	pipe := &engine.Pipeline{Mode: engine.Exec, Campaign: camp, Workspaces: a.workspaces(o.Common), Git: a.Git, Argv: o.Argv, ExecTimeout: o.Timeout}
+	// Exec lists only failures as they happen; the tally comes at the end.
+	tr, stop := a.track(o.Common, "Running in", len(res.Targets), concurrency(o.Common, camp), false)
 	results, fatal := engine.Run(ctx, res.Targets, pipe, engine.Options{
 		Concurrency: concurrency(o.Common, camp),
 		OnResult: func(rs state.RepoState) {
-			if p.Machine() {
-				return
-			}
-			if o.Raw {
-				for _, l := range strings.Split(strings.TrimRight(rs.Output, "\n"), "\n") {
-					if l != "" {
-						fmt.Fprintf(p.Out, "%s %s\n", p.Styles.Brand.Render(rs.Repo+":"), l)
+			if !p.Machine() {
+				tr.Pause(func() {
+					if o.Raw {
+						for _, l := range strings.Split(strings.TrimRight(rs.Output, "\n"), "\n") {
+							if l != "" {
+								fmt.Fprintf(p.Out, "%s %s\n", p.Styles.Brand.Render(rs.Repo+":"), l)
+							}
+						}
 					}
-				}
+					if rs.Status == state.Failed {
+						progress.Progress(rs)
+					}
+				})
 			}
-			if rs.Status == state.Failed {
-				progress.Progress(rs)
-			}
+			tr.Result(rs)
 		},
 	})
+	stop()
 	sortStates(results)
 	tally := Aggregate(results)
 	if p.Machine() {

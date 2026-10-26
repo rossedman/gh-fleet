@@ -135,7 +135,7 @@ func (a *App) Merge(ctx context.Context, o MergeOptions) error {
 	if err != nil {
 		return err
 	}
-	res, err := a.resolve(ctx, client, camp, o.Repos, false)
+	res, err := a.resolve(ctx, o.Common, client, camp, o.Repos, false)
 	if err != nil {
 		return err
 	}
@@ -252,17 +252,17 @@ func (a *App) Merge(ctx context.Context, o MergeOptions) error {
 		}
 		return rs, nil
 	})
+	tr, stop := a.track(o.Common, "Merging in", len(targets), concurrency(o.Common, camp), true)
 	results, fatal := engine.Run(ctx, targets, proc, engine.Options{
 		Concurrency: concurrency(o.Common, camp),
 		OnResult: func(rs state.RepoState) {
 			if rs.Status == state.Merged {
 				st.Set(rs, a.Store.Time())
 			}
-			if !p.Machine() {
-				progress.Progress(rs)
-			}
+			tr.Result(rs)
 		},
 	})
+	stop()
 	if !o.DryRun {
 		if err := a.Store.Save(st); err != nil {
 			return err
