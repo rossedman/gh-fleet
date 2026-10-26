@@ -61,3 +61,19 @@ func TestLogger(t *testing.T) {
 		t.Fatalf("log = %q", b.String())
 	}
 }
+
+func TestAdaptiveColors(t *testing.T) {
+	t.Parallel()
+	if Brand.For(true) != Brand.Dark || Brand.For(false) != Brand.Light {
+		t.Fatal("Adaptive.For")
+	}
+	dark, light := ColorFor(true).OK.Render("x"), ColorFor(false).OK.Render("x")
+	if dark == light || dark == "x" {
+		t.Errorf("dark %q and light %q styles should differ and add color", dark, light)
+	}
+	// Tests don't run on a terminal, so nothing is asked and the default is
+	// dark.
+	if !darkBackground() || Color().OK.Render("x") != dark {
+		t.Error("without a terminal the background should be taken as dark")
+	}
+}
