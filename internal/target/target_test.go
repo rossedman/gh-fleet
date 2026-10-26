@@ -387,3 +387,45 @@ func TestResolveProgress(t *testing.T) {
 		t.Error("repos")
 	}
 }
+
+func TestResolveOnly(t *testing.T) {
+	t.Parallel()
+	f := newFake()
+	var msgs []string
+	rs := &Resolver{Client: f, Only: []string{"ACME/api", "acme/lib", "other/legacy", "acme/ro"}, Progress: func(m string) { msgs = append(msgs, m) }}
+	res, err := rs.Resolve(context.Background(), campaign.Targets{
+		Orgs:    []string{"acme"},
+		Include: campaign.Include{Topics: []string{"service"}, Files: []string{".github/workflows"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// acme/lib fails the topic filter and other/legacy isn't in the campaign;
+	// acme/ro matches but can't be pushed to.
+	if got := res.Names(); !slices.Equal(got, []string{"acme/api"}) {
+		t.Fatalf("targets = %v", got)
+	}
+	if len(res.Skipped) != 1 || res.Skipped[0].Repo != "acme/ro" {
+		t.Fatalf("skipped = %+v", res.Skipped)
+	}
+	if f.CallCount("ListOwnerRepos") != 0 || f.CallCount("GetRepo") != 4 {
+		t.Errorf("ListOwnerRepos %d, GetRepo %d: want only lookups of the named repos", f.CallCount("ListOwnerRepos"), f.CallCount("GetRepo"))
+	}
+	if strings.Join(msgs, "|") != "Looking up 4 repos|Checking .github/workflows in 2 repos" {
+		t.Errorf("progress = %v", msgs)
+	}
+
+	// A repo outside orgs is a candidate when include.repos names it.
+	res, err = (&Resolver{Client: f, Only: []string{"other/legacy"}}).Resolve(context.Background(), campaign.Targets{Orgs: []string{"acme"}, Include: campaign.Include{Repos: []string{"other/leg*"}}})
+	if err != nil || !slices.Equal(res.Names(), []string{"other/legacy"}) {
+		t.Fatalf("include.repos pattern: %v, %v", res, err)
+	}
+	f.Errors["RepoProperties"] = errors.New("forbidden")
+	if _, err := (&Resolver{Client: f, Only: []string{"acme/api"}, RequireProperties: true}).Resolve(context.Background(), campaign.Targets{Orgs: []string{"acme"}}); err == nil {
+		t.Error("required properties error swallowed")
+	}
+	f.Errors["GetRepo"] = errors.New("not found")
+	if _, err := (&Resolver{Client: f, Only: []string{"acme/nope"}}).Resolve(context.Background(), campaign.Targets{Orgs: []string{"acme"}}); err == nil || !strings.Contains(err.Error(), "acme/nope: not found") {
+		t.Errorf("lookup error = %v", err)
+	}
+}

@@ -298,12 +298,18 @@ func (a *App) resolve(ctx context.Context, c Common, client ghapi.Client, camp *
 	if !a.quiet(c) {
 		rs.Progress = a.note
 	}
+	// A repo both listed and excluded is left out, not an error; when that
+	// leaves none, there is nothing to do rather than no limit.
+	limited := len(repos) > 0
+	repos = slices.DeleteFunc(slices.Clone(repos), func(r string) bool { return excludedName(camp, r) })
+	if limited && len(repos) == 0 {
+		return &target.Result{}, nil
+	}
+	rs.Only = repos
 	res, err := rs.Resolve(ctx, camp.Targets)
 	if err != nil {
 		return nil, err
 	}
-	// A repo both listed and excluded is left out, not an error.
-	repos = slices.DeleteFunc(slices.Clone(repos), func(r string) bool { return excludedName(camp, r) })
 	if err := res.Limit(repos); err != nil {
 		return nil, err
 	}
