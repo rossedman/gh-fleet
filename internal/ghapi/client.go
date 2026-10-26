@@ -320,6 +320,37 @@ func (c *GitHub) searchCode(ctx context.Context, query string, lo, hi int, sized
 	return partial || total > codeSearchCap, nil
 }
 
+// SearchRepos runs a repository search and returns the full names of the
+// repos it finds. GitHub returns at most codeSearchCap results, so a search
+// that matches more, or that GitHub couldn't finish, is reported as not
+// Complete and its partial results dropped.
+func (c *GitHub) SearchRepos(ctx context.Context, query string) (RepoSearch, error) {
+	var names []string
+	for page := 1; page <= maxSearchPages; page++ {
+		var resp struct {
+			TotalCount        int  `json:"total_count"`
+			IncompleteResults bool `json:"incomplete_results"`
+			Items             []struct {
+				FullName string `json:"full_name"`
+			} `json:"items"`
+		}
+		path := "search/repositories?per_page=100&page=" + strconv.Itoa(page) + "&q=" + url.QueryEscape(query)
+		if err := c.rest.DoWithContext(ctx, http.MethodGet, path, nil, &resp); err != nil {
+			return RepoSearch{}, fmt.Errorf("repo search: %w", err)
+		}
+		if resp.IncompleteResults || resp.TotalCount > codeSearchCap {
+			return RepoSearch{}, nil
+		}
+		for _, it := range resp.Items {
+			names = append(names, it.FullName)
+		}
+		if len(resp.Items) < 100 || page*100 >= resp.TotalCount {
+			break
+		}
+	}
+	return RepoSearch{Repos: names, Complete: true}, nil
+}
+
 // splitSize picks where to split a file size range. Most files are small,
 // so the split is geometric: 0..393216 splits at 626, then 0..626 at 24.
 func splitSize(lo, hi int) int {

@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -29,6 +30,8 @@ type Client struct {
 	Search map[string][]string
 	// SearchPartial marks every code search result as partial.
 	SearchPartial bool
+	// RepoSearchIncomplete makes every repo search incomplete.
+	RepoSearchIncomplete bool
 	// PRs holds every pull request, in creation order.
 	PRs []*ghapi.PR
 	// Errors makes the named method (e.g. "CreatePR") fail. A key of
@@ -156,6 +159,40 @@ func (c *Client) PathsExist(ctx context.Context, repos []ghapi.Repo, paths []str
 	}
 	return out, nil
 }
+
+// SearchRepos filters Repos by the org:, topic: and language: qualifiers
+// of query, as GitHub's repo search does. Forks are left out unless the
+// query has fork:true.
+func (c *Client) SearchRepos(ctx context.Context, query string) (ghapi.RepoSearch, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if err := c.call(ctx, "SearchRepos", ""); err != nil {
+		return ghapi.RepoSearch{}, err
+	}
+	if c.RepoSearchIncomplete {
+		return ghapi.RepoSearch{}, nil
+	}
+	quals := map[string]string{}
+	for _, m := range searchQualifier.FindAllStringSubmatch(query, -1) {
+		quals[m[1]] = strings.Trim(m[2], `"`)
+	}
+	var names []string
+	for _, r := range c.Repos {
+		switch {
+		case quals["org"] != "" && !strings.EqualFold(r.Owner, quals["org"]):
+		case quals["topic"] != "" && !slices.ContainsFunc(r.Topics, func(t string) bool { return strings.EqualFold(t, quals["topic"]) }):
+		case quals["language"] != "" && !strings.EqualFold(r.Language, quals["language"]):
+		case r.Fork && quals["fork"] != "true":
+		default:
+			names = append(names, r.FullName())
+		}
+	}
+	sort.Strings(names)
+	return ghapi.RepoSearch{Repos: names, Complete: true}, nil
+}
+
+// searchQualifier matches a search qualifier such as language:"Visual Basic".
+var searchQualifier = regexp.MustCompile(`(\w+):("[^"]*"|\S+)`)
 
 // SearchCode returns the repos registered for query.
 func (c *Client) SearchCode(ctx context.Context, query string) (ghapi.CodeSearch, error) {

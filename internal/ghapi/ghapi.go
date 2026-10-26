@@ -105,6 +105,14 @@ type CodeSearch struct {
 	Partial bool
 }
 
+// RepoSearch is the result of a repository search.
+type RepoSearch struct {
+	// Repos holds the full names of the repos found.
+	Repos []string
+	// Complete is set when Repos holds every match.
+	Complete bool
+}
+
 // Client is every GitHub operation gh fleet performs.
 type Client interface {
 	// ListOwnerRepos lists every repository of an organization or user.
@@ -116,6 +124,9 @@ type Client interface {
 	// PathsExist reports, per repo full name, which of paths exist on the
 	// repo's default branch.
 	PathsExist(ctx context.Context, repos []Repo, paths []string) (map[string][]string, error)
+	// SearchRepos returns the full names of repos a repository search
+	// finds, or a result that isn't Complete when it can't return them all.
+	SearchRepos(ctx context.Context, query string) (RepoSearch, error)
 	// SearchCode returns the full names of repos with a code search hit.
 	SearchCode(ctx context.Context, query string) (CodeSearch, error)
 	// PRsByHead returns, per repo full name, the most recent PR from head

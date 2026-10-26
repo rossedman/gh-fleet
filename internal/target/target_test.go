@@ -579,3 +579,73 @@ func TestEvaluateOnlyRepos(t *testing.T) {
 		t.Fatalf("filter match lost: %+v", d)
 	}
 }
+
+func TestRepoSearchNarrowsListing(t *testing.T) {
+	t.Parallel()
+	org := func() *fake.Client {
+		f := newFake()
+		f.AddRepo(ghapi.Repo{Owner: "acme", Name: "forked", Topics: []string{"service"}, Language: "Go", Fork: true, CanPush: true})
+		f.AddRepo(ghapi.Repo{Owner: "acme", Name: "old", Topics: []string{"service"}, Language: "Go", Archived: true, CanPush: true})
+		f.AddRepo(ghapi.Repo{Owner: "acme", Name: "vb", Language: "Visual Basic", CanPush: true})
+		return f
+	}
+	for _, tg := range []campaign.Targets{
+		{Orgs: []string{"acme"}, Include: campaign.Include{Topics: []string{"service", "web"}}},
+		{Orgs: []string{"acme"}, Include: campaign.Include{Topics: []string{"service"}, Languages: []string{"Go"}}, Exclude: campaign.Exclude{Repos: []string{"acme/sandbox"}}},
+		{Orgs: []string{"acme"}, Include: campaign.Include{Languages: []string{"go", "Visual Basic"}}, Exclude: campaign.Exclude{Archived: new(bool), Forks: new(bool)}},
+		{Orgs: []string{"acme"}, Include: campaign.Include{Topics: []string{"service"}, Files: []string{".github/workflows"}, Repos: []string{"lib", "other/legacy"}}},
+	} {
+		searched := org()
+		got, err := (&Resolver{Client: searched}).Resolve(context.Background(), tg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		listed := org()
+		listed.RepoSearchIncomplete = true
+		want, err := (&Resolver{Client: listed}).Resolve(context.Background(), tg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// Searching finds exactly what listing does, without the listing.
+		if !slices.Equal(got.Names(), want.Names()) || len(got.Skipped) != len(want.Skipped) {
+			t.Errorf("%+v: searched %v %v, listed %v %v", tg.Include, got.Names(), got.Skipped, want.Names(), want.Skipped)
+		}
+		if searched.CallCount("ListOwnerRepos") != 0 || listed.CallCount("ListOwnerRepos") != 1 {
+			t.Errorf("%+v: listings %d searched, %d listed", tg.Include, searched.CallCount("ListOwnerRepos"), listed.CallCount("ListOwnerRepos"))
+		}
+	}
+
+	// A search error, custom properties, or a cached listing mean listing.
+	tg := campaign.Targets{Orgs: []string{"acme"}, Include: campaign.Include{Topics: []string{"service"}}}
+	var msgs []string
+	f := org()
+	f.Errors["SearchRepos"] = errors.New("boom")
+	if _, err := (&Resolver{Client: f, Progress: func(m string) { msgs = append(msgs, m) }}).Resolve(context.Background(), tg); err != nil || f.CallCount("ListOwnerRepos") != 1 {
+		t.Errorf("search error: %v, %d listings", err, f.CallCount("ListOwnerRepos"))
+	}
+	if !slices.ContainsFunc(msgs, func(m string) bool { return strings.HasPrefix(m, "Repo search failed (boom); listing acme instead") }) {
+		t.Errorf("progress = %v", msgs)
+	}
+	f = org()
+	if _, err := (&Resolver{Client: f, RequireProperties: true}).Resolve(context.Background(), tg); err != nil || f.CallCount("SearchRepos") != 0 {
+		t.Errorf("properties: %v, %d searches", err, f.CallCount("SearchRepos"))
+	}
+	f = org()
+	cache := &Cache{Dir: t.TempDir()}
+	rs := &Resolver{Client: f, Cache: cache}
+	if _, err := rs.Resolve(context.Background(), campaign.Targets{Orgs: []string{"acme"}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := rs.Resolve(context.Background(), tg); err != nil || f.CallCount("SearchRepos") != 0 || f.CallCount("ListOwnerRepos") != 1 {
+		t.Errorf("cached: %v, %d searches, %d listings", err, f.CallCount("SearchRepos"), f.CallCount("ListOwnerRepos"))
+	}
+	// A failed lookup of the matches fails the run.
+	f = org()
+	f.Errors["GetRepos"] = errors.New("boom")
+	if _, err := (&Resolver{Client: f}).Resolve(context.Background(), tg); err == nil {
+		t.Error("lookup error swallowed")
+	}
+	if got := searchQueries("acme", campaign.Include{Languages: []string{"Visual Basic"}}); !slices.Equal(got, []string{`org:acme language:"Visual Basic" fork:true`}) {
+		t.Errorf("queries = %v", got)
+	}
+}
