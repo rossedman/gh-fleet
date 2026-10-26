@@ -1,0 +1,27 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: js-style-defaults
+description: Give every JavaScript repo the org's Prettier and ESLint settings
+
+targets:
+  orgs: [acme]
+  include:
+    languages: [TypeScript, JavaScript]
+
+change:
+  steps:
+    # Sets Prettier options in whichever config the repo uses (.prettierrc in
+    # JSON or YAML, or package.json), and makes ESLint fail on `==` and
+    # console calls. Repos on flat eslint.config.js are reported, not edited.
+    - name: prettier-eslint
+      starlark: ./change.star
+      timeout: 1m
+
+pr:
+  title: "chore: standard Prettier and ESLint settings"
+  body: |
+    Applies the org's Prettier and ESLint settings to {{ .Repo.Name }}.
+    {{ .Vars.eslint }}
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet]

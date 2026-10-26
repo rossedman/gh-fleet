@@ -1,0 +1,29 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: bitbucket-aws-pipes
+description: Move Bitbucket Pipelines to current AWS pipes and Node 22
+
+targets:
+  orgs: [acme]
+  include:
+    files: [bitbucket-pipelines.yml]
+
+change:
+  steps:
+    # Moves the aws-s3-deploy pipe and the node image, and reports the pipe
+    # versions it replaced.
+    - name: bitbucket-pipes
+      starlark: ./change.star
+      timeout: 1m
+  env:
+    PIPE: atlassian/aws-s3-deploy
+    VERSION: "1.6.1"
+
+pr:
+  title: "ci: aws-s3-deploy 1.6.1 and node 22"
+  body: |
+    Moves {{ .Repo.Name }} to aws-s3-deploy 1.6.1 (from {{ .Vars.previous }})
+    and Node 22.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet]
