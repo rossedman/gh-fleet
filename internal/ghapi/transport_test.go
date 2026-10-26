@@ -134,29 +134,209 @@ func TestSecondaryLimitPausesAllWorkersAndResumes(t *testing.T) {
 	}
 }
 
-func TestRetryAfterFormats(t *testing.T) {
+func TestClassify(t *testing.T) {
 	t.Parallel()
 	now := time.Unix(1_700_000_000, 0)
+	reset := strconv.FormatInt(now.Add(90*time.Second).Unix(), 10)
 	for _, tt := range []struct {
-		code int
-		ra   string
-		want time.Duration
-		ok   bool
+		name     string
+		code     int
+		resource string
+		headers  map[string]string
+		body     string
+		kind     limitKind
+		wait     time.Duration
 	}{
-		{403, "5", 5 * time.Second, true},
-		{429, now.Add(10 * time.Second).UTC().Format(http.TimeFormat), 10 * time.Second, true},
-		{429, "soon", defaultRetryAfter, true},
-		{403, "", 0, false},
-		{500, "5", 0, false},
+		{"retry-after seconds", 403, "core", map[string]string{"Retry-After": "5"}, "", secondary, 5 * time.Second},
+		{"retry-after date", 429, "core", map[string]string{"Retry-After": now.Add(10 * time.Second).UTC().Format(http.TimeFormat)}, "", secondary, 10 * time.Second},
+		{"retry-after junk", 429, "core", map[string]string{"Retry-After": "soon"}, "", secondary, defaultRetryAfter},
+		{"spent quota", 403, "core", map[string]string{"X-RateLimit-Remaining": "0", "X-RateLimit-Limit": "5000", "X-RateLimit-Reset": reset}, `{"message":"API rate limit exceeded"}`, spentQuota, 90 * time.Second},
+		{"spent quota, no reset", 429, "search", map[string]string{"X-RateLimit-Remaining": "0"}, "", spentQuota, defaultRetryAfter},
+		{"secondary, no wait given", 403, "core", nil, `{"message":"You have exceeded a secondary rate limit."}`, secondary, -1},
+		{"abuse", 403, "core", nil, `{"message":"You have triggered an abuse detection mechanism."}`, secondary, -1},
+		{"429, no hints", 429, "core", nil, "", secondary, -1},
+		{"plain 403", 403, "core", nil, `{"message":"Resource not accessible by integration"}`, notLimited, 0},
+		{"graphql rate limited", 200, "graphql", map[string]string{"X-RateLimit-Remaining": "0", "X-RateLimit-Reset": reset}, `{"errors":[{"type":"RATE_LIMITED"}]}`, spentQuota, 90 * time.Second},
+		{"graphql last point", 200, "graphql", map[string]string{"X-RateLimit-Remaining": "0"}, `{"data":{}}`, notLimited, 0},
+		{"ok", 200, "core", map[string]string{"X-RateLimit-Remaining": "0"}, "{}", notLimited, 0},
+		{"server error", 500, "core", map[string]string{"Retry-After": "5"}, "", notLimited, 0},
 	} {
-		resp := &http.Response{StatusCode: tt.code, Header: http.Header{}}
-		if tt.ra != "" {
-			resp.Header.Set("Retry-After", tt.ra)
+		resp := &http.Response{StatusCode: tt.code, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(tt.body))}
+		for k, v := range tt.headers {
+			resp.Header.Set(k, v)
 		}
-		got, ok := secondaryLimit(resp, now)
-		if ok != tt.ok || got != tt.want {
-			t.Errorf("secondaryLimit(%d, %q) = %s, %v", tt.code, tt.ra, got, ok)
+		got, err := classify(resp, tt.resource, now)
+		if err != nil || got.kind != tt.kind || got.wait != tt.wait {
+			t.Errorf("%s: classify = %+v, %v; want kind %d wait %s", tt.name, got, err, tt.kind, tt.wait)
+			continue
 		}
+		// The body is still there for the caller.
+		if b, _ := io.ReadAll(resp.Body); string(b) != tt.body {
+			t.Errorf("%s: body = %q", tt.name, b)
+		}
+		if tt.kind == spentQuota && (got.quota == nil || !errors.Is(got.quota, ErrQuotaLow) || got.quota.Resource != tt.resource) {
+			t.Errorf("%s: quota = %+v", tt.name, got.quota)
+		}
+	}
+	// An unreadable body is an error.
+	resp := &http.Response{StatusCode: 403, Header: http.Header{}, Body: io.NopCloser(errReader{})}
+	if _, err := classify(resp, "core", now); err == nil {
+		t.Error("unreadable body ignored")
+	}
+}
+
+func TestSecondaryLimitWithoutWaitDoubles(t *testing.T) {
+	t.Parallel()
+	var calls atomic.Int64
+	limitOn := map[int64]bool{1: true, 2: true, 4: true}
+	h := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		if limitOn[calls.Add(1)] {
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = io.WriteString(w, `{"message":"You have exceeded a secondary rate limit."}`)
+			return
+		}
+		_, _ = io.WriteString(w, "{}")
+	})
+	tr, clock := newTestTransport(h)
+	get(t, tr, "/repos/a/b")
+	// A success resets the doubling.
+	get(t, tr, "/repos/a/b")
+	want := []time.Duration{time.Minute, 2 * time.Minute, time.Minute}
+	if fmt.Sprint(clock.slept) != fmt.Sprint(want) {
+		t.Fatalf("waits = %v, want %v", clock.slept, want)
+	}
+
+	// On the last attempt the response is returned.
+	always := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusTooManyRequests) })
+	tr, clock = newTestTransport(always)
+	if resp := get(t, tr, "/x"); resp.StatusCode != http.StatusTooManyRequests {
+		t.Fatalf("status %d", resp.StatusCode)
+	}
+	if want := []time.Duration{time.Minute, 2 * time.Minute, 4 * time.Minute, 8 * time.Minute}; fmt.Sprint(clock.slept) != fmt.Sprint(want) {
+		t.Fatalf("waits = %v, want %v", clock.slept, want)
+	}
+}
+
+func TestSpentQuotaStopsOrWaits(t *testing.T) {
+	t.Parallel()
+	start := time.Unix(1_700_000_000, 0)
+	spent := func(resource string, status int, body string) (http.Handler, *atomic.Int64) {
+		var calls atomic.Int64
+		return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			if calls.Add(1) == 1 {
+				w.Header().Set("X-RateLimit-Limit", "5000")
+				w.Header().Set("X-RateLimit-Remaining", "0")
+				w.Header().Set("X-RateLimit-Reset", strconv.FormatInt(start.Add(20*time.Second).Unix(), 10))
+				w.Header().Set("X-RateLimit-Resource", resource)
+				w.WriteHeader(status)
+				_, _ = io.WriteString(w, body)
+				return
+			}
+			_, _ = io.WriteString(w, "{}")
+		}), &calls
+	}
+
+	// Core and GraphQL quota reset hourly: stop, without retrying.
+	for _, tc := range []struct{ path, resource string }{{"/repos/a/b", "core"}, {"/graphql", "graphql"}} {
+		status := http.StatusForbidden
+		if tc.resource == "graphql" {
+			status = http.StatusOK
+		}
+		h, calls := spent(tc.resource, status, `{"errors":[{"type":"RATE_LIMITED"}]}`)
+		tr, _ := newTestTransport(h)
+		req, _ := http.NewRequestWithContext(context.Background(), http.MethodPost, "https://api.github.com"+tc.path, strings.NewReader(`{"query":"query { x }"}`))
+		if tc.resource == "core" {
+			req, _ = http.NewRequestWithContext(context.Background(), http.MethodGet, "https://api.github.com"+tc.path, nil)
+		}
+		_, err := tr.RoundTrip(req)
+		var qe *QuotaError
+		if !errors.As(err, &qe) || qe.Resource != tc.resource || calls.Load() != 1 {
+			t.Errorf("%s: err = %v after %d calls", tc.resource, err, calls.Load())
+		}
+	}
+
+	// Search quota resets within a minute: wait, then retry.
+	h, calls := spent("search", http.StatusForbidden, "")
+	tr, clock := newTestTransport(h)
+	var told []string
+	tr.OnWait = func(why string, d time.Duration) { told = append(told, fmt.Sprintf("%s %s", why, d)) }
+	if resp := get(t, tr, "/search/issues?q=x"); resp.StatusCode != 200 || calls.Load() != 2 {
+		t.Fatalf("status %d after %d calls", resp.StatusCode, calls.Load())
+	}
+	if len(clock.slept) != 1 || clock.slept[0] != 20*time.Second || strings.Join(told, ",") != "search rate limit 20s" {
+		t.Fatalf("slept %v, told %v", clock.slept, told)
+	}
+	// Still spent on the last attempt: stop.
+	tr, _ = newTestTransport(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("X-RateLimit-Remaining", "0")
+		w.WriteHeader(http.StatusForbidden)
+	}))
+	tr.MaxAttempts = 1
+	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://api.github.com/search/code?q=x", nil)
+	if _, err := tr.RoundTrip(req); !errors.Is(err, ErrQuotaLow) {
+		t.Fatalf("err = %v", err)
+	}
+	// A canceled wait stops.
+	h, _ = spent("search", http.StatusForbidden, "")
+	tr, _ = newTestTransport(h)
+	tr.Sleep = func(context.Context, time.Duration) error { return context.Canceled }
+	req, _ = http.NewRequestWithContext(context.Background(), http.MethodGet, "https://api.github.com/search/issues?q=x", nil)
+	if _, err := tr.RoundTrip(req); !errors.Is(err, context.Canceled) {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestContentCreationWindows(t *testing.T) {
+	t.Parallel()
+	ok := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = io.WriteString(w, "{}") })
+	tr, clock := newTestTransport(ok)
+	start := clock.Now()
+	var told []string
+	tr.OnWait = func(why string, d time.Duration) { told = append(told, fmt.Sprintf("%s %s", why, d)) }
+	post := func() {
+		t.Helper()
+		req, _ := http.NewRequestWithContext(context.Background(), http.MethodPost, "https://api.github.com/repos/a/b/issues/1/labels", strings.NewReader("{}"))
+		if _, err := tr.RoundTrip(req); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// 80 writes fit in the first minute; the 81st waits for it to pass.
+	for range ContentPerMinute {
+		post()
+	}
+	if !clock.Now().Equal(start) {
+		t.Fatalf("waited %s within the minute", clock.Now().Sub(start))
+	}
+	post()
+	if got := clock.Now().Sub(start); got != time.Minute {
+		t.Fatalf("81st write after %s, want 1m0s", got)
+	}
+	// 500 fit in the hour; the 501st waits for the first to age out.
+	for range ContentPerHour - ContentPerMinute - 1 {
+		post()
+	}
+	before := clock.Now()
+	post()
+	if got := clock.Now().Sub(start); got != time.Hour || clock.Now().Equal(before) {
+		t.Fatalf("501st write after %s, want 1h0m0s", got)
+	}
+	if len(told) == 0 || !strings.HasPrefix(told[0], "content creation limit ") {
+		t.Fatalf("OnWait = %v", told)
+	}
+	// Reads don't count.
+	n := len(clock.slept)
+	get(t, tr, "/repos/a/b")
+	if len(clock.slept) != n {
+		t.Fatal("a read waited for the content limit")
+	}
+	// A canceled wait stops.
+	tr.Sleep = func(context.Context, time.Duration) error { return context.Canceled }
+	for range ContentPerMinute {
+		tr.content[0].add(clock.Now())
+	}
+	req, _ := http.NewRequestWithContext(context.Background(), http.MethodPost, "https://api.github.com/repos/a/b/pulls", strings.NewReader("{}"))
+	if _, err := tr.RoundTrip(req); !errors.Is(err, context.Canceled) {
+		t.Fatalf("err = %v", err)
 	}
 }
 
