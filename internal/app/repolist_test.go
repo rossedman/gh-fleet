@@ -7,6 +7,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/rossedman/gh-fleet/internal/campaign"
 )
 
 func TestParseRepoList(t *testing.T) {
@@ -59,6 +61,14 @@ func TestExclude(t *testing.T) {
 	if out := h.out.String(); !strings.Contains(out, "acme/api") || strings.Contains(out, "acme/web") {
 		t.Fatalf("targets:\n%s", out)
 	}
+	// --exclude takes patterns, as exclude.repos does.
+	h.reset()
+	if err := h.app.Targets(ctx, Common{File: f, Exclude: []string{"*/W*"}}); err != nil {
+		t.Fatal(err)
+	}
+	if out := h.out.String(); !strings.Contains(out, "acme/api") || strings.Contains(out, "acme/web") {
+		t.Fatalf("targets with a pattern excluded:\n%s", out)
+	}
 	// A repo both listed and excluded is left out, not an error.
 	h.reset()
 	if err := h.app.Targets(ctx, Common{File: f, Repos: []string{"acme/api", "acme/web"}, Exclude: []string{"acme/web"}, JQ: "[.targets[].repo | .owner + \"/\" + .name]"}); err != nil {
@@ -78,5 +88,20 @@ func TestExclude(t *testing.T) {
 	}
 	if out := h.out.String(); !strings.Contains(out, "acme/api") || strings.Contains(out, "acme/web") {
 		t.Fatalf("status:\n%s", out)
+	}
+}
+
+func TestSearchScopeAndExcludePatterns(t *testing.T) {
+	t.Parallel()
+	camp := &campaign.Campaign{Targets: campaign.Targets{
+		Orgs:    []string{"acme"},
+		Include: campaign.Include{Repos: []string{"acme/x", "*/tool-*", "other/cli-*", "other/svc-*", "third/one"}},
+		Exclude: campaign.Exclude{Repos: []string{"*/legacy-*"}},
+	}}
+	if got := strings.Join(searchScope(camp), " "); got != "user:acme user:other repo:third/one" {
+		t.Errorf("searchScope = %q", got)
+	}
+	if !excludedName(camp, "other/LEGACY-api") || excludedName(camp, "other/api") {
+		t.Error("excludedName with a pattern")
 	}
 }

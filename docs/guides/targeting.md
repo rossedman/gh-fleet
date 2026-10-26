@@ -29,8 +29,9 @@ targets:
 | `languages` | its primary language is any of these (case-insensitive) |
 | `files` | any of these paths, files or directories, exists on the default branch |
 | `search` | a code search query has a hit in it, scoped to your `orgs` automatically |
+| `names` | its name matches any of these [patterns](#name-patterns), such as `service-*` |
 | `properties` | every listed [custom property](#custom-properties) has one of its values |
-| `repos` | always, bypassing the filters above |
+| `repos` | always, bypassing the filters above; names or [patterns](#name-patterns) |
 
 **Different keys combine with AND, and the values within one key with OR.** The example above selects Go repos that have the `service` topic and a `go.mod`. With no filters at all, every non-excluded repo in the org matches.
 
@@ -50,6 +51,35 @@ targets:
 `exclude.properties` drops repos whose custom property has any of the listed values, for example `properties: {pci: true}`.
 
 **Exclusion always wins**, even over `include.repos`. `archived` and `forks` both default to `true`, so archived repos and forks are skipped unless you set them to `false`.
+
+## Name patterns
+
+Anywhere a campaign names repos, a glob pattern can stand for many:
+
+```yaml
+targets:
+  orgs: [acme]
+  include:
+    names: [service-*, "api-v[0-9]"]   # only these names
+    repos: [tools/cli-*]               # plus every cli-* repo in tools
+  exclude:
+    repos: ["*/legacy-*", acme/sandbox-?]
+```
+
+| Pattern | Matches |
+| --- | --- |
+| `*` | any run of characters, except `/` |
+| `?` | any one character |
+| `[a-c]`, `[0-9]` | one character in the range |
+| `[^a-c]` | one character not in the range |
+
+Matching ignores case. In `include.names`, a pattern without a slash matches the repo's name and one with a slash matches `owner/name`, so `service-*` and `acme/service-*` both work. `include.repos`, `exclude.repos`, [`vars.match[].when.repos`](../configuration.md#variables) and [`limits.waves[].repos`](tracking-prs.md#rolling-out-in-waves) take `owner/name` patterns.
+
+`include.names` is a filter like `topics`, so it combines with the other filters with AND: `names: [service-*]` and `languages: [Go]` select Go repos named `service-*`. A pattern in `include.repos` instead adds every match and bypasses the filters, as a plain name does. Its owner doesn't need to be in `orgs`: `tools/cli-*` lists `tools` once and keeps the matches. A pattern in the owner, such as `*/cli-*`, only matches repos from `orgs`.
+
+A pattern that doesn't parse, such as `acme/[ab`, is an error when the campaign loads, with its line and column.
+
+On the command line, `--exclude` and `--exclude-file` take patterns too (quote them so the shell leaves them alone); `--repo` and `--repo-file` take exact names, so a typo is an error rather than an empty run.
 
 ## Custom properties
 

@@ -72,6 +72,9 @@ func TestVarsPrecedence(t *testing.T) {
 	if again := Vars(&c.Vars, ghapi.Repo{Owner: "acme", Name: "lib"}); again["list"].([]any)[0] != "a" {
 		t.Fatal("repos share a list value")
 	}
+	if !When(campaign.When{Repos: []string{"acme/w*"}}, web) || When(campaign.When{Repos: []string{"*/api"}}, web) {
+		t.Error("When with repo patterns")
+	}
 	if !When(campaign.When{}, web) || When(campaign.When{Languages: []string{"Go"}}, ghapi.Repo{}) {
 		t.Fatal("When")
 	}

@@ -264,13 +264,20 @@ func searchScope(camp *campaign.Campaign) []string {
 	}
 	for _, r := range camp.Targets.Include.Repos {
 		owner, _, _ := strings.Cut(r, "/")
-		covered := false
+		covered := campaign.IsPattern(owner) // only allowed alongside orgs
 		for _, o := range camp.Targets.Orgs {
 			if strings.EqualFold(o, owner) {
 				covered = true
 			}
 		}
-		if !covered {
+		switch {
+		case covered:
+		case campaign.IsPattern(r):
+			// Search can't take a pattern; scope to the owner instead.
+			if !slices.Contains(q, "user:"+owner) {
+				q = append(q, "user:"+owner)
+			}
+		default:
 			q = append(q, "repo:"+r)
 		}
 	}

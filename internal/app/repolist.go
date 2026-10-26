@@ -75,12 +75,8 @@ func ReadRepoFiles(paths []string, stdin io.Reader) ([]string, error) {
 	return out, nil
 }
 
-// excludedName reports whether the campaign excludes a repo by name.
+// excludedName reports whether the campaign excludes a repo by name or
+// pattern.
 func excludedName(camp *campaign.Campaign, repo string) bool {
-	for _, r := range camp.Targets.Exclude.Repos {
-		if strings.EqualFold(r, repo) {
-			return true
-		}
-	}
-	return false
+	return campaign.MatchAny(camp.Targets.Exclude.Repos, repo) != ""
 }

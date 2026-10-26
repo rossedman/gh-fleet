@@ -37,7 +37,8 @@ func TestSchemaMarkdown(t *testing.T) {
 	for _, want := range []string{
 		"| `apiVersion` (required) | string | `fleet.gh/v1` |",
 		"## `targets.include`",
-		"| `repos` | list of `owner/name` |",
+		"| `repos` | list of `owner/name` or pattern |",
+		"| `names` | list of name pattern |",
 		"| `env` | map of string |",
 		"| `concurrency` | integer | `8` |",
 		"Between 1 and 256.",

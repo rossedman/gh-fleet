@@ -72,8 +72,15 @@
               "description": "A code search query; only repos with a hit match. Scoped to `orgs` automatically.",
               "type": "string"
             },
+            "names": {
+              "description": "Glob patterns the repo must match, such as `service-*` or `acme/api-*`. A pattern without a slash matches the repo name, one with a slash the full `owner/name`.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/namePattern"
+              }
+            },
             "repos": {
-              "description": "Repos (`owner/name`) that are always included, bypassing the filters above.",
+              "description": "Repos (`owner/name`) that are always included, bypassing the filters above. Glob patterns such as `acme/tool-*` include every matching repo.",
               "type": "array",
               "items": {
                 "$ref": "#/$defs/repo"
@@ -91,7 +98,7 @@
           "additionalProperties": false,
           "properties": {
             "repos": {
-              "description": "Repos (`owner/name`) to skip.",
+              "description": "Repos (`owner/name`) to skip. Glob patterns such as `*/legacy-*` skip every matching repo.",
               "type": "array",
               "items": {
                 "$ref": "#/$defs/repo"
@@ -252,7 +259,7 @@
                 "additionalProperties": false,
                 "properties": {
                   "repos": {
-                    "description": "Repos (`owner/name`).",
+                    "description": "Repos (`owner/name`), or glob patterns such as `acme/payments-*`.",
                     "type": "array",
                     "items": {
                       "$ref": "#/$defs/repo"
@@ -325,7 +332,7 @@
             ],
             "properties": {
               "repos": {
-                "description": "Repos (`owner/name`) in this wave, such as canaries. Repos that aren't targets are ignored.",
+                "description": "Repos (`owner/name`) in this wave, such as canaries, or glob patterns such as `acme/canary-*`. Repos that aren't targets are ignored.",
                 "type": "array",
                 "minItems": 1,
                 "items": {
@@ -347,7 +354,11 @@
   "$defs": {
     "repo": {
       "type": "string",
-      "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+      "pattern": "^[A-Za-z0-9_.*?\\[\\]^-]+/[A-Za-z0-9_.*?\\[\\]^-]+$"
+    },
+    "namePattern": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.*?\\[\\]^-]+(/[A-Za-z0-9_.*?\\[\\]^-]+)?$"
     },
     "propertyFilter": {
       "type": "object",

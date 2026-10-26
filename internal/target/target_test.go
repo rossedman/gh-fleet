@@ -45,6 +45,11 @@ func TestEvaluate(t *testing.T) {
 		{name: "search miss", targets: campaign.Targets{Include: campaign.Include{Search: "x"}}, repo: svc},
 		{name: "explicit bypasses filters", targets: campaign.Targets{Include: campaign.Include{Topics: []string{"lib"}, Repos: []string{"ACME/api"}}}, repo: svc, match: true, reasons: []string{"include.repos"}},
 		{name: "exclude wins over explicit", targets: campaign.Targets{Include: campaign.Include{Repos: []string{"acme/api"}}, Exclude: campaign.Exclude{Repos: []string{"acme/api"}}}, repo: svc, exclude: "exclude.repos"},
+		{name: "name pattern", targets: campaign.Targets{Include: campaign.Include{Names: []string{"web", "a*"}}}, repo: svc, match: true, reasons: []string{"name:a*"}},
+		{name: "name pattern and topic", targets: campaign.Targets{Include: campaign.Include{Names: []string{"acme/a*"}, Topics: []string{"service"}}}, repo: svc, match: true, reasons: []string{"name:acme/a*", "topic:service"}},
+		{name: "name pattern miss", targets: campaign.Targets{Include: campaign.Include{Names: []string{"b*"}}}, repo: svc},
+		{name: "explicit pattern bypasses filters", targets: campaign.Targets{Include: campaign.Include{Topics: []string{"lib"}, Repos: []string{"acme/a?i"}}}, repo: svc, match: true, reasons: []string{"include.repos"}},
+		{name: "excluded by pattern", targets: campaign.Targets{Exclude: campaign.Exclude{Repos: []string{"*/ap*"}}}, repo: svc, exclude: "exclude.repos"},
 		{name: "archived default", repo: ghapi.Repo{Owner: "a", Name: "b", Archived: true}, exclude: "archived"},
 		{name: "archived allowed", targets: campaign.Targets{Exclude: campaign.Exclude{Archived: no}}, repo: ghapi.Repo{Owner: "a", Name: "b", Archived: true}, match: true, reasons: []string{"org:a"}},
 		{name: "fork", targets: campaign.Targets{Exclude: campaign.Exclude{Forks: yes}}, repo: ghapi.Repo{Owner: "a", Name: "b", Fork: true}, exclude: "fork"},
@@ -294,4 +299,35 @@ func FuzzEvaluate(f *testing.F) {
 // writeFile overwrites a file, for corrupting cache entries.
 func writeFile(path, content string) error {
 	return os.WriteFile(path, []byte(content), 0o600)
+}
+
+func TestResolvePatterns(t *testing.T) {
+	t.Parallel()
+	f := newFake()
+	f.AddRepo(ghapi.Repo{Owner: "other", Name: "tool-a", CanPush: true})
+	f.AddRepo(ghapi.Repo{Owner: "other", Name: "tool-b", CanPush: true})
+	rs := &Resolver{Client: f}
+	res, err := rs.Resolve(context.Background(), campaign.Targets{
+		Orgs: []string{"acme"},
+		Include: campaign.Include{
+			Names: []string{"a*", "w*"},
+			// other isn't an org: listed once for both patterns, keeping
+			// only the matches. */x is matched against the org's repos.
+			Repos: []string{"other/tool-*", "OTHER/legacy", "*/lib", "other/t*"},
+		},
+		Exclude: campaign.Exclude{Repos: []string{"*/tool-b"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := res.Names(); !slices.Equal(got, []string{"acme/api", "acme/lib", "acme/web", "other/legacy", "other/tool-a"}) {
+		t.Fatalf("targets = %v", got)
+	}
+	if n := f.CallCount("ListOwnerRepos"); n != 2 {
+		t.Errorf("ListOwnerRepos called %d times, want 2", n)
+	}
+	f.Errors["ListOwnerRepos"] = errors.New("boom")
+	if _, err := (&Resolver{Client: f}).Resolve(context.Background(), campaign.Targets{Include: campaign.Include{Repos: []string{"other/tool-*"}}}); err == nil {
+		t.Error("listing error swallowed")
+	}
 }

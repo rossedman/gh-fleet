@@ -31,7 +31,7 @@ func Vars(v *campaign.Vars, r ghapi.Repo) map[string]any {
 // When reports whether a vars.match rule applies to a repo: every key that
 // is set must match, values within a key are alternatives.
 func When(w campaign.When, r ghapi.Repo) bool {
-	if len(w.Repos) > 0 && !containsFold(w.Repos, r.FullName()) {
+	if len(w.Repos) > 0 && campaign.MatchAny(w.Repos, r.FullName()) == "" {
 		return false
 	}
 	if len(w.Topics) > 0 && firstShared(w.Topics, r.Topics) == "" {

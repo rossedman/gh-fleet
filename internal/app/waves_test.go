@@ -24,6 +24,10 @@ func TestSplitWaves(t *testing.T) {
 	if want := "[[o/h] [o/a o/b] [o/c o/d o/e o/j] [o/f o/g o/i]]"; got != want {
 		t.Fatalf("waves = %s, want %s", got, want)
 	}
+	// A pattern takes every remaining target it matches.
+	if got := fmt.Sprint(splitWaves([]campaign.Wave{{Repos: []string{"o/[a-c]"}}, {Repos: []string{"O/*"}, Size: campaign.WaveSize{N: 1}}}, names[:4])); got != "[[o/b o/c] [o/d o/j]]" {
+		t.Errorf("pattern waves = %s", got)
+	}
 	if got := fmt.Sprint(splitWaves([]campaign.Wave{{Size: campaign.WaveSize{N: 50}}}, names[:3])); got != "[[o/b o/c o/j]]" {
 		t.Errorf("oversized wave = %s", got)
 	}

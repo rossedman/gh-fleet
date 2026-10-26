@@ -24,21 +24,17 @@ type waveGate struct {
 func splitWaves(waves []campaign.Wave, names []string) [][]string {
 	remaining := slices.Clone(names)
 	slices.Sort(remaining)
-	take := func(r string) bool {
-		if i := slices.Index(remaining, r); i >= 0 {
-			remaining = slices.Delete(remaining, i, i+1)
-			return true
-		}
-		return false
-	}
 	var out [][]string
 	for _, w := range waves {
 		var members []string
-		for _, r := range w.Repos {
-			if take(r) {
+		// A wave takes every remaining target its names or patterns match.
+		remaining = slices.DeleteFunc(remaining, func(r string) bool {
+			if campaign.MatchAny(w.Repos, r) != "" {
 				members = append(members, r)
+				return true
 			}
-		}
+			return false
+		})
 		if w.Size.N > 0 {
 			n := min(w.Size.Of(len(names)), len(remaining))
 			members = append(members, remaining[:n]...)
