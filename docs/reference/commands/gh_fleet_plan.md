@@ -8,6 +8,11 @@ Clone every target, run the change script and print the unified diff each repo
 would get. Nothing is pushed and nothing is written to GitHub. Repos where the
 script changes nothing are reported as noop.
 
+Diffs are printed at the end, each distinct diff once with the repos that
+get it, so a change made the same way in 300 repos is read once. Blob hashes
+and hunk line numbers don't count as differences. --ungrouped prints each
+repo's diff as it finishes instead.
+
 The script sees FLEET_DRY_RUN=true.
 
 ```
@@ -31,6 +36,7 @@ gh fleet plan [campaign] [flags]
       --json               print JSON instead of a table
       --keep-workdirs      leave clones on disk for debugging
       --repo strings       limit to these repos (owner/name, repeatable)
+      --ungrouped          print each repo's diff as it finishes instead of grouping identical diffs
       --write-rate float   GitHub API writes per second (default 1)
 ```
 

@@ -94,6 +94,7 @@ How the pull request is opened.
 | `draft` | boolean | `false` | Open PRs as drafts. |
 | `labels` | list of string |  | Labels to add to each PR. |
 | `reviewers` | list of string |  | Users or `org/team` slugs to request review from. |
+| `reviewersFrom` | list of - |  | Also request review from each repo's own owners: `codeowners` for the CODEOWNERS owners of the files the change touches, `catalog` for the owners in its Backstage catalog-info.yaml (a group becomes the `org/group` team). An owner GitHub can't request, such as the PR's author or a team without access, is skipped. |
 | `title` (required) | string |  | PR title. A Go template with `.Repo` and `.Campaign`. |
 
 ## `pr.commit`
@@ -143,4 +144,14 @@ Safety limits for a run.
 | --- | --- | --- | --- |
 | `concurrency` | integer | `8` | Repos processed in parallel. `--concurrency` overrides it. Between 1 and 256. |
 | `maxOpenPRs` | integer | `0` | Stop opening new PRs once this many campaign PRs are open. 0 means no limit. At least 0. |
+| `waves` | list of object |  | Roll the change out in order. `apply` opens PRs for a wave only once every repo in the waves before it is merged or needed no change, so a problem stops at the canaries. Targets left after the last wave form one final wave. `--repo` bypasses waves. |
+
+## `limits.waves[]`
+
+Each entry of `limits.waves`.
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `repos` | list of `owner/name` |  | Repos (`owner/name`) in this wave, such as canaries. Repos that aren't targets are ignored. |
+| `size` | integer or string |  | How many more targets join this wave, in name order: a number, or a percentage of all targets such as `25%`. At least 1. |
 

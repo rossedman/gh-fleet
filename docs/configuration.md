@@ -78,6 +78,19 @@ How each pull request is opened. `title` is required. `title`, `body`, the commi
 
 `reviewers` takes users or `org/team` slugs and is requested when the PR is created. On later runs `apply` updates an open PR's title and body when they differ and adds any labels it is missing; it never removes labels, re-requests reviewers or changes `draft`.
 
+`reviewersFrom` also asks each repo's own owners, so a fleet-wide change reaches the people who know each repo:
+
+```yaml
+pr:
+  reviewers: [acme/platform]
+  reviewersFrom: [codeowners, catalog]
+```
+
+- `codeowners` reads the repo's CODEOWNERS (`.github/`, the root or `docs/`) and requests the owners of the files the change touched, the last matching rule winning as on GitHub. Email owners are skipped.
+- `catalog` reads `catalog-info.yaml` and requests each entity's `spec.owner`: a group (`payments`, `group:payments` or `group:default/payments`) becomes the team `<org>/payments`, a user ref becomes that user.
+
+Owners are requested after `reviewers`, without duplicates. An owner GitHub refuses, such as the PR's author or a team without access to the repo, is skipped and noted in the repo's log instead of failing it.
+
 ### Variables
 
 Variables let one campaign say different things to different repos: a different owning team, a different on-call channel, a version that varies by repo. Each repo's variables are built from three sources in the `vars` block, later ones winning:
@@ -129,6 +142,8 @@ A script can add or override variables for its repo by writing `NAME=value` line
 ### `limits`
 
 `concurrency` is how many repos are processed in parallel (default 8, between 1 and 256); `--concurrency` overrides it. `maxOpenPRs` stops opening new PRs once that many campaign PRs are open (default 0, no limit). Repos held back this way are marked `changed` and `retry` picks them up later.
+
+`waves` rolls a change out in stages; see [Rolling out in waves](guides/tracking-prs.md#rolling-out-in-waves).
 
 ### Editor support
 

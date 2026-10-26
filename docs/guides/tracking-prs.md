@@ -114,7 +114,33 @@ gh fleet retry
 
 ### Capping open PRs
 
-`limits.maxOpenPRs` stops new PRs once that many campaign PRs are open, counting the ones already open. Repos held back show `changed` with `maxOpenPRs reached; not pushed`. As PRs merge, `retry` opens the next ones, which makes it a simple way to roll out in waves.
+`limits.maxOpenPRs` stops new PRs once that many campaign PRs are open, counting the ones already open. Repos held back show `changed` with `maxOpenPRs reached; not pushed`. As PRs merge, `retry` opens the next ones.
+
+### Rolling out in waves
+
+`limits.waves` rolls a change out in stages, so a problem shows up in a few repos before it reaches all of them:
+
+```yaml
+limits:
+  waves:
+    - repos: [acme/canary-api, acme/canary-web]   # canaries first
+    - size: 10                                    # then the next 10 repos
+    - size: 25%                                   # then a quarter of all targets
+                                                  # and then everything else
+```
+
+Each wave takes its named `repos`, then the next `size` targets in name order. Targets left after the last wave form a final wave. `apply` opens PRs only for the current wave: the first one with a repo that isn't merged or unchanged yet. Repos in later waves are held as `pending`, with a note such as `wave 3 of 4: starts when wave 2 is done (7 of 10 merged or unchanged)`, so `status` shows why. Run `apply` again (or `retry`) after the current wave merges to start the next.
+
+```console
+$ gh fleet apply --yes
+Wave 1 of 4: 2 repos now; 48 repos wait for it.
+pr open  acme/canary-api https://github.com/acme/canary-api/pull/9 created
+pr open  acme/canary-web https://github.com/acme/canary-web/pull/4 created
+pending  acme/billing wave 2 of 4: starts when wave 1 is done (0 of 2 merged or unchanged)
+...
+```
+
+A canary PR closed without merging stops the rollout there until you decide what to do. PRs already open in later waves keep being updated, and `--repo` acts on the repos you name regardless of waves. Waves combine with `merge`: `gh fleet merge --auto` merges each wave as it passes, and the next `apply` starts the next one.
 
 ## Merging
 

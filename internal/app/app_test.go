@@ -159,7 +159,7 @@ func TestPlanShowsDiffsWithoutWrites(t *testing.T) {
 	// web already has the line, so it is a no-op.
 	h.remotes["acme/web"].Commit("main", "add line", map[string]string{"README.md": "# web\nmanaged by fleet\n"})
 	f := h.campaign(basic, files)
-	if err := h.app.Plan(context.Background(), Common{File: f}); err != nil {
+	if err := h.app.Plan(context.Background(), PlanOptions{Common: Common{File: f}}); err != nil {
 		t.Fatal(err)
 	}
 	out := h.out.String()
@@ -180,7 +180,7 @@ func TestPlanShowsDiffsWithoutWrites(t *testing.T) {
 	}
 
 	h.reset()
-	if err := h.app.Plan(context.Background(), Common{File: f, JSON: true}); err != nil {
+	if err := h.app.Plan(context.Background(), PlanOptions{Common: Common{File: f, JSON: true}}); err != nil {
 		t.Fatal(err)
 	}
 	var results []state.RepoState
@@ -196,7 +196,7 @@ func TestPlanReportsDryRun(t *testing.T) {
 	t.Parallel()
 	h := newHarness(t)
 	f := h.campaign(strings.Replace(basic, "./change.sh", `"test \"$FLEET_DRY_RUN\" = true && echo dry > dry.txt"`, 1), files)
-	if err := h.app.Plan(context.Background(), Common{File: f, Repos: []string{"acme/api"}}); err != nil {
+	if err := h.app.Plan(context.Background(), PlanOptions{Common: Common{File: f, Repos: []string{"acme/api"}}}); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(h.out.String(), "+dry") {

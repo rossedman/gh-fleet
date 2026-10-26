@@ -3,10 +3,11 @@
 Campaigns for the changes people make most, ready to copy. Each directory
 holds the campaign file and a `change.star` with the [Starlark](https://rossedman.github.io/gh-fleet/guides/starlark/)
 that does the work, plus a PR body, template or files to sync where needed.
-Change `orgs: [acme]` to your organization, then:
+Start from one with `gh fleet init`, which copies it with its test cases
+and points it at your organization:
 
 ```sh
-cd examples/sync-files
+gh fleet init --from sync-files --org your-org
 gh fleet targets
 gh fleet plan --repo your-org/some-repo
 ```

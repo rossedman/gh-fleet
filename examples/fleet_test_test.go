@@ -3,9 +3,13 @@ package examples_test
 import (
 	"bytes"
 	"context"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/rossedman/gh-fleet/examples"
 
 	"github.com/rossedman/gh-fleet/internal/app"
 	"github.com/rossedman/gh-fleet/internal/gitops"
@@ -33,5 +37,26 @@ func TestFleetTestCases(t *testing.T) {
 	}
 	if _, err := os.Stat("trivy-ignore-prune/tests/expired/after/.trivyignore"); err != nil {
 		t.Error(err)
+	}
+}
+
+// TestEmbedded checks that every example file ships in the binary, for
+// gh fleet init --from.
+func TestEmbedded(t *testing.T) {
+	t.Parallel()
+	if got := len(examples.Names()); got != 80 {
+		t.Fatalf("embedded %d examples", got)
+	}
+	err := filepath.WalkDir(".", func(p string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.Contains(p, string(filepath.Separator)) {
+			return err
+		}
+		if _, err := fs.Stat(examples.FS, filepath.ToSlash(p)); err != nil {
+			t.Errorf("%s is not embedded; add its pattern to embed.go", p)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 }
