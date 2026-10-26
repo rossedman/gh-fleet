@@ -21,6 +21,9 @@ concurrency:
 jobs:
   sarifix:
     name: sarifix
+    # Disabled for now: the action's installer download keeps failing with
+    # HTTP 504. Remove this line to turn it back on.
+    if: false
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
