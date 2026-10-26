@@ -235,6 +235,13 @@ func resolve(n *schemaNode, defs map[string]*schemaNode) *schemaNode {
 	return n
 }
 
+// The schema's patterns for a repo, which may be a glob, and for a repo
+// name glob, which may leave out the owner.
+const (
+	repoPattern = `^[A-Za-z0-9_.*?\[\]^-]+/[A-Za-z0-9_.*?\[\]^-]+$`
+	namePattern = `^[A-Za-z0-9_.*?\[\]^-]+(/[A-Za-z0-9_.*?\[\]^-]+)?$`
+)
+
 // typeOf names a node's type, with list item types.
 func typeOf(n *schemaNode, defs map[string]*schemaNode) string {
 	switch {
@@ -244,8 +251,10 @@ func typeOf(n *schemaNode, defs map[string]*schemaNode) string {
 		return "list of " + typeOf(resolve(n.Items, defs), defs)
 	case n.Type == "object" && len(n.Properties) == 0 && n.AdditionalProperties != nil:
 		return "map of string"
-	case n.Type == "string" && n.Pattern == `^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`:
-		return "`owner/name`"
+	case n.Type == "string" && n.Pattern == repoPattern:
+		return "`owner/name` or pattern"
+	case n.Type == "string" && n.Pattern == namePattern:
+		return "name pattern"
 	case n.Type == "":
 		return "-"
 	}

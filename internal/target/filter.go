@@ -34,16 +34,24 @@ type Decision struct {
 
 // Evaluate applies include and exclude filters to one repo. Include keys
 // combine with AND and values within a key with OR; include.repos bypasses
-// the include filters; exclude always wins.
+// the include filters; exclude always wins. Repo lists and include.names
+// take glob patterns.
 func Evaluate(t campaign.Targets, r ghapi.Repo, f Facts) Decision {
 	if why := excluded(t.Exclude, r); why != "" {
 		return Decision{Excluded: why}
 	}
-	if containsFold(t.Include.Repos, r.FullName()) {
+	if campaign.MatchAny(t.Include.Repos, r.FullName()) != "" {
 		return Decision{Match: true, Reasons: []string{"include.repos"}}
 	}
 	inc := t.Include
 	var reasons []string
+	if len(inc.Names) > 0 {
+		hit := campaign.MatchAny(inc.Names, r.FullName())
+		if hit == "" {
+			return Decision{}
+		}
+		reasons = append(reasons, "name:"+hit)
+	}
 	if len(inc.Topics) > 0 {
 		hit := firstShared(inc.Topics, r.Topics)
 		if hit == "" {
@@ -101,7 +109,7 @@ func MetadataOnly(t campaign.Targets, r ghapi.Repo) bool {
 // excluded returns the exclude rule that drops r, or "".
 func excluded(e campaign.Exclude, r ghapi.Repo) string {
 	switch {
-	case containsFold(e.Repos, r.FullName()):
+	case campaign.MatchAny(e.Repos, r.FullName()) != "":
 		return "exclude.repos"
 	case r.Archived && (e.Archived == nil || *e.Archived):
 		return "archived"

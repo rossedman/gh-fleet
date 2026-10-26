@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -159,9 +160,44 @@ func (c *Campaign) semanticErrors(filename string, doc *yaml.Node) []FieldError 
 		n := lookup(doc, []string{"targets"})
 		out = append(out, FieldError{File: filename, Line: n.Line, Column: n.Column, Path: "targets", Message: "needs orgs, include.repos, or both"})
 	}
+	out = append(out, c.patternErrors(filename, doc)...)
 	if c.PR.Branch != "" && !validBranch(c.PR.Branch) {
 		n := lookup(doc, []string{"pr", "branch"})
 		out = append(out, FieldError{File: filename, Line: n.Line, Column: n.Column, Path: "pr.branch", Message: "is not a valid git branch name"})
+	}
+	return out
+}
+
+// patternErrors reports repo glob patterns that don't parse, and patterns
+// in include.repos whose owner is a pattern when there are no orgs to
+// match them against.
+func (c *Campaign) patternErrors(filename string, doc *yaml.Node) []FieldError {
+	var out []FieldError
+	check := func(patterns []string, at ...string) {
+		for i, p := range patterns {
+			if _, err := path.Match(strings.ToLower(p), ""); err != nil {
+				n := lookup(doc, append(at, strconv.Itoa(i)))
+				out = append(out, FieldError{File: filename, Line: n.Line, Column: n.Column, Path: strings.Join(at, ".") + "." + strconv.Itoa(i), Message: fmt.Sprintf("%q is not a valid glob pattern", p)})
+			}
+		}
+	}
+	check(c.Targets.Include.Names, "targets", "include", "names")
+	check(c.Targets.Include.Repos, "targets", "include", "repos")
+	check(c.Targets.Exclude.Repos, "targets", "exclude", "repos")
+	for i, r := range c.Vars.Match {
+		check(r.When.Repos, "vars", "match", strconv.Itoa(i), "when", "repos")
+	}
+	for i, w := range c.Limits.Waves {
+		check(w.Repos, "limits", "waves", strconv.Itoa(i), "repos")
+	}
+	if len(c.Targets.Orgs) == 0 {
+		for i, p := range c.Targets.Include.Repos {
+			if owner, _, _ := strings.Cut(p, "/"); IsPattern(owner) {
+				at := []string{"targets", "include", "repos", strconv.Itoa(i)}
+				n := lookup(doc, at)
+				out = append(out, FieldError{File: filename, Line: n.Line, Column: n.Column, Path: strings.Join(at, "."), Message: fmt.Sprintf("%q has a pattern for the owner, which needs orgs to match against", p)})
+			}
+		}
 	}
 	return out
 }

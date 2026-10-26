@@ -50,6 +50,9 @@ type Targets struct {
 
 // Include holds the filters a candidate repo must pass.
 type Include struct {
+	// Names are glob patterns the repo's name, or owner/name when the
+	// pattern has a slash, must match.
+	Names     []string `yaml:"names,omitempty" json:"names,omitempty"`
 	Topics    []string `yaml:"topics,omitempty" json:"topics,omitempty"`
 	Languages []string `yaml:"languages,omitempty" json:"languages,omitempty"`
 	Files     []string `yaml:"files,omitempty" json:"files,omitempty"`

@@ -107,8 +107,32 @@ func (rs *Resolver) Resolve(ctx context.Context, t campaign.Targets) (*Result, e
 			candidates[strings.ToLower(r.FullName())] = r
 		}
 	}
+	listed := map[string]bool{}
+	for _, o := range t.Orgs {
+		listed[strings.ToLower(o)] = true
+	}
 	for _, name := range t.Include.Repos {
 		if _, ok := candidates[strings.ToLower(name)]; ok {
+			continue
+		}
+		if campaign.IsPattern(name) {
+			// A pattern names repos of one owner: list that owner, unless
+			// orgs already did, and keep the matches. Load rejects a
+			// pattern in the owner without orgs to match against.
+			owner, _, _ := strings.Cut(name, "/")
+			if campaign.IsPattern(owner) || listed[strings.ToLower(owner)] {
+				continue
+			}
+			listed[strings.ToLower(owner)] = true
+			repos, err := rs.listOwner(ctx, owner)
+			if err != nil {
+				return nil, err
+			}
+			for _, r := range repos {
+				if campaign.MatchAny(t.Include.Repos, r.FullName()) != "" {
+					candidates[strings.ToLower(r.FullName())] = r
+				}
+			}
 			continue
 		}
 		r, err := rs.Client.GetRepo(ctx, name)
