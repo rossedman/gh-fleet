@@ -35,15 +35,36 @@ type Decision struct {
 // Evaluate applies include and exclude filters to one repo. Include keys
 // combine with AND and values within a key with OR; include.repos bypasses
 // the include filters; exclude always wins. Repo lists and include.names
-// take glob patterns.
+// take glob patterns. With no include filters, every repo of orgs matches,
+// unless include.repos is set: then only the repos it names do.
 func Evaluate(t campaign.Targets, r ghapi.Repo, f Facts) Decision {
+	return evaluate(t, r, f, false)
+}
+
+// OnlyRepos reports whether include.repos is the whole selection: it is
+// set and no include filter is, so orgs only scope its bare names and
+// patterns rather than adding all of their repos.
+func OnlyRepos(inc campaign.Include) bool {
+	return len(inc.Repos) > 0 && len(inc.Names) == 0 && len(inc.Topics) == 0 && len(inc.Languages) == 0 &&
+		len(inc.Files) == 0 && inc.Search == "" && len(inc.Properties) == 0
+}
+
+// evaluate is Evaluate; with metadataOnly, the file and search filters,
+// whose facts aren't known yet, pass.
+func evaluate(t campaign.Targets, r ghapi.Repo, f Facts, metadataOnly bool) Decision {
 	if why := excluded(t.Exclude, r); why != "" {
 		return Decision{Excluded: why}
 	}
 	if campaign.MatchAny(t.Include.Repos, r.FullName()) != "" {
 		return Decision{Match: true, Reasons: []string{"include.repos"}}
 	}
+	if OnlyRepos(t.Include) {
+		return Decision{}
+	}
 	inc := t.Include
+	if metadataOnly {
+		inc.Files, inc.Search = nil, ""
+	}
 	var reasons []string
 	if len(inc.Names) > 0 {
 		hit := campaign.MatchAny(inc.Names, r.FullName())
@@ -100,10 +121,7 @@ func Evaluate(t campaign.Targets, r ghapi.Repo, f Facts) Decision {
 // MetadataOnly reports whether a repo can still match once file and
 // search facts are known, so those lookups can skip hopeless repos.
 func MetadataOnly(t campaign.Targets, r ghapi.Repo) bool {
-	relaxed := t
-	relaxed.Include.Files = nil
-	relaxed.Include.Search = ""
-	return Evaluate(relaxed, r, Facts{}).Match
+	return evaluate(t, r, Facts{}, true).Match
 }
 
 // excluded returns the exclude rule that drops r, or "".

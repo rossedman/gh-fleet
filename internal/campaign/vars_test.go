@@ -2,6 +2,7 @@ package campaign
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -181,10 +182,26 @@ func TestFormatValueAndEnvName(t *testing.T) {
 func TestUsesProperties(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	body := dir + "/body.md"
-	if err := os.WriteFile(body, []byte("tier {{ .Repo.Properties.tier }}"), 0o600); err != nil {
-		t.Fatal(err)
+	for name, content := range map[string]string{
+		"body.md":       "tier {{ .Repo.Properties.tier }}",
+		"tier.sh":       "echo $FLEET_PROP_TIER\n",
+		"plain.sh":      "echo hi\n",
+		"main.star":     "load('./lib/util.star', 'f')\ndef change(repo):\n    f(repo)\n",
+		"lib/util.star": "load('./deep.star', 'g')\ndef f(repo):\n    g(repo)\n",
+		"lib/deep.star": "def g(repo):\n    return repo.properties.get('tier')\n",
+		"cycle.star":    "load('./cycle.star', 'x')\nload('@fleet//files.star', 'ensure_lines')\n",
+		"remote.star":   "load(\"github.com/acme/lib@0123:x.star\", \"x\")\n",
+	} {
+		p := filepath.Join(dir, name)
+		if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
 	}
+	at := dir + "/fleet.yaml"
+	steps := func(s ...Step) Campaign { return Campaign{Path: at, Change: Change{Steps: s}} }
 	for _, tt := range []struct {
 		c    Campaign
 		want bool
@@ -195,7 +212,14 @@ func TestUsesProperties(t *testing.T) {
 		{Campaign{Vars: Vars{Match: []VarRule{{When: When{Properties: map[string]StringList{"a": {"b"}}}}}}}, true},
 		{Campaign{Vars: Vars{Match: []VarRule{{When: When{Topics: []string{"x"}}}}}}, false},
 		{Campaign{PR: PR{Reviewers: []string{"acme/{{ .Repo.Properties.team }}"}}}, true},
-		{Campaign{Path: dir + "/fleet.yaml", PR: PR{Body: "body.md"}}, true},
+		{Campaign{Path: at, PR: PR{Body: "body.md"}}, true},
+		{steps(Step{Run: "echo $FLEET_PROP_TEAM"}), true},
+		{steps(Step{Run: "./tier.sh"}), true},
+		{steps(Step{Run: "./plain.sh"}, Step{Run: "make"}), false},
+		{steps(Step{Starlark: "main.star"}), true},
+		{steps(Step{Starlark: "cycle.star"}), false},
+		{steps(Step{Starlark: "remote.star"}), true},
+		{steps(Step{Starlark: "missing.star"}), false},
 	} {
 		if got := tt.c.UsesProperties(); got != tt.want {
 			t.Errorf("UsesProperties(%+v) = %v", tt.c, got)

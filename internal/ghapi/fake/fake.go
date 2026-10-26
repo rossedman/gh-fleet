@@ -127,7 +127,7 @@ func (c *Client) GetRepo(ctx context.Context, fullName string) (ghapi.Repo, erro
 			return r, nil
 		}
 	}
-	return ghapi.Repo{}, fmt.Errorf("get %s: not found", fullName)
+	return ghapi.Repo{}, fmt.Errorf("get %s: %w", fullName, ghapi.ErrNotFound)
 }
 
 // PathsExist reports which paths exist per repo.

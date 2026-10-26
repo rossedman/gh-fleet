@@ -164,6 +164,10 @@ func (c *GitHub) ListOwnerRepos(ctx context.Context, owner string) ([]Repo, erro
 	}
 }
 
+// ErrNotFound is returned when a repository doesn't exist, or the token
+// can't see it.
+var ErrNotFound = errors.New("not found")
+
 // GetRepo fetches one repository.
 func (c *GitHub) GetRepo(ctx context.Context, fullName string) (Repo, error) {
 	owner, name, err := SplitRepo(fullName)
@@ -175,10 +179,14 @@ func (c *GitHub) GetRepo(ctx context.Context, fullName string) (Repo, error) {
 		Repository *gqlRepo `json:"repository"`
 	}
 	if err := c.gql.DoWithContext(ctx, query, map[string]any{"owner": owner, "name": name}, &resp); err != nil {
+		var gqlErr *api.GraphQLError
+		if errors.As(err, &gqlErr) && gqlErr.Match("NOT_FOUND", "repository") {
+			return Repo{}, fmt.Errorf("get %s: %w", fullName, ErrNotFound)
+		}
 		return Repo{}, fmt.Errorf("get %s: %w", fullName, err)
 	}
 	if resp.Repository == nil {
-		return Repo{}, fmt.Errorf("get %s: not found", fullName)
+		return Repo{}, fmt.Errorf("get %s: %w", fullName, ErrNotFound)
 	}
 	return resp.Repository.toRepo(), nil
 }

@@ -3,6 +3,7 @@ package target
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -94,16 +95,21 @@ type Resolver struct {
 	// Progress, when set, is told what resolution is doing, so a long
 	// listing or file check isn't silent.
 	Progress func(msg string)
-	// RequireProperties makes a failure to read custom properties an
-	// error. Without it, repos whose properties can't be read (for example
-	// with a token that lacks access) simply have none.
+	// RequireProperties fetches custom properties, for campaigns that use
+	// them, and makes a failure to read them an error. Without it, repos
+	// have none, which saves a call per 100 repos of each org.
 	RequireProperties bool
+
+	// props is set while resolving when properties are fetched: the
+	// campaign requires them, or its targets filter on them.
+	props bool
 }
 
 // Resolve lists candidates, applies every filter and returns the targets
 // sorted by full name. Repos without push access are reported as skipped
 // unless AllowReadOnly is set.
 func (rs *Resolver) Resolve(ctx context.Context, t campaign.Targets) (*Result, error) {
+	rs.props = rs.RequireProperties || len(t.Include.Properties) > 0 || len(t.Exclude.Properties) > 0
 	var candidates map[string]ghapi.Repo
 	var err error
 	if len(rs.Only) > 0 {
@@ -180,10 +186,19 @@ func (rs *Resolver) Resolve(ctx context.Context, t campaign.Targets) (*Result, e
 // listOwner lists an owner's repos, with their custom properties, through
 // the cache.
 func (rs *Resolver) listOwner(ctx context.Context, owner string) ([]ghapi.Repo, error) {
+	// Custom properties take a REST call per 100 repos, so they are only
+	// fetched for campaigns that use them, and cached apart: a listing with
+	// them also serves campaigns that don't.
+	keys := []string{owner + "@properties"}
+	if !rs.props {
+		keys = append(keys, owner)
+	}
 	if rs.Cache != nil {
-		if repos, ok := rs.Cache.Get(owner); ok {
-			rs.progress(fmt.Sprintf("Listed %s: %s, from the cache", owner, countRepos(len(repos))))
-			return repos, nil
+		for _, key := range keys {
+			if repos, ok := rs.Cache.Get(key); ok {
+				rs.progress(fmt.Sprintf("Listed %s: %s, from the cache", owner, countRepos(len(repos))))
+				return repos, nil
+			}
 		}
 	}
 	rs.progress("Listing " + owner + "'s repos")
@@ -192,17 +207,23 @@ func (rs *Resolver) listOwner(ctx context.Context, owner string) ([]ghapi.Repo, 
 		return nil, err
 	}
 	rs.progress(fmt.Sprintf("Listed %s: %s", owner, countRepos(len(repos))))
-	props, err := rs.Client.OwnerProperties(ctx, owner)
-	if err != nil && rs.RequireProperties {
-		return nil, err
+	key := owner
+	if rs.props {
+		props, err := rs.Client.OwnerProperties(ctx, owner)
+		if err != nil && rs.RequireProperties {
+			return nil, err
+		}
+		for i := range repos {
+			repos[i].Properties = props[repos[i].FullName()]
+		}
+		// A listing whose properties couldn't be read isn't cached as one
+		// with them, so a later run asks again.
+		if err == nil {
+			key = owner + "@properties"
+		}
 	}
-	for i := range repos {
-		repos[i].Properties = props[repos[i].FullName()]
-	}
-	// A listing without the properties it should have is not cached, so a
-	// later campaign that needs them fetches them again.
-	if rs.Cache != nil && err == nil {
-		rs.Cache.Put(owner, repos)
+	if rs.Cache != nil {
+		rs.Cache.Put(key, repos)
 	}
 	return repos, nil
 }
@@ -292,62 +313,91 @@ func countRepos(n int) string {
 	return fmt.Sprintf("%d repos", n)
 }
 
-// candidates lists every repo the campaign could target: its orgs, and
-// the repos and patterns of include.repos.
+// candidates gathers the repos the campaign could target. When include
+// filters apply to orgs, every org is listed. When include.repos is the
+// whole selection, only what it names is fetched: an owner/name by itself,
+// a bare name in each org, and a pattern from a listing of its owner, or
+// of orgs for a bare or wildcard-owner pattern.
 func (rs *Resolver) candidates(ctx context.Context, t campaign.Targets) (map[string]ghapi.Repo, error) {
 	candidates := map[string]ghapi.Repo{}
-	for _, org := range t.Orgs {
-		repos, err := rs.listOwner(ctx, org)
+	listed := map[string]bool{}
+	list := func(owner string, keep func(ghapi.Repo) bool) error {
+		if listed[strings.ToLower(owner)] {
+			return nil
+		}
+		listed[strings.ToLower(owner)] = true
+		repos, err := rs.listOwner(ctx, owner)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		for _, r := range repos {
-			candidates[strings.ToLower(r.FullName())] = r
-		}
-	}
-	listed := map[string]bool{}
-	for _, o := range t.Orgs {
-		listed[strings.ToLower(o)] = true
-	}
-	for _, name := range t.Include.Repos {
-		if _, ok := candidates[strings.ToLower(name)]; ok {
-			continue
-		}
-		owner, _, hasOwner := strings.Cut(name, "/")
-		if !hasOwner {
-			// A bare name or name pattern matches among the repos of orgs;
-			// load rejects one without orgs.
-			continue
-		}
-		if campaign.IsPattern(name) {
-			// A pattern names repos of one owner: list that owner, unless
-			// orgs already did, and keep the matches. Load rejects a
-			// pattern in the owner without orgs to match against.
-			if campaign.IsPattern(owner) || listed[strings.ToLower(owner)] {
-				continue
+			if keep(r) {
+				candidates[strings.ToLower(r.FullName())] = r
 			}
-			listed[strings.ToLower(owner)] = true
-			repos, err := rs.listOwner(ctx, owner)
-			if err != nil {
+		}
+		return nil
+	}
+	named := func(r ghapi.Repo) bool { return campaign.MatchAny(t.Include.Repos, r.FullName()) != "" }
+	if !OnlyRepos(t.Include) {
+		for _, org := range t.Orgs {
+			if err := list(org, func(ghapi.Repo) bool { return true }); err != nil {
 				return nil, err
 			}
-			for _, r := range repos {
-				if campaign.MatchAny(t.Include.Repos, r.FullName()) != "" {
-					candidates[strings.ToLower(r.FullName())] = r
+		}
+	}
+	for _, name := range t.Include.Repos {
+		owner, _, hasOwner := strings.Cut(name, "/")
+		switch {
+		case !hasOwner && !campaign.IsPattern(name):
+			// A bare name: that repo in each org, where it exists.
+			for _, org := range t.Orgs {
+				if listed[strings.ToLower(org)] {
+					continue
+				}
+				if err := rs.fetch(ctx, org+"/"+name, candidates, true); err != nil {
+					return nil, err
 				}
 			}
-			continue
+		case !hasOwner || campaign.IsPattern(owner):
+			// A bare or wildcard-owner pattern matches the repos of orgs;
+			// load rejects one without orgs.
+			for _, org := range t.Orgs {
+				if err := list(org, named); err != nil {
+					return nil, err
+				}
+			}
+		case campaign.IsPattern(name):
+			if err := list(owner, named); err != nil {
+				return nil, err
+			}
+		default:
+			if _, ok := candidates[strings.ToLower(name)]; ok {
+				continue
+			}
+			if err := rs.fetch(ctx, name, candidates, false); err != nil {
+				return nil, err
+			}
 		}
-		r, err := rs.Client.GetRepo(ctx, name)
-		if err != nil {
-			return nil, err
-		}
-		if r.Properties, err = rs.Client.RepoProperties(ctx, r.FullName()); err != nil && rs.RequireProperties {
-			return nil, err
-		}
-		candidates[strings.ToLower(r.FullName())] = r
 	}
 	return candidates, nil
+}
+
+// fetch looks up one repo, with its custom properties when the campaign
+// uses them, and adds it to candidates. With optional, a repo that doesn't
+// exist is left out rather than an error.
+func (rs *Resolver) fetch(ctx context.Context, name string, candidates map[string]ghapi.Repo, optional bool) error {
+	r, err := rs.Client.GetRepo(ctx, name)
+	if optional && errors.Is(err, ghapi.ErrNotFound) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if r.Properties, err = rs.repoProperties(ctx, r.FullName()); err != nil {
+		return err
+	}
+	candidates[strings.ToLower(r.FullName())] = r
+	return nil
 }
 
 // named looks up only the repos in Only, keeping those the campaign could
@@ -366,10 +416,24 @@ func (rs *Resolver) named(ctx context.Context, t campaign.Targets) (map[string]g
 		if !inOrg && campaign.MatchAny(t.Include.Repos, r.FullName()) == "" {
 			continue // not a candidate; Limit reports it
 		}
-		if r.Properties, err = rs.Client.RepoProperties(ctx, r.FullName()); err != nil && rs.RequireProperties {
+		if r.Properties, err = rs.repoProperties(ctx, r.FullName()); err != nil {
 			return nil, err
 		}
 		candidates[strings.ToLower(r.FullName())] = r
 	}
 	return candidates, nil
+}
+
+// repoProperties returns one repo's custom properties when they are
+// fetched. An error reading them only matters when the campaign requires
+// them; otherwise the repo has none.
+func (rs *Resolver) repoProperties(ctx context.Context, name string) (map[string]string, error) {
+	if !rs.props {
+		return nil, nil
+	}
+	props, err := rs.Client.RepoProperties(ctx, name)
+	if err != nil && rs.RequireProperties {
+		return nil, err
+	}
+	return props, nil
 }
