@@ -82,8 +82,8 @@ func (a *App) Init(o InitOptions) error {
 		return err
 	}
 	s := ui.For(a.Color)
-	fmt.Fprintf(a.Out, "%s %s for campaign %s\n", s.OK.Render("Wrote"), file, s.Bold.Render(name))
-	fmt.Fprintf(a.Out, "%s edit the targets and change, then run %s\n", s.Dim.Render("Next:"), s.Brand.Render("gh fleet targets"))
+	fmt.Fprintf(a.Err, "%s %s for campaign %s\n", s.OK.Render("Wrote"), file, s.Bold.Render(name))
+	fmt.Fprintf(a.Err, "%s edit the targets and change, then run %s\n", s.Dim.Render("Next:"), s.Brand.Render("gh fleet targets"))
 	return nil
 }
 
@@ -98,7 +98,7 @@ func (a *App) listExamples() error {
 		}
 		rows[i] = []string{n, campaignDescription(b)}
 	}
-	p := render.Printer{Out: a.Out, Styles: ui.For(a.Color)}
+	p := render.Printer{Out: a.Out, TTY: a.TTY, Styles: ui.For(a.Color)}
 	p.Table([]string{"EXAMPLE", "WHAT IT DOES"}, rows, nil)
 	fmt.Fprintf(a.Err, "\ngh fleet init --from <example> copies one, with its test cases.\n")
 	return nil
@@ -180,8 +180,8 @@ func (a *App) initFrom(o InitOptions) error {
 		}
 	}
 	s := ui.For(a.Color)
-	fmt.Fprintf(a.Out, "%s %d files from example %s into %s\n", s.OK.Render("Copied"), len(files), s.Bold.Render(src), dir)
-	fmt.Fprintf(a.Out, "%s %s checks it against its test cases; edit the targets, then run %s\n", s.Dim.Render("Next:"), s.Brand.Render("gh fleet test"), s.Brand.Render("gh fleet targets"))
+	fmt.Fprintf(a.Err, "%s %d files from example %s into %s\n", s.OK.Render("Copied"), len(files), s.Bold.Render(src), dir)
+	fmt.Fprintf(a.Err, "%s %s checks it against its test cases; edit the targets, then run %s\n", s.Dim.Render("Next:"), s.Brand.Render("gh fleet test"), s.Brand.Render("gh fleet targets"))
 	return nil
 }
 

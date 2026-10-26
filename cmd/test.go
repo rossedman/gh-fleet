@@ -54,6 +54,6 @@ func init() {
 	testCmd.Flags().String("dir", "", "run the change on a copy of this directory and print the diff")
 	testCmd.Flags().StringSlice("repo", nil, "with --dir, the owner/name the change runs as (default acme/<dir name>)")
 	testCmd.Flags().BoolP("verbose", "v", false, "print each case's step output and PR title")
-	addOutputFlags(testCmd)
+	addOutputFlags(testCmd, []app.TestResult{})
 	rootCmd.AddCommand(testCmd)
 }

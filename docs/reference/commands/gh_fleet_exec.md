@@ -31,14 +31,15 @@ gh fleet exec -- <command> [args...] [flags]
       --concurrency int    repos processed in parallel (default 8)
       --file strings       only repos where any of these paths exist
   -h, --help               help for exec
-      --jq string          filter JSON output with a jq expression
-      --json               print JSON instead of a table
+  -q, --jq expression      filter JSON output using a jq expression
+      --json fields        output JSON with the specified fields (comma-separated; --json alone lists them)
       --keep-workdirs      leave clones on disk for debugging
       --language strings   only repos with any of these primary languages
       --org strings        target this org's repos (repeatable)
       --raw                print each repo's output instead of a tally
       --repo strings       target these repos (owner/name, repeatable); with a campaign, limit to them
       --search string      only repos with a hit for this code search query
+  -t, --template string    format JSON output using a Go template; see gh help formatting
       --timeout duration   time limit per repo (default 5m0s)
       --topic strings      only repos with any of these topics
 ```

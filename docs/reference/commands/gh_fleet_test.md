@@ -39,15 +39,16 @@ gh fleet test [campaign] [flags]
 ### Options
 
 ```
-      --dir string     run the change on a copy of this directory and print the diff
-  -f, --file string    campaign file (default ./fleet.yaml)
-  -h, --help           help for test
-      --jq string      filter JSON output with a jq expression
-      --json           print JSON instead of a table
-      --repo strings   with --dir, the owner/name the change runs as (default acme/<dir name>)
-      --run string     only run cases whose name matches this regular expression
-      --update         rewrite each case's after/ from the change's result
-  -v, --verbose        print each case's step output and PR title
+      --dir string        run the change on a copy of this directory and print the diff
+  -f, --file string       campaign file (default ./fleet.yaml)
+  -h, --help              help for test
+  -q, --jq expression     filter JSON output using a jq expression
+      --json fields       output JSON with the specified fields (comma-separated; --json alone lists them)
+      --repo strings      with --dir, the owner/name the change runs as (default acme/<dir name>)
+      --run string        only run cases whose name matches this regular expression
+  -t, --template string   format JSON output using a Go template; see gh help formatting
+      --update            rewrite each case's after/ from the change's result
+  -v, --verbose           print each case's step output and PR title
 ```
 
 ### Options inherited from parent commands

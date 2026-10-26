@@ -26,10 +26,11 @@ gh fleet close [campaign] [flags]
       --concurrency int    repos processed in parallel (default limits.concurrency, else 8)
   -f, --file string        campaign file (default ./fleet.yaml)
   -h, --help               help for close
-      --jq string          filter JSON output with a jq expression
-      --json               print JSON instead of a table
+  -q, --jq expression      filter JSON output using a jq expression
+      --json fields        output JSON with the specified fields (comma-separated; --json alone lists them)
       --keep-branches      close PRs but keep their branches
       --repo strings       limit to these repos (owner/name, repeatable)
+  -t, --template string    format JSON output using a Go template; see gh help formatting
       --write-rate float   GitHub API writes per second (default 1)
   -y, --yes                skip the confirmation prompt
 ```

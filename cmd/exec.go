@@ -49,7 +49,7 @@ func init() {
 	execCmd.Flags().StringSlice("repo", nil, "target these repos (owner/name, repeatable); with a campaign, limit to them")
 	execCmd.Flags().Int("concurrency", 0, "repos processed in parallel (default 8)")
 	addRunFlags(execCmd)
-	addOutputFlags(execCmd)
+	addOutputFlags(execCmd, app.ExecReport{})
 	execCmd.Flags().StringSlice("org", nil, "target this org's repos (repeatable)")
 	execCmd.Flags().StringSlice("topic", nil, "only repos with any of these topics")
 	execCmd.Flags().StringSlice("language", nil, "only repos with any of these primary languages")

@@ -146,7 +146,10 @@ action upgrades and SHA pinning, pre-commit hooks, Dependabot, CODEOWNERS,
 | `gh fleet list` | List campaigns in local state |
 
 Every command takes a campaign file (`--file`, default `./fleet.yaml`) or the
-name of a campaign in local state. Read commands take `--json` and `--jq`.
+name of a campaign in local state. Read commands take `--json <fields>`, `--jq`
+and `--template`, as gh's do; see
+[Scripting and CI](https://rossedman.github.io/gh-fleet/guides/scripting/) for
+piped output and exit codes.
 Common flags: `--repo owner/name` (limit to some repos), `--concurrency N`,
 `--yes`, `--keep-workdirs`, `--write-rate`.
 
@@ -171,7 +174,9 @@ Common flags: `--repo owner/name` (limit to some repos), `--concurrency N`,
 - **The script is the source of truth.** An existing campaign branch is
   rebased onto the base; on conflict it is reset and the script runs again.
 - **One failure is one failure.** A repo whose script fails is recorded and the
-  rest carry on; the exit code is non-zero at the end.
+  rest carry on; the exit code is 1 at the end. Exit codes follow gh's: 2 when
+  you decline a prompt, 4 when gh isn't signed in, and 8 from
+  `status --exit-status` while PRs are still open.
 - **Kind to the API.** Writes go through one shared limiter (1 per second by
   default), a secondary rate limit pauses every worker until it passes, server
   errors are retried with backoff, and 10% of the primary quota is kept in

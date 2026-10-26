@@ -57,31 +57,38 @@ func (a *App) Targets(ctx context.Context, c Common) error {
 			return s
 		})
 	}
+	// Skipped repos and the summary are for people: a pipe gets only the
+	// targets on stdout.
+	e := a.errPrinter(c)
 	if len(res.Skipped) > 0 {
-		fmt.Fprintln(p.Out)
+		sp := p
+		if !p.TTY {
+			sp = e
+		}
+		fmt.Fprintln(sp.Out)
 		rows = rows[:0]
 		for _, s := range res.Skipped {
 			rows = append(rows, []string{s.Repo, s.Reason})
 		}
-		p.Table([]string{"SKIPPED", "REASON"}, rows, func(_, col int, s string) string {
+		sp.Table([]string{"SKIPPED", "REASON"}, rows, func(_, col int, s string) string {
 			if col == 1 {
-				return p.Styles.Warn.Render(s)
+				return sp.Styles.Warn.Render(s)
 			}
 			return s
 		})
 	}
-	fmt.Fprintf(p.Out, "\n%s", p.Styles.Bold.Render(plural(len(res.Targets), "repo")))
+	fmt.Fprintf(e.Out, "\n%s", e.Styles.Bold.Render(plural(len(res.Targets), "repo")))
 	if len(res.Skipped) > 0 {
-		fmt.Fprintf(p.Out, " %s", p.Styles.Dim.Render(fmt.Sprintf("(%d skipped)", len(res.Skipped))))
+		fmt.Fprintf(e.Out, " %s", e.Styles.Dim.Render(fmt.Sprintf("(%d skipped)", len(res.Skipped))))
 	}
-	fmt.Fprintln(p.Out)
+	fmt.Fprintln(e.Out)
 	if extra := unmatchedRows(camp, res); len(extra) > 0 && len(c.Repos) == 0 {
 		what := "is not a target"
 		if len(extra) > 1 {
 			what = "are not targets"
 		}
-		fmt.Fprintf(p.Out, "%s %s names %s that %s: %s\n",
-			p.Styles.Warn.Render("warning:"), camp.Vars.File, plural(len(extra), "repo"), what, strings.Join(extra, ", "))
+		fmt.Fprintf(e.Out, "%s %s names %s that %s: %s\n",
+			e.Styles.Warn.Render("warning:"), camp.Vars.File, plural(len(extra), "repo"), what, strings.Join(extra, ", "))
 	}
 	return nil
 }

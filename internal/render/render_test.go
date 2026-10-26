@@ -12,7 +12,7 @@ import (
 func TestTableAligns(t *testing.T) {
 	t.Parallel()
 	var b bytes.Buffer
-	p := Printer{Out: &b, Styles: ui.Plain()}
+	p := Printer{Out: &b, Styles: ui.Plain(), TTY: true}
 	p.Table([]string{"REPO", "STATUS"}, [][]string{{"acme/api", "noop"}, {"a/b", "failed", "extra"}}, nil)
 	want := "REPO      STATUS\nacme/api  noop\na/b       failed\n"
 	if b.String() != want {

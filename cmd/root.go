@@ -6,9 +6,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 
@@ -20,6 +22,8 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/rossedman/gh-fleet/internal/app"
+	"github.com/rossedman/gh-fleet/internal/ghapi"
+	"github.com/rossedman/gh-fleet/internal/render"
 	"github.com/rossedman/gh-fleet/internal/ui"
 )
 
@@ -41,15 +45,59 @@ duplicating them.`,
   gh fleet plan --repo acme/api
   gh fleet apply
   gh fleet status`,
-	Annotations:       map[string]string{cobra.CommandDisplayNameAnnotation: "gh fleet"},
-	SilenceUsage:      true,
-	SilenceErrors:     true,
-	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error { return initConfig(cmd) },
+	Annotations:   map[string]string{cobra.CommandDisplayNameAnnotation: "gh fleet"},
+	SilenceUsage:  true,
+	SilenceErrors: true,
+	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+		if err := initConfig(cmd); err != nil {
+			return err
+		}
+		return checkJSONFields(cmd)
+	},
 }
 
 // init registers the persistent --config flag.
 func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default $XDG_CONFIG_HOME/gh-fleet/config.yaml)")
+	rootCmd.SetFlagErrorFunc(flagError)
+}
+
+// jsonFieldsKey is the annotation holding a command's JSON fields.
+const jsonFieldsKey = "jsonFields"
+
+// flagError lists the JSON fields when --json is given none, as gh does.
+func flagError(cmd *cobra.Command, err error) error {
+	if err.Error() == "flag needs an argument: --json" {
+		return fmt.Errorf("Specify one or more comma-separated fields for `--json`:\n  %s", //nolint:staticcheck // gh's wording
+			strings.ReplaceAll(cmd.Annotations[jsonFieldsKey], ",", "\n  "))
+	}
+	return err
+}
+
+// checkJSONFields rejects --json fields the command doesn't output.
+func checkJSONFields(cmd *cobra.Command) error {
+	f := cmd.Flags().Lookup("json")
+	if f == nil || !f.Changed {
+		return nil
+	}
+	known := strings.Split(cmd.Annotations[jsonFieldsKey], ",")
+	for _, name := range jsonFields(f.Value.String()) {
+		if !slices.Contains(known, name) {
+			return fmt.Errorf("Unknown JSON field: %q\nAvailable fields:\n  %s", name, strings.Join(known, "\n  ")) //nolint:staticcheck // gh's wording
+		}
+	}
+	return nil
+}
+
+// jsonFields splits a --json value into field names.
+func jsonFields(s string) []string {
+	var out []string
+	for _, f := range strings.Split(s, ",") {
+		if f = strings.TrimSpace(f); f != "" {
+			out = append(out, f)
+		}
+	}
+	return out
 }
 
 // Root returns the root command, for documentation generation and tests.
@@ -62,16 +110,24 @@ func Execute() {
 	defer cancel()
 	sig := make(chan os.Signal, 2)
 	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
+	interrupted := make(chan struct{})
 	go func() {
 		<-sig
+		close(interrupted)
 		fmt.Fprintln(os.Stderr, "\nStopping: finishing in-flight repos and saving state. Press Ctrl-C again to quit now.")
 		cancel()
 		<-sig
-		os.Exit(130)
+		os.Exit(exitInterrupt)
 	}()
-	if err := fang.Execute(ctx, rootCmd, fang.WithVersion(version), fang.WithCommit(commit), fang.WithoutManpage()); err != nil {
-		os.Exit(1)
+	err := fang.Execute(ctx, rootCmd, fang.WithVersion(version), fang.WithCommit(commit), fang.WithoutManpage(),
+		fang.WithErrorHandler(func(w io.Writer, _ fang.Styles, err error) { printError(w, err) }))
+	stopped := false
+	select {
+	case <-interrupted:
+		stopped = true
+	default:
 	}
+	os.Exit(exitCode(err, stopped))
 }
 
 // initConfig loads the config file and environment into viper and binds
@@ -126,8 +182,8 @@ var newApp = func(cmd *cobra.Command) (*app.App, error) {
 		out = colorprofile.NewWriter(out, os.Environ())
 		errOut = colorprofile.NewWriter(errOut, os.Environ())
 	}
-	interactive := t.IsTerminalOutput() && isTerminal(os.Stdin)
-	return app.Default(out, errOut, cmd.InOrStdin(), interactive, color)
+	interactive := t.IsTerminalOutput() && isTerminal(os.Stdin) && os.Getenv("GH_PROMPT_DISABLED") == ""
+	return app.Default(out, errOut, cmd.InOrStdin(), t.IsTerminalOutput(), interactive, color)
 }
 
 // isTerminal reports whether f is a character device.
@@ -144,10 +200,16 @@ func addCampaignFlags(cmd *cobra.Command) {
 	cmd.Flags().Float64("write-rate", 1, "GitHub API writes per second")
 }
 
-// addOutputFlags adds --json and --jq.
-func addOutputFlags(cmd *cobra.Command) {
-	cmd.Flags().Bool("json", false, "print JSON instead of a table")
-	cmd.Flags().String("jq", "", "filter JSON output with a jq expression")
+// addOutputFlags adds --json, --jq and --template. samples are the values
+// the command prints as JSON, which give the fields --json accepts.
+func addOutputFlags(cmd *cobra.Command, samples ...any) {
+	cmd.Flags().String("json", "", "output JSON with the specified `fields` (comma-separated; --json alone lists them)")
+	cmd.Flags().StringP("jq", "q", "", "filter JSON output using a jq `expression`")
+	cmd.Flags().StringP("template", "t", "", "format JSON output using a Go template; see gh help formatting")
+	if cmd.Annotations == nil {
+		cmd.Annotations = map[string]string{}
+	}
+	cmd.Annotations[jsonFieldsKey] = strings.Join(render.FieldsOf(samples...), ",")
 }
 
 // addRunFlags adds the flags of commands that clone and run the change.
@@ -169,8 +231,10 @@ func common(args []string) app.Common {
 		WriteRate:    viper.GetFloat64("write-rate"),
 		Yes:          viper.GetBool("yes"),
 		KeepWorkdirs: viper.GetBool("keep-workdirs"),
-		JSON:         viper.GetBool("json"),
+		JSON:         viper.GetString("json") != "",
+		JSONFields:   jsonFields(viper.GetString("json")),
 		JQ:           viper.GetString("jq"),
+		Template:     viper.GetString("template"),
 	}
 	if len(args) > 0 {
 		c.Campaign = args[0]
@@ -185,4 +249,57 @@ func run(cmd *cobra.Command, f func(a *app.App) error) error {
 		return err
 	}
 	return f(a)
+}
+
+// Exit codes, the same as gh's.
+const (
+	exitOK      = 0
+	exitError   = 1
+	exitCancel  = 2
+	exitAuth    = 4
+	exitPending = 8
+	// exitInterrupt is the shell's code for a run stopped by Ctrl-C.
+	exitInterrupt = 130
+)
+
+// exitCode maps the error a command returned to the process exit code.
+// interrupted is true when Ctrl-C stopped the run.
+func exitCode(err error, interrupted bool) int {
+	switch {
+	case interrupted:
+		return exitInterrupt
+	case err == nil:
+		return exitOK
+	case errors.Is(err, ui.ErrNotConfirmed):
+		return exitCancel
+	case errors.Is(err, ghapi.ErrAuthRequired):
+		return exitAuth
+	case errors.Is(err, app.ErrPending):
+		return exitPending
+	}
+	return exitError
+}
+
+// usagePrefixes start the errors cobra and pflag return for a bad command
+// line.
+var usagePrefixes = []string{
+	"unknown command", "unknown flag", "unknown shorthand flag", "flag needs an argument",
+	"invalid argument", "accepts ", "requires at least", "bad flag syntax",
+}
+
+// printError writes err to w as plain text, the way gh does, so it reads
+// the same in a terminal, a log or a pipe. A command line mistake gets a
+// pointer to --help; a pending status, which only sets the exit code,
+// prints nothing.
+func printError(w io.Writer, err error) {
+	if errors.Is(err, app.ErrPending) {
+		return
+	}
+	fmt.Fprintln(w, err)
+	for _, p := range usagePrefixes {
+		if strings.HasPrefix(err.Error(), p) {
+			fmt.Fprintln(w, "\nRun gh fleet <command> --help for usage.")
+			return
+		}
+	}
 }

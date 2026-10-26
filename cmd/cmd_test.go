@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,6 +18,7 @@ import (
 	"github.com/rossedman/gh-fleet/internal/ghapi/fake"
 	"github.com/rossedman/gh-fleet/internal/state"
 	"github.com/rossedman/gh-fleet/internal/testutil"
+	"github.com/rossedman/gh-fleet/internal/ui"
 	"github.com/rossedman/gh-fleet/internal/workspace"
 )
 
@@ -41,6 +44,7 @@ func setup(t *testing.T) *env {
 	t.Cleanup(func() { newApp = old })
 	newApp = func(cmd *cobra.Command) (*app.App, error) {
 		return &app.App{
+			TTY: true,
 			Out: cmd.OutOrStdout(), Err: cmd.ErrOrStderr(), In: strings.NewReader(""),
 			NewClient: func(float64) (ghapi.Client, error) { return e.gh, nil },
 			Store:     &state.Store{Dir: stateDir},
@@ -88,9 +92,9 @@ func resetFlags(cmd *cobra.Command) {
 
 func TestInitTargetsPlanApplyStatusListClose(t *testing.T) {
 	e := setup(t)
-	out, _, err := execute(t, "init", "add-file", "--org", "acme", "--file", e.file)
-	if err != nil || !strings.Contains(out, "Wrote") {
-		t.Fatalf("init: %q, %v", out, err)
+	out, initErr, err := execute(t, "init", "add-file", "--org", "acme", "--file", e.file)
+	if err != nil || !strings.Contains(initErr, "Wrote") || out != "" {
+		t.Fatalf("init: %q %q, %v", out, initErr, err)
 	}
 	b, _ := os.ReadFile(e.file)
 	edited := strings.Replace(string(b), `echo "replace me" >/dev/null`, `echo added > ADDED.md`, 1)
@@ -98,16 +102,16 @@ func TestInitTargetsPlanApplyStatusListClose(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out, _, err = execute(t, "targets", "-f", e.file)
-	if err != nil || !strings.Contains(out, "acme/api") || !strings.Contains(out, "1 repo") {
-		t.Fatalf("targets: %q, %v", out, err)
+	out, errOut, err := execute(t, "targets", "-f", e.file)
+	if err != nil || !strings.Contains(out, "acme/api") || !strings.Contains(errOut, "1 repo") {
+		t.Fatalf("targets: %q %q, %v", out, errOut, err)
 	}
 	out, _, err = execute(t, "targets", "-f", e.file, "--jq", ".targets[0].reasons[0]")
 	if err != nil || strings.TrimSpace(out) != "org:acme" {
 		t.Fatalf("targets --jq: %q, %v", out, err)
 	}
 
-	out, errOut, err := execute(t, "plan", "-f", e.file, "--concurrency", "2")
+	out, errOut, err = execute(t, "plan", "-f", e.file, "--concurrency", "2")
 	if err != nil || !strings.Contains(out, "+added") || !strings.Contains(errOut, "1 changed") {
 		t.Fatalf("plan: %q %q, %v", out, errOut, err)
 	}
@@ -124,11 +128,14 @@ func TestInitTargetsPlanApplyStatusListClose(t *testing.T) {
 		t.Fatalf("retry: %q, %v", errOut, err)
 	}
 
-	out, _, err = execute(t, "status", "add-file")
-	if err != nil || !strings.Contains(out, "pr open") || !strings.Contains(out, "API quota: core 5,000/5,000") {
-		t.Fatalf("status: %q, %v", out, err)
+	out, errOut, err = execute(t, "status", "add-file")
+	if err != nil || !strings.Contains(out, "pr open") || !strings.Contains(errOut, "API quota: core 5,000/5,000") {
+		t.Fatalf("status: %q %q, %v", out, errOut, err)
 	}
-	out, _, err = execute(t, "list", "--json", "--jq", ".[0].name")
+	if _, _, err = execute(t, "status", "add-file", "--exit-status"); exitCode(err, false) != exitPending {
+		t.Fatalf("status --exit-status with an open PR: %v", err)
+	}
+	out, _, err = execute(t, "list", "--json", "name", "--jq", ".[0].name")
 	if err != nil || strings.TrimSpace(out) != "add-file" {
 		t.Fatalf("list: %q, %v", out, err)
 	}
@@ -228,5 +235,63 @@ func TestEveryCommandDocumented(t *testing.T) {
 		if c.Short == "" || c.Example == "" && c.Name() != "version" {
 			t.Errorf("%s needs Short and Example", c.Name())
 		}
+	}
+}
+
+func TestJSONFieldsAndTemplate(t *testing.T) {
+	setup(t)
+	_, _, err := execute(t, "lib", "--json")
+	if err == nil || !strings.HasPrefix(err.Error(), "Specify one or more comma-separated fields for `--json`:\n  ") || !strings.Contains(err.Error(), "\n  module\n") {
+		t.Fatalf("bare --json: %v", err)
+	}
+	if _, _, err := execute(t, "lib", "--json", "module,nope"); err == nil || !strings.Contains(err.Error(), `Unknown JSON field: "nope"`) {
+		t.Fatalf("unknown field: %v", err)
+	}
+	out, _, err := execute(t, "lib", "--json", "module", "--jq", ".[0] | keys | join(\",\")")
+	if err != nil || strings.TrimSpace(out) != "module" {
+		t.Fatalf("--json module: %q, %v", out, err)
+	}
+	out, _, err = execute(t, "lib", "--json", "module,summary", "-t", `{{range .}}{{.module}}{{"\n"}}{{end}}`)
+	if err != nil || !strings.HasPrefix(out, "android.star\nansible.star\n") {
+		t.Fatalf("--template: %q, %v", out, err)
+	}
+}
+
+func TestExitCodesAndErrors(t *testing.T) {
+	for _, tt := range []struct {
+		err  error
+		stop bool
+		want int
+	}{
+		{nil, false, exitOK},
+		{errors.New("boom"), false, exitError},
+		{fmt.Errorf("apply: %w", ui.ErrNotConfirmed), false, exitCancel},
+		{ghapi.ErrAuthRequired, false, exitAuth},
+		{app.ErrPending, false, exitPending},
+		{nil, true, exitInterrupt},
+		{&app.FailedError{N: 2}, false, exitError},
+	} {
+		if got := exitCode(tt.err, tt.stop); got != tt.want {
+			t.Errorf("exitCode(%v, %v) = %d, want %d", tt.err, tt.stop, got, tt.want)
+		}
+	}
+	var b bytes.Buffer
+	printError(&b, errors.New("no fleet.yaml in the current directory"))
+	if b.String() != "no fleet.yaml in the current directory\n" {
+		t.Errorf("plain error = %q", b.String())
+	}
+	b.Reset()
+	printError(&b, errors.New("unknown flag: --bogus"))
+	if !strings.Contains(b.String(), "unknown flag: --bogus\n\nRun gh fleet <command> --help for usage.") {
+		t.Errorf("usage error = %q", b.String())
+	}
+	b.Reset()
+	printError(&b, app.ErrPending)
+	if b.Len() != 0 {
+		t.Errorf("pending printed %q", b.String())
+	}
+	setup(t)
+	if _, _, err := execute(t, "list", "--json", "nope"); err == nil {
+		t.Error("unknown field on a campaign command accepted")
 	}
 }

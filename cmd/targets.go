@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/rossedman/gh-fleet/internal/app"
+	"github.com/rossedman/gh-fleet/internal/target"
 )
 
 // targetsCmd lists the repos a campaign will touch.
@@ -25,6 +26,6 @@ Org listings are cached for 10 minutes.`,
 // init registers the targets command and its flags.
 func init() {
 	addCampaignFlags(targetsCmd)
-	addOutputFlags(targetsCmd)
+	addOutputFlags(targetsCmd, target.Result{})
 	rootCmd.AddCommand(targetsCmd)
 }

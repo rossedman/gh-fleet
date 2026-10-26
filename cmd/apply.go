@@ -5,6 +5,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/rossedman/gh-fleet/internal/app"
+	"github.com/rossedman/gh-fleet/internal/state"
 )
 
 // applyCmd runs the change and opens or updates PRs.
@@ -35,7 +36,7 @@ func init() {
 	addCampaignFlags(applyCmd)
 	addRunFlags(applyCmd)
 	addWriteFlags(applyCmd)
-	addOutputFlags(applyCmd)
+	addOutputFlags(applyCmd, []state.RepoState{})
 	applyCmd.Flags().Bool("reopen", false, "reopen campaign PRs that were closed without merging")
 	applyCmd.Flags().Bool("close-noop", false, "close open PRs whose change is already on the base branch")
 	rootCmd.AddCommand(applyCmd)

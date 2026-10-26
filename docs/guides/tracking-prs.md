@@ -55,10 +55,11 @@ API quota: core 4,871/5,000 · graphql 4,962/5,000
 
 `CHECKS` is the rollup of the PR's status checks and `REVIEW` is its review decision. `NOTE` carries the last error for a failed repo, or the reason for a skipped, noop or closed one. The remaining API quota is printed at the end. PRs are read in batched GraphQL queries of 50 repos.
 
-For scripts, `--json` prints a report and `--jq` filters it:
+For scripts, `--json` prints a report and `--jq` filters it. `--exit-status` sets the exit code from the result (1 if a repo failed, 8 while any still needs work), so a script or CI job can wait on a campaign. [Scripting and CI](scripting.md) has the details.
 
 ```sh
-gh fleet status --json --jq '.counts'
+gh fleet status --json counts --jq '.counts'
+gh fleet status --exit-status
 ```
 
 ### Sharing progress

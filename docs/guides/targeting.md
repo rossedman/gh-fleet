@@ -93,10 +93,10 @@ acme/docs-site  no push access
 5 repos (1 skipped)
 ```
 
-Add `--json` for scripts, with `--jq` to filter:
+Piped, `targets` prints just the repos, tab-separated. For more, `--json targets,skipped` prints both lists, and `--jq` filters them:
 
 ```sh
-gh fleet targets --json --jq '.targets[].repo | .owner + "/" + .name'
+gh fleet targets --json targets --jq '.targets[].repo | .owner + "/" + .name'
 ```
 
 ## Narrowing a run

@@ -5,6 +5,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/rossedman/gh-fleet/internal/app"
+	"github.com/rossedman/gh-fleet/internal/star"
 )
 
 // libCmd prints the built-in Starlark library's docs.
@@ -29,7 +30,10 @@ which the library's tests run, so it shows real output.
 	Args: cobra.MaximumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		o := app.LibOptions{
-			Common: app.Common{JSON: viper.GetBool("json"), JQ: viper.GetString("jq")},
+			Common: app.Common{
+				JSON: viper.GetString("json") != "", JSONFields: jsonFields(viper.GetString("json")),
+				JQ: viper.GetString("jq"), Template: viper.GetString("template"),
+			},
 			Args:   args,
 			Search: viper.GetString("search"),
 			Source: viper.GetBool("source"),
@@ -42,6 +46,6 @@ which the library's tests run, so it shows real output.
 func init() {
 	libCmd.Flags().StringP("search", "s", "", "list functions whose names or docs mention these words")
 	libCmd.Flags().Bool("source", false, "print the module's Starlark source")
-	addOutputFlags(libCmd)
+	addOutputFlags(libCmd, []app.LibModule{}, []app.LibHit{}, star.LibDoc{}, star.LibFunc{})
 	rootCmd.AddCommand(libCmd)
 }

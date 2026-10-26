@@ -26,6 +26,9 @@ type StatusOptions struct {
 	Common
 	// Format is table, markdown or html.
 	Format string
+	// ExitStatus fails when a repo failed, and returns ErrPending when one
+	// still needs work, after printing.
+	ExitStatus bool
 }
 
 // Status refreshes every target's PR from GitHub and prints a table, or a
@@ -33,31 +36,62 @@ type StatusOptions struct {
 // fallback), so the report is correct even when the local state file is
 // gone.
 func (a *App) Status(ctx context.Context, o StatusOptions) error {
+	rows, err := a.status(ctx, o)
+	if err != nil || !o.ExitStatus {
+		return err
+	}
+	return exitStatus(rows)
+}
+
+// exitStatus fails when a repo failed and returns ErrPending while one
+// still needs work. Merged, closed, no-op and skipped repos are done.
+func exitStatus(rows []state.RepoState) error {
+	failed, pending := 0, false
+	for _, r := range rows {
+		switch r.Status {
+		case state.Failed:
+			failed++
+		case state.Merged, state.Closed, state.Noop, state.Skipped, state.Done:
+		default:
+			pending = true
+		}
+	}
+	if failed > 0 {
+		return &FailedError{N: failed}
+	}
+	if pending {
+		return ErrPending
+	}
+	return nil
+}
+
+// status prints the status and returns the rows it printed.
+func (a *App) status(ctx context.Context, o StatusOptions) (rows []state.RepoState, err error) {
 	c := o.Common
 	switch o.Format {
 	case "", FormatTable:
 	case FormatMarkdown, FormatHTML:
-		if c.JSON || c.JQ != "" {
-			return fmt.Errorf("--format %s can't be combined with --json or --jq", o.Format)
+		if c.JSON || c.JQ != "" || c.Template != "" {
+			return nil, fmt.Errorf("--format %s can't be combined with --json, --jq or --template", o.Format)
 		}
 	default:
-		return fmt.Errorf("--format must be table, markdown or html, not %q", o.Format)
+		return nil, fmt.Errorf("--format must be table, markdown or html, not %q", o.Format)
 	}
 	camp, err := a.LoadCampaign(c)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	client, err := a.NewClient(c.WriteRate)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	res, err := a.resolve(ctx, client, camp, c.Repos, true)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	st, err := a.Store.Load(camp.Name)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if st.File == "" {
 		st.File = camp.Path
@@ -77,11 +111,10 @@ func (a *App) Status(ctx context.Context, o StatusOptions) error {
 	}
 	prs, err := indexPRs(ctx, client, camp, names)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	now := a.Store.Time()
-	var rows []state.RepoState
 	for _, n := range names {
 		rs := state.RepoState{Repo: n, Status: state.Pending}
 		if old := st.Get(n); old != nil {
@@ -110,12 +143,12 @@ func (a *App) Status(ctx context.Context, o StatusOptions) error {
 	rows = append(rows, skippedStates(res)...)
 	sortStates(rows)
 	if err := a.Store.Save(st); err != nil {
-		return err
+		return nil, err
 	}
 	quota, _ := client.RateLimits(ctx)
 
 	if o.Format == FormatMarkdown || o.Format == FormatHTML {
-		return writeReport(a.Out, o.Format, newReport(camp, rows, now))
+		return rows, writeReport(a.Out, o.Format, newReport(camp, rows, now))
 	}
 	p := a.printer(c)
 	counts := render.Count(rows)
@@ -124,7 +157,7 @@ func (a *App) Status(ctx context.Context, o StatusOptions) error {
 		for k, v := range counts {
 			rep.Counts[string(k)] = v
 		}
-		return p.PrintJSON(rep)
+		return rows, p.PrintJSON(rep)
 	}
 	table := make([][]string, len(rows))
 	for i, r := range rows {
@@ -155,11 +188,13 @@ func (a *App) Status(ctx context.Context, o StatusOptions) error {
 		}
 		return s
 	})
-	fmt.Fprintf(p.Out, "\n%s\n", p.Summary(counts))
+	// The summary is for people, so a pipe gets only the rows.
+	e := a.errPrinter(c)
+	fmt.Fprintf(e.Out, "\n%s\n", e.Summary(counts))
 	if len(quota) > 0 {
-		fmt.Fprintln(p.Out, p.Styles.Dim.Render(quotaLine(quota, now)))
+		fmt.Fprintln(e.Out, e.Styles.Dim.Render(quotaLine(quota, now)))
 	}
-	return nil
+	return rows, nil
 }
 
 // checkStyle colors a checks rollup state.

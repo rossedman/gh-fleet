@@ -16,15 +16,16 @@ gh fleet list [flags]
 
 ```
   gh fleet list
-  gh fleet list --json --jq '.[].name'
+  gh fleet list --json name --jq '.[].name'
 ```
 
 ### Options
 
 ```
-  -h, --help        help for list
-      --jq string   filter JSON output with a jq expression
-      --json        print JSON instead of a table
+  -h, --help              help for list
+  -q, --jq expression     filter JSON output using a jq expression
+      --json fields       output JSON with the specified fields (comma-separated; --json alone lists them)
+  -t, --template string   format JSON output using a Go template; see gh help formatting
 ```
 
 ### Options inherited from parent commands

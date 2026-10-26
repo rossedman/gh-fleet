@@ -34,6 +34,9 @@ type App struct {
 	Interactive bool
 	// Color enables styled output for people.
 	Color bool
+	// TTY is true when stdout is a terminal (or GH_FORCE_TTY is set).
+	// Without it tables are tab-separated with no header row.
+	TTY bool
 	// NewClient builds a GitHub client with the given write rate.
 	NewClient  func(writeRate float64) (ghapi.Client, error)
 	Store      *state.Store
@@ -49,7 +52,7 @@ type App struct {
 }
 
 // Default wires the real GitHub client, state dir, cache and git.
-func Default(out, errOut io.Writer, in io.Reader, interactive, color bool) (*App, error) {
+func Default(out, errOut io.Writer, in io.Reader, tty, interactive, color bool) (*App, error) {
 	stateDir, err := state.DefaultDir()
 	if err != nil {
 		return nil, err
@@ -59,7 +62,7 @@ func Default(out, errOut io.Writer, in io.Reader, interactive, color bool) (*App
 		cacheDir = os.TempDir()
 	}
 	return &App{
-		Out: out, Err: errOut, In: in, Interactive: interactive, Color: color,
+		Out: out, Err: errOut, In: in, TTY: tty, Interactive: interactive, Color: color,
 		NewClient: func(rate float64) (ghapi.Client, error) {
 			return ghapi.New(ghapi.Options{WriteRate: rate})
 		},
@@ -89,9 +92,19 @@ type Common struct {
 	Yes bool
 	// KeepWorkdirs leaves clones on disk.
 	KeepWorkdirs bool
-	JSON         bool
-	JQ           string
+	// JSON switches to JSON output (--json); JSONFields, when set, keeps
+	// only those fields of each record.
+	JSON       bool
+	JSONFields []string
+	JQ         string
+	// Template formats JSON output with a Go template (--template).
+	Template string
 }
+
+// ErrPending is returned by status --exit-status while repos still need
+// work, so scripts can wait on a campaign; the process exits 8, like
+// gh pr checks with pending checks.
+var ErrPending = errors.New("some repos are still pending")
 
 // ErrFailed is returned when one or more repos failed, so the process
 // exits non-zero after reporting every repo.
@@ -141,14 +154,15 @@ func failures(results []state.RepoState, hint string) error {
 
 // printer returns the output printer for c.
 func (a *App) printer(c Common) render.Printer {
-	p := render.Printer{Out: a.Out, JSON: c.JSON, JQ: c.JQ}
+	p := render.Printer{Out: a.Out, JSON: c.JSON, Fields: c.JSONFields, JQ: c.JQ, Template: c.Template, TTY: a.TTY}
 	p.Styles = ui.For(a.Color && !p.Machine())
 	return p
 }
 
 // errPrinter returns a printer for progress written to stderr.
 func (a *App) errPrinter(c Common) render.Printer {
-	return render.Printer{Out: a.Err, Styles: ui.For(a.Color && !c.JSON && c.JQ == "")}
+	machine := c.JSON || c.JQ != "" || c.Template != ""
+	return render.Printer{Out: a.Err, TTY: true, Styles: ui.For(a.Color && !machine)}
 }
 
 // LoadCampaign finds and loads the campaign named by c: --file, then a
