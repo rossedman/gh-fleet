@@ -381,7 +381,12 @@ type gqlPR struct {
 	BaseRefName    string    `json:"baseRefName"`
 	ReviewDecision string    `json:"reviewDecision"`
 	UpdatedAt      time.Time `json:"updatedAt"`
-	Labels         struct {
+	ID             string    `json:"id"`
+	MergeState     string    `json:"mergeStateStatus"`
+	AutoMerge      *struct {
+		EnabledAt time.Time `json:"enabledAt"`
+	} `json:"autoMergeRequest"`
+	Labels struct {
 		Nodes []struct {
 			Name string `json:"name"`
 		} `json:"nodes"`
@@ -402,6 +407,7 @@ func (p gqlPR) toPR(repo string) PR {
 	pr := PR{
 		Repo: repo, Number: p.Number, URL: p.URL, State: p.State, Title: p.Title, Body: p.Body, Draft: p.IsDraft,
 		HeadRef: p.HeadRefName, HeadSHA: p.HeadRefOid, BaseRef: p.BaseRefName, Review: p.ReviewDecision, UpdatedAt: p.UpdatedAt,
+		NodeID: p.ID, MergeState: p.MergeState, AutoMerge: p.AutoMerge != nil,
 	}
 	for _, l := range p.Labels.Nodes {
 		pr.Labels = append(pr.Labels, l.Name)
@@ -426,7 +432,8 @@ func (c *GitHub) PRsByHead(ctx context.Context, repos []string, head string) (ma
 				return nil, err
 			}
 			fmt.Fprintf(&q, ` r%d: repository(owner: %s, name: %s) { pullRequests(headRefName: %s, first: 1, orderBy: {field: CREATED_AT, direction: DESC}) { nodes {
-  number url state title body isDraft headRefName headRefOid baseRefName reviewDecision updatedAt
+  id number url state title body isDraft headRefName headRefOid baseRefName reviewDecision updatedAt mergeStateStatus
+  autoMergeRequest { enabledAt }
   labels(first: 50) { nodes { name } }
   commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
 } } }`, i, gqlString(owner), gqlString(name), gqlString(head))
@@ -543,6 +550,49 @@ func (c *GitHub) DeleteBranch(ctx context.Context, repo, branch string) error {
 	}
 	if err != nil {
 		return fmt.Errorf("delete branch %s in %s: %w", branch, repo, err)
+	}
+	return nil
+}
+
+// MergePR merges a pull request. GitHub refuses when the head moved past
+// sha or the PR can't be merged.
+func (c *GitHub) MergePR(ctx context.Context, repo string, number int, method, sha string) error {
+	path := fmt.Sprintf("repos/%s/pulls/%d/merge", repo, number)
+	body := map[string]any{"merge_method": method}
+	if sha != "" {
+		body["sha"] = sha
+	}
+	if err := c.rest.DoWithContext(ctx, http.MethodPut, path, jsonBody(body), nil); err != nil {
+		return fmt.Errorf("merge %s#%d: %w", repo, number, err)
+	}
+	return nil
+}
+
+// EnableAutoMerge turns on auto-merge for a pull request.
+func (c *GitHub) EnableAutoMerge(ctx context.Context, pr PR, method string) error {
+	if pr.NodeID == "" {
+		return fmt.Errorf("enable auto-merge on %s#%d: no node ID", pr.Repo, pr.Number)
+	}
+	const mutation = `mutation($id: ID!, $method: PullRequestMergeMethod!) {
+  enablePullRequestAutoMerge(input: {pullRequestId: $id, mergeMethod: $method}) { clientMutationId }
+}`
+	vars := map[string]any{"id": pr.NodeID, "method": strings.ToUpper(method)}
+	var resp struct{}
+	if err := c.gql.DoWithContext(ctx, mutation, vars, &resp); err != nil {
+		return fmt.Errorf("enable auto-merge on %s#%d: %w", pr.Repo, pr.Number, err)
+	}
+	return nil
+}
+
+// UpdateBranch merges the base branch into a pull request's head.
+func (c *GitHub) UpdateBranch(ctx context.Context, repo string, number int, sha string) error {
+	path := fmt.Sprintf("repos/%s/pulls/%d/update-branch", repo, number)
+	body := map[string]any{}
+	if sha != "" {
+		body["expected_head_sha"] = sha
+	}
+	if err := c.rest.DoWithContext(ctx, http.MethodPut, path, jsonBody(body), nil); err != nil {
+		return fmt.Errorf("update branch of %s#%d: %w", repo, number, err)
 	}
 	return nil
 }

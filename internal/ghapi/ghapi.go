@@ -56,7 +56,21 @@ type PR struct {
 	Checks    string    `json:"checks,omitempty"`
 	Review    string    `json:"review,omitempty"`
 	UpdatedAt time.Time `json:"updatedAt,omitzero"`
+	// MergeState is GitHub's mergeStateStatus: CLEAN, BEHIND, BLOCKED,
+	// DIRTY, DRAFT, HAS_HOOKS, UNSTABLE or UNKNOWN.
+	MergeState string `json:"mergeState,omitempty"`
+	// AutoMerge is set when auto-merge is enabled.
+	AutoMerge bool `json:"autoMerge,omitempty"`
+	// NodeID is the GraphQL ID, needed to enable auto-merge.
+	NodeID string `json:"-"`
 }
+
+// Merge methods, as the REST API names them.
+const (
+	MergeMethodMerge  = "merge"
+	MergeMethodSquash = "squash"
+	MergeMethodRebase = "rebase"
+)
 
 // NewPR is the input for creating a pull request.
 type NewPR struct {
@@ -112,6 +126,15 @@ type Client interface {
 	Comment(ctx context.Context, repo string, number int, body string) error
 	// DeleteBranch deletes a branch.
 	DeleteBranch(ctx context.Context, repo, branch string) error
+	// MergePR merges a pull request with method, only if its head is
+	// still sha.
+	MergePR(ctx context.Context, repo string, number int, method, sha string) error
+	// EnableAutoMerge turns on auto-merge, so GitHub merges the PR once
+	// its requirements pass.
+	EnableAutoMerge(ctx context.Context, pr PR, method string) error
+	// UpdateBranch merges the base branch into a PR's head, only if its
+	// head is still sha.
+	UpdateBranch(ctx context.Context, repo string, number int, sha string) error
 	// RateLimits returns the remaining primary quota per resource.
 	RateLimits(ctx context.Context) ([]RateLimit, error)
 	// OwnerProperties returns custom property values for every repo of an

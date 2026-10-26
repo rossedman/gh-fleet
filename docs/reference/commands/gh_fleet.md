@@ -34,7 +34,9 @@ duplicating them.
 * [gh fleet close](gh_fleet_close.md)	 - Close all open campaign PRs and delete their branches
 * [gh fleet exec](gh_fleet_exec.md)	 - Run a read-only command across targets and aggregate the output
 * [gh fleet init](gh_fleet_init.md)	 - Scaffold a campaign file with commented defaults
+* [gh fleet lib](gh_fleet_lib.md)	 - Browse the built-in Starlark library: modules, functions and examples
 * [gh fleet list](gh_fleet_list.md)	 - List campaigns in local state
+* [gh fleet merge](gh_fleet_merge.md)	 - Merge campaign PRs that are approved and passing, and say what the rest wait on
 * [gh fleet plan](gh_fleet_plan.md)	 - Run the change in fresh clones and show per-repo diffs, without pushing
 * [gh fleet retry](gh_fleet_retry.md)	 - Run apply again for repos that failed or have no PR
 * [gh fleet status](gh_fleet_status.md)	 - Show every target's PR, state, checks, reviews and last error

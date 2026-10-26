@@ -169,7 +169,9 @@ nav:
           - close: reference/commands/gh_fleet_close.md
           - exec: reference/commands/gh_fleet_exec.md
           - init: reference/commands/gh_fleet_init.md
+          - lib: reference/commands/gh_fleet_lib.md
           - list: reference/commands/gh_fleet_list.md
+          - merge: reference/commands/gh_fleet_merge.md
           - plan: reference/commands/gh_fleet_plan.md
           - retry: reference/commands/gh_fleet_retry.md
           - status: reference/commands/gh_fleet_status.md
