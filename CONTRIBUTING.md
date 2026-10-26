@@ -38,6 +38,23 @@ benchmark smoke run, a fuzz smoke run, govulncheck, the strict docs build and
 | `make docs-serve` | preview the docs site at http://127.0.0.1:8000 |
 | `make integration` | the opt-in suite against a real throwaway org (see below) |
 
+Two more gates run in CI and, through `.claude/settings.json`, in Claude Code:
+
+- [guardrails](https://github.com/rossedman/guardrails) (`.guardrails.yaml`,
+  strict preset) blocks a Claude turn, and a pull request, until touched
+  packages build, pass `go test -race`, meet 90% coverage (80% per package)
+  and are lint and govulncheck clean. Run it yourself with
+  `guardrails gate --all`.
+- [sarifix](https://github.com/rossedman/sarifix) (`sarifix.yaml`) runs
+  golangci-lint and gitleaks, reports what a change introduced with
+  `sarifix check`, and on `main` uploads findings to code scanning and keeps
+  one issue per batch of lint findings.
+
+Both run golangci-lint built with this module's Go version, as `make lint`
+does: the released binaries are built with an older Go and refuse to load
+the module, so put a matching build on `PATH`
+(`GOTOOLCHAIN=$(go env GOVERSION) go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0`).
+
 ## Quality bars
 
 - **Tests:** at least 90% coverage of hand-written code, enforced in CI. All

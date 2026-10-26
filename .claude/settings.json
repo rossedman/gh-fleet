@@ -1,0 +1,32 @@
+{
+  "extraKnownMarketplaces": {
+    "guardrails": {
+      "source": {
+        "source": "github",
+        "repo": "rossedman/guardrails"
+      }
+    },
+    "rossedman": {
+      "source": {
+        "source": "github",
+        "repo": "rossedman/claude"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "guardrails@guardrails": true,
+    "sarifix@rossedman": true
+  },
+  "permissions": {
+    "deny": [
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(git commit --no-verify:*)",
+      "Edit(.guardrails.yaml)",
+      "Write(.guardrails.yaml)",
+      "Edit(.golangci.yml)",
+      "Write(.golangci.yml)"
+    ]
+  }
+}

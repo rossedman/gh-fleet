@@ -93,6 +93,16 @@ func TestPrepareErrors(t *testing.T) {
 	if _, err := m.Prepare(ctx, "c", repo, "nope", "fleet/c"); err == nil {
 		t.Fatal("expected missing base error")
 	}
+	ws, err := m.Prepare(ctx, "c", repo, "main", "bad..branch")
+	if err == nil {
+		t.Fatal("expected checkout error for an invalid branch name")
+	}
+	if ws != nil {
+		t.Fatalf("ws = %+v, want nil on error", ws)
+	}
+	if _, statErr := os.Stat(m.Path("c", repo)); !os.IsNotExist(statErr) {
+		t.Fatal("failed prepare left the workspace")
+	}
 	blocker := filepath.Join(t.TempDir(), "file")
 	if err := os.WriteFile(blocker, nil, 0o600); err != nil {
 		t.Fatal(err)

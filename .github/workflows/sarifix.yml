@@ -1,0 +1,47 @@
+name: sarifix
+
+# Scans with the scanners in sarifix.yaml. On main, the weekly schedule and
+# manual runs it uploads to code scanning and keeps one issue per batch of
+# allowed findings; on pull requests it reports what the change introduced.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "23 6 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: sarifix-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  sarifix:
+    name: sarifix
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read # code scanning upload
+      security-events: write # code scanning upload
+      issues: write # one issue per batch of findings
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod # golangci-lint needs Go
+      # The action skips scanners already on PATH. Its released golangci-lint
+      # is built with an older Go than go.mod targets, so build it with the
+      # module's toolchain (same pin as the Makefile).
+      - name: golangci-lint built with the module's toolchain
+        run: GOTOOLCHAIN="$(go env GOVERSION)" go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
+      - uses: rossedman/sarifix@706469faaa3f32eb199873b93219d195583e8537 # v0.3.1
+        with:
+          queue: ${{ vars.SARIFIX_QUEUE }}
+          dry-run: "true" # first run only: lists the issues it would open
