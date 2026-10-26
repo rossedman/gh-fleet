@@ -170,7 +170,8 @@ action upgrades and SHA pinning, pre-commit hooks, Dependabot, CODEOWNERS,
 
 Every command takes a campaign file (`--file`, default `./fleet.yaml`) or the
 name of a campaign in local state. Read commands take `--json` and `--jq`.
-Common flags: `--repo owner/name` (limit to some repos), `--concurrency N`,
+Common flags: `--repo owner/name` and `--repo-file` (limit to some repos),
+`--exclude owner/name` and `--exclude-file` (leave some out), `--concurrency N`,
 `--yes`, `--keep-workdirs`, `--write-rate`.
 
 ## How it behaves

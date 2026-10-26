@@ -36,22 +36,25 @@ gh fleet merge [campaign] [flags]
 ### Options
 
 ```
-      --allow-no-checks    merge PRs whose head has no checks
-      --allow-unreviewed   merge PRs in repos that don't require a review
-      --auto               turn on auto-merge for PRs that aren't ready yet
-      --concurrency int    repos processed in parallel (default limits.concurrency, else 8)
-      --dry-run            show what would happen without changing anything
-  -f, --file string        campaign file (default ./fleet.yaml)
-  -h, --help               help for merge
-      --jq string          filter JSON output with a jq expression
-      --json               print JSON instead of a table
-      --keep-branches      keep the branches of merged PRs
-      --max int            merge or auto-merge at most this many PRs (0: no limit)
-      --method string      merge method: merge, squash or rebase (default "squash")
-      --repo strings       limit to these repos (owner/name, repeatable)
-      --update-branch      merge the base into PRs that are behind it
-      --write-rate float   GitHub API writes per second (default 1)
-  -y, --yes                skip the confirmation prompt
+      --allow-no-checks        merge PRs whose head has no checks
+      --allow-unreviewed       merge PRs in repos that don't require a review
+      --auto                   turn on auto-merge for PRs that aren't ready yet
+      --concurrency int        repos processed in parallel (default limits.concurrency, else 8)
+      --dry-run                show what would happen without changing anything
+      --exclude strings        leave out these repos (owner/name, repeatable)
+      --exclude-file strings   leave out the repos listed in this file, one per line (- for stdin, repeatable)
+  -f, --file string            campaign file (default ./fleet.yaml)
+  -h, --help                   help for merge
+      --jq string              filter JSON output with a jq expression
+      --json                   print JSON instead of a table
+      --keep-branches          keep the branches of merged PRs
+      --max int                merge or auto-merge at most this many PRs (0: no limit)
+      --method string          merge method: merge, squash or rebase (default "squash")
+      --repo strings           limit to these repos (owner/name, repeatable)
+      --repo-file strings      limit to the repos listed in this file, one per line (- for stdin, repeatable)
+      --update-branch          merge the base into PRs that are behind it
+      --write-rate float       GitHub API writes per second (default 1)
+  -y, --yes                    skip the confirmation prompt
 ```
 
 ### Options inherited from parent commands

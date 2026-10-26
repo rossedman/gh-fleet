@@ -17,7 +17,7 @@ var execCmd = &cobra.Command{
 repos. Nothing is pushed and no PRs are opened.
 
 Targets come from ad-hoc flags (--org, --topic, --language, --file, --search,
---repo) when any is given, otherwise from the campaign (--campaign, default
+--repo, --repo-file) when any is given, otherwise from the campaign (--campaign, default
 ./fleet.yaml). Repos you can read but not push to are included. The command
 runs directly, without a shell; wrap it in sh -c for pipes.`,
 	Example: `  gh fleet exec --org acme --file Dockerfile -- grep -h '^FROM' Dockerfile
@@ -25,7 +25,10 @@ runs directly, without a shell; wrap it in sh -c for pipes.`,
   gh fleet exec --raw -- git log -1 --format=%cs`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		c := common(nil)
+		c, err := common(cmd, nil)
+		if err != nil {
+			return err
+		}
 		c.File = "" // --file is a path filter here, not the campaign file
 		o := app.ExecOptions{
 			Common:    c,
@@ -47,6 +50,7 @@ runs directly, without a shell; wrap it in sh -c for pipes.`,
 func init() {
 	execCmd.Flags().String("campaign", "", "take targets from this campaign file or name (default ./fleet.yaml)")
 	execCmd.Flags().StringSlice("repo", nil, "target these repos (owner/name, repeatable); with a campaign, limit to them")
+	addRepoFileFlags(execCmd, "target the repos listed in this file, one per line (- for stdin, repeatable); with a campaign, limit to them")
 	execCmd.Flags().Int("concurrency", 0, "repos processed in parallel (default 8)")
 	addRunFlags(execCmd)
 	addOutputFlags(execCmd)

@@ -35,8 +35,12 @@ you already have, and prints the diff, variables and PR title.`,
   gh fleet test --dir ../billing-api --repo acme/billing-api`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		c, err := common(cmd, args)
+		if err != nil {
+			return err
+		}
 		o := app.TestOptions{
-			Common:  common(args),
+			Common:  c,
 			Run:     viper.GetString("run"),
 			Update:  viper.GetBool("update"),
 			Dir:     viper.GetString("dir"),
