@@ -21,9 +21,9 @@ concurrency:
 jobs:
   sarifix:
     name: sarifix
-    # Disabled for now: the action's installer download keeps failing with
-    # HTTP 504. Remove this line to turn it back on.
-    if: false
+    # Off for now: the action's installer download keeps failing with HTTP
+    # 504. Set the SARIFIX_ENABLED repository variable to true to turn it on.
+    if: vars.SARIFIX_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
