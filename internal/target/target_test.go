@@ -125,14 +125,16 @@ func TestResolve(t *testing.T) {
 	if got := res.Names(); !slices.Equal(got, []string{"acme/api", "acme/ro", "acme/web"}) {
 		t.Fatalf("read-only targets = %v", got)
 	}
-	if f.CallCount("ListOwnerRepos") != 1 {
-		t.Fatal("org listing not cached")
+	// The searches named every repo that could match, so the org was
+	// never listed: only the hits were looked up.
+	if f.CallCount("ListOwnerRepos") != 0 || !slices.Equal(f.Lookups[0], []string{"acme/api", "acme/ro", "acme/web"}) {
+		t.Fatalf("listings %d, lookups %v", f.CallCount("ListOwnerRepos"), f.Lookups)
 	}
 }
 
 func TestResolveErrors(t *testing.T) {
 	t.Parallel()
-	for _, method := range []string{"ListOwnerRepos", "GetRepos", "PathsExist", "SearchCode"} {
+	for _, method := range []string{"GetRepos", "PathsExist", "SearchCode"} {
 		f := newFake()
 		f.Errors[method] = errors.New("boom")
 		rs := &Resolver{Client: f}
@@ -144,8 +146,14 @@ func TestResolveErrors(t *testing.T) {
 			t.Errorf("%s error not returned", method)
 		}
 	}
-	// Search without orgs searches everywhere.
 	f := newFake()
+	f.Errors["ListOwnerRepos"] = errors.New("boom")
+	if _, err := (&Resolver{Client: f}).Resolve(context.Background(), campaign.Targets{Orgs: []string{"acme"}, Include: campaign.Include{Files: []string{"x"}}}); err == nil {
+		t.Error("ListOwnerRepos error not returned")
+	}
+	// Search without orgs searches everywhere, but only include.repos
+	// supplies candidates: hits elsewhere are not targets.
+	f = newFake()
 	res, err := (&Resolver{Client: f}).Resolve(context.Background(), campaign.Targets{Include: campaign.Include{Search: "uses: actions/", Repos: []string{"acme/api"}}})
 	if err != nil || len(res.Targets) != 1 {
 		t.Fatalf("res = %+v, %v", res, err)
@@ -365,7 +373,7 @@ func TestResolveProgress(t *testing.T) {
 	t.Parallel()
 	var msgs []string
 	rs := &Resolver{Client: newFake(), Cache: &Cache{Dir: t.TempDir()}, Progress: func(m string) { msgs = append(msgs, m) }}
-	targets := campaign.Targets{Orgs: []string{"acme"}, Include: campaign.Include{Files: []string{".github/workflows", "go.mod"}, Search: "uses: actions/"}}
+	targets := campaign.Targets{Orgs: []string{"acme"}, Include: campaign.Include{Files: []string{".github/workflows", "go.mod"}}}
 	for range 2 {
 		if _, err := rs.Resolve(context.Background(), targets); err != nil {
 			t.Fatal(err)
@@ -375,13 +383,31 @@ func TestResolveProgress(t *testing.T) {
 		"Listing acme's repos",
 		"Listed acme: 5 repos",
 		"Checking .github/workflows, go.mod in 5 repos",
-		`Searching code for "uses: actions/"`,
 		"Listed acme: 5 repos, from the cache",
 		"Checking .github/workflows, go.mod in 5 repos",
-		`Searching code for "uses: actions/"`,
 	}
 	if !slices.Equal(msgs, want) {
 		t.Fatalf("progress =\n%s\nwant\n%s", strings.Join(msgs, "\n"), strings.Join(want, "\n"))
+	}
+
+	// A search replaces the listing, and a partial result is a warning.
+	msgs = nil
+	f := newFake()
+	f.SearchPartial = true
+	rs = &Resolver{Client: f, Progress: func(m string) { msgs = append(msgs, m) }}
+	targets.Include.Search = "uses: actions/"
+	if _, err := rs.Resolve(context.Background(), targets); err != nil {
+		t.Fatal(err)
+	}
+	want = []string{
+		`Searching code for "uses: actions/"`,
+		`warning: GitHub returned only part of the results for "uses: actions/ org:acme", so some repos with matches may be missing; narrow the query, or use include.files for exact paths`,
+		"Code search matched 3 repos",
+		"Looking up 3 repos with matches",
+		"Checking .github/workflows, go.mod in 3 repos",
+	}
+	if !slices.Equal(msgs, want) {
+		t.Fatalf("search progress =\n%s\nwant\n%s", strings.Join(msgs, "\n"), strings.Join(want, "\n"))
 	}
 	if countRepos(1) != "1 repo" {
 		t.Error("repos")

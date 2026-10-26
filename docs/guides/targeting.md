@@ -53,8 +53,16 @@ targets:
 
 **Different keys combine with AND, and the values within one key with OR.** The example above selects Go repos that have the `service` topic and a `go.mod`. With no filters at all, every non-excluded repo in the org matches, unless `include.repos` is set: then only the repos it names do.
 
-!!! note "Code search"
-    `search` uses GitHub's code search API, which has its own rate limit. gh fleet waits for it to reset instead of failing. Prefer `files` when a path check is enough: it is checked in batched queries of 50 repos.
+### Searching a big org
+
+With `search` and `orgs`, gh fleet runs the search first and looks up only the repos with hits, 50 to a query. The org is never listed, so finding a few matches in an org of 5,000 repos takes a few requests rather than one per 100 repos. The other filters then apply to those repos only.
+
+GitHub returns at most 1,000 matching files for one search, and counts every file, so a few busy repos can use up that limit before quieter ones appear. When a search matches more files than that, gh fleet splits it by file size until each part fits, so no repo is dropped. Each part is a request, and code search allows 10 a minute, so a broad query takes longer, and gh fleet says when it is waiting.
+
+If GitHub still can't return everything, for example when over 1,000 matching files have the same size or your query sets its own `size:`, gh fleet prints a warning naming the query, rather than quietly missing repos.
+
+!!! note "What code search can't see"
+    GitHub's code search only covers each repo's default branch and files under 384 KB, and leaves out forks with fewer stars than their parent. When you know the path, `files` is exact: it checks every candidate repo, 50 repos to a query and 4 queries at a time.
 
 ## Exclude rules
 

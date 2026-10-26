@@ -6,14 +6,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
+	"math"
 	"net/http"
 	"net/url"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/cli/go-gh/v2/pkg/api"
+	"golang.org/x/sync/errgroup"
 )
 
 // BatchSize is how many repos or PRs go into one batched GraphQL query.
@@ -220,41 +224,67 @@ func gqlString(s string) string {
 	return string(b)
 }
 
+// batchConcurrency is how many batched read queries run at once.
+const batchConcurrency = 4
+
 // PathsExist checks paths on each repo's default branch with batched
-// object(expression:) lookups, BatchSize repos per query.
+// object(expression:) lookups, BatchSize repos per query and
+// batchConcurrency queries at a time.
 func (c *GitHub) PathsExist(ctx context.Context, repos []Repo, paths []string) (map[string][]string, error) {
 	out := map[string][]string{}
 	if len(paths) == 0 {
 		return out, nil
 	}
+	var mu sync.Mutex
+	g, gctx := errgroup.WithContext(ctx)
+	g.SetLimit(batchConcurrency)
 	for start := 0; start < len(repos); start += BatchSize {
 		batch := repos[start:min(start+BatchSize, len(repos))]
-		var q strings.Builder
-		q.WriteString("query {")
-		for i, r := range batch {
-			ref := r.DefaultBranch
-			if ref == "" {
-				ref = "HEAD"
+		g.Go(func() error {
+			found, err := c.pathsExist(gctx, batch, paths)
+			if err != nil {
+				return err
 			}
-			fmt.Fprintf(&q, " r%d: repository(owner: %s, name: %s) {", i, gqlString(r.Owner), gqlString(r.Name))
-			for j, p := range paths {
-				fmt.Fprintf(&q, " p%d: object(expression: %s) { __typename }", j, gqlString(ref+":"+strings.TrimPrefix(p, "/")))
-			}
-			q.WriteString(" }")
+			mu.Lock()
+			maps.Copy(out, found)
+			mu.Unlock()
+			return nil
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// pathsExist checks paths on one batch of repos in a single query.
+func (c *GitHub) pathsExist(ctx context.Context, batch []Repo, paths []string) (map[string][]string, error) {
+	var q strings.Builder
+	q.WriteString("query {")
+	for i, r := range batch {
+		ref := r.DefaultBranch
+		if ref == "" {
+			ref = "HEAD"
+		}
+		fmt.Fprintf(&q, " r%d: repository(owner: %s, name: %s) {", i, gqlString(r.Owner), gqlString(r.Name))
+		for j, p := range paths {
+			fmt.Fprintf(&q, " p%d: object(expression: %s) { __typename }", j, gqlString(ref+":"+strings.TrimPrefix(p, "/")))
 		}
 		q.WriteString(" }")
-		var resp map[string]map[string]*struct {
-			Typename string `json:"__typename"`
-		}
-		if err := c.gql.DoWithContext(ctx, q.String(), nil, &resp); err != nil {
-			return nil, fmt.Errorf("check paths: %w", err)
-		}
-		for i, r := range batch {
-			objs := resp["r"+strconv.Itoa(i)]
-			for j, p := range paths {
-				if objs != nil && objs["p"+strconv.Itoa(j)] != nil {
-					out[r.FullName()] = append(out[r.FullName()], p)
-				}
+	}
+	q.WriteString(" }")
+	var resp map[string]map[string]*struct {
+		Typename string `json:"__typename"`
+	}
+	if err := c.gql.DoWithContext(ctx, q.String(), nil, &resp); err != nil {
+		return nil, fmt.Errorf("check paths: %w", err)
+	}
+	out := map[string][]string{}
+	for i, r := range batch {
+		objs := resp["r"+strconv.Itoa(i)]
+		for j, p := range paths {
+			if objs != nil && objs["p"+strconv.Itoa(j)] != nil {
+				out[r.FullName()] = append(out[r.FullName()], p)
 			}
 		}
 	}
@@ -264,30 +294,80 @@ func (c *GitHub) PathsExist(ctx context.Context, repos []Repo, paths []string) (
 // maxSearchPages caps search pagination; GitHub returns at most 1000 hits.
 const maxSearchPages = 10
 
+// codeSearchCap is the most results GitHub returns for one search query.
+const codeSearchCap = maxSearchPages * 100
+
+// maxIndexedFileSize is the largest file code search indexes, in bytes.
+const maxIndexedFileSize = 384 * 1024
+
 // SearchCode runs a code search and returns the unique repos with hits.
-func (c *GitHub) SearchCode(ctx context.Context, query string) ([]string, error) {
+// GitHub returns at most codeSearchCap files per query, counting every
+// matching file rather than every repo, so a query with more matches is
+// split by file size until each part fits.
+func (c *GitHub) SearchCode(ctx context.Context, query string) (CodeSearch, error) {
 	seen := map[string]bool{}
+	partial, err := c.searchCode(ctx, query, 0, maxIndexedFileSize, false, seen)
+	if err != nil {
+		return CodeSearch{}, err
+	}
+	return CodeSearch{Repos: sortedKeys(seen), Partial: partial}, nil
+}
+
+// searchCode adds the repos with hits for query to seen, among files of
+// lo to hi bytes when sized. It reports whether some hits could not be
+// returned.
+func (c *GitHub) searchCode(ctx context.Context, query string, lo, hi int, sized bool, seen map[string]bool) (bool, error) {
+	q := query
+	if sized {
+		q += fmt.Sprintf(" size:%d..%d", lo, hi)
+	}
+	partial := false
+	total := 0
 	for page := 1; page <= maxSearchPages; page++ {
 		var resp struct {
-			TotalCount int `json:"total_count"`
-			Items      []struct {
+			TotalCount        int  `json:"total_count"`
+			IncompleteResults bool `json:"incomplete_results"`
+			Items             []struct {
 				Repository struct {
 					FullName string `json:"full_name"`
 				} `json:"repository"`
 			} `json:"items"`
 		}
-		path := "search/code?per_page=100&page=" + strconv.Itoa(page) + "&q=" + url.QueryEscape(query)
+		path := "search/code?per_page=100&page=" + strconv.Itoa(page) + "&q=" + url.QueryEscape(q)
 		if err := c.rest.DoWithContext(ctx, http.MethodGet, path, nil, &resp); err != nil {
-			return nil, fmt.Errorf("code search: %w", err)
+			return false, fmt.Errorf("code search: %w", err)
 		}
 		for _, it := range resp.Items {
 			seen[it.Repository.FullName] = true
 		}
-		if len(resp.Items) < 100 || page*100 >= resp.TotalCount {
+		partial = partial || resp.IncompleteResults
+		total = resp.TotalCount
+		// Too many matches for one query: search each half of the size
+		// range instead. A query that sets its own size can't be split.
+		if page == 1 && total > codeSearchCap && lo < hi && !strings.Contains(query, "size:") {
+			mid := splitSize(lo, hi)
+			p1, err := c.searchCode(ctx, query, lo, mid, true, seen)
+			if err != nil {
+				return false, err
+			}
+			p2, err := c.searchCode(ctx, query, mid+1, hi, true, seen)
+			if err != nil {
+				return false, err
+			}
+			return partial || p1 || p2, nil
+		}
+		if len(resp.Items) < 100 || page*100 >= total {
 			break
 		}
 	}
-	return sortedKeys(seen), nil
+	return partial || total > codeSearchCap, nil
+}
+
+// splitSize picks where to split a file size range. Most files are small,
+// so the split is geometric: 0..393216 splits at 626, then 0..626 at 24.
+func splitSize(lo, hi int) int {
+	mid := int(math.Sqrt(float64(lo+1)*float64(hi+1))) - 1
+	return min(max(mid, lo), hi-1)
 }
 
 // sortedKeys returns the keys of a set in order.
