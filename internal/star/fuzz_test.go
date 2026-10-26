@@ -23,8 +23,9 @@ func FuzzLocalPath(f *testing.F) {
 		if clean == ".git" || strings.HasPrefix(clean, ".git/") {
 			t.Fatalf("%q reaches .git", p)
 		}
-		joined := filepath.Join("/repo", local)
-		if joined != "/repo" && !strings.HasPrefix(joined, "/repo/") {
+		root := filepath.FromSlash("/repo")
+		joined := filepath.Join(root, local)
+		if joined != root && !strings.HasPrefix(joined, root+string(filepath.Separator)) {
 			t.Fatalf("%q escapes to %q", p, joined)
 		}
 	})

@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: build test cover bench bench-smoke fuzz fuzz-smoke lint vuln docs docs-check docs-serve docs-build release-check integration check clean
+.PHONY: schema build test cover bench bench-smoke fuzz fuzz-smoke lint vuln docs docs-check docs-serve docs-build release-check integration check clean
 
 BINARY   := gh-fleet
 VERSION  ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
@@ -65,6 +65,11 @@ vuln:
 
 docs:
 	go run ./tools/gendocs
+
+# Refreshes GitHub's GraphQL schema, which the ghapi tests validate every
+# query against.
+schema:
+	curl -fsSL https://docs.github.com/public/fpt/schema.docs.graphql | gzip -9n > internal/ghapi/testdata/schema.docs.graphql.gz
 
 # Fails when docs/reference/ or the generated mkdocs.yml nav is stale.
 docs-check: docs

@@ -80,8 +80,8 @@ failed   acme/web step engines: change.star:12:9: fail: package.json has no name
 
 | Method | Does |
 | --- | --- |
-| `repo.read(path, default = ...)` | the file's content; `default` instead of an error when it doesn't exist |
-| `repo.write(path, content)` | replace the file, creating it and its directories; an existing file keeps its mode |
+| `repo.read(path, default = ...)` | the file's content; `default` instead of an error when it doesn't exist. A file with Windows (`\r\n`) line endings reads with `\n` |
+| `repo.write(path, content)` | replace the file, creating it and its directories; an existing file keeps its mode, and its `\r\n` line endings when it had them |
 | `repo.append(path, content)` | add to the end of the file, creating it if needed |
 | `repo.exists(path, ...)` | whether any of the paths exist |
 | `repo.delete(path, ...)` | remove files or directories; missing ones are skipped |

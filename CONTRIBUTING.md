@@ -35,6 +35,7 @@ benchmark smoke run, a fuzz smoke run, govulncheck, the strict docs build and
 | `make bench` | every benchmark, results saved to `bench/` for `benchstat` |
 | `make fuzz` | every fuzz target for `FUZZTIME` (default 30s) |
 | `make docs` | regenerate `docs/reference/` from the CLI and the campaign schema |
+| `make schema` | refresh GitHub's GraphQL schema, which every query the client sends is validated against |
 | `make docs-serve` | preview the docs site at http://127.0.0.1:8000 |
 | `make integration` | the opt-in suite against a real throwaway org (see below) |
 
@@ -43,7 +44,10 @@ benchmark smoke run, a fuzz smoke run, govulncheck, the strict docs build and
 - **Tests:** at least 90% coverage of hand-written code, enforced in CI. All
   GitHub access goes through the `internal/ghapi.Client` interface: test with
   the in-memory fake in `internal/ghapi/fake`, and test git against local bare
-  repos from `internal/testutil`. No test talks to the real GitHub API.
+  repos from `internal/testutil`. No test talks to the real GitHub API; every
+  GraphQL query the client builds is validated against GitHub's published
+  schema in `internal/ghapi/testdata` instead. Tests run on Linux, macOS and
+  Windows.
 - **Doc comments** on every package, function and method, starting with the
   identifier's name (`go run ./tools/doccheck ./...`).
 - **One cobra command per file** in `cmd/`, named after the command
@@ -71,6 +75,9 @@ target.
 | `engine.Pipeline.Process` | decides when to commit, push, open, update or close a PR | | |
 | `star.localPath` | the sandbox boundary: every path a Starlark script passes to `repo` | | `FuzzLocalPath` |
 | `star.Script.Run` | runs untrusted-by-default campaign code against a clone | | |
+| `json.encode_like` | rewrites JSON files keeping their layout | | `FuzzEncodeLike` |
+| `yamlpath.set` | line-based YAML edits under most library helpers | | `FuzzYAMLSet` |
+| `toml.set` | line-based TOML edits | | `FuzzTOMLSet` |
 
 ## Adding to the Starlark library
 

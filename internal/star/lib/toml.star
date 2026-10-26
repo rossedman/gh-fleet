@@ -194,6 +194,10 @@ def set(repo, path, table, key, value):
     if lines and lines[-1] == "":
         lines = lines[:-1]
     entries = _entries(lines)
+    sub = (table + "." if table else "") + key
+    for e in entries:
+        if e["header"] and (e["table"] == sub or e["table"].startswith(sub + ".")):
+            fail("toml.set: %s in %s is a table, not a value" % (sub, path))
     for e in entries:
         if not e["header"] and e["table"] == table and e["key"] == key:
             new = e["indent"] + e["raw"] + " = " + _format(value, e["value"])

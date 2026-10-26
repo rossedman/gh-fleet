@@ -1,0 +1,11 @@
+package app
+
+import "runtime"
+
+// noSuchFile is how the OS words a missing file in an error.
+var noSuchFile = func() string {
+	if runtime.GOOS == "windows" {
+		return "The system cannot find the"
+	}
+	return "no such file"
+}()

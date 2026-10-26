@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -65,7 +66,7 @@ func TestLoadErrors(t *testing.T) {
 		"bare name":      {map[string]string{"change.star": "load('lib.star', 'a')\n"}, `relative to this one`},
 		"not star":       {map[string]string{"change.star": "load('./lib.py', 'a')\n"}, "only .star files"},
 		"branch ref":     {map[string]string{"change.star": "load('github.com/a/b@main:x.star', 'a')\n"}, "full commit SHA"},
-		"missing":        {map[string]string{"change.star": "load('./lib.star', 'a')\n"}, "no such file"},
+		"missing":        {map[string]string{"change.star": "load('./lib.star', 'a')\n"}, noSuchFile},
 		"cycle":          {map[string]string{"change.star": "load('./a.star', 'x')\n", "a.star": "load('./b.star', 'y')\nx = 1\n", "b.star": "load('./a.star', 'x')\ny = 1\n"}, "load cycle"},
 		"bad symbol":     {map[string]string{"change.star": "load('./a.star', 'nope')\ndef change(repo):\n  pass\n", "a.star": "x = 1\n"}, "nope"},
 		"lib syntax":     {map[string]string{"change.star": "load('./lib/a.star', 'x')\n", "lib/a.star": "x = (\n"}, "lib/a.star:2:1"},
@@ -202,6 +203,9 @@ def change(repo):
 
 func TestWriteKeepsMode(t *testing.T) {
 	t.Parallel()
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows has no executable bit to keep")
+	}
 	dir, _, _, err := run(t, "def change(repo):\n  repo.write('run.sh', '#!/bin/sh\\necho hi\\n')\n", map[string]string{"run.sh": "#!/bin/sh\n"}, RepoInfo{})
 	if err != nil {
 		t.Fatal(err)
@@ -234,7 +238,7 @@ func TestSandbox(t *testing.T) {
 		{"repo.write('a/../.git/config', 'x')", "is inside .git"},
 		{"repo.read('link/secret')", "repo.read: link/secret:"},
 		{"repo.write('link/new', 'x')", "repo.write: link/new:"},
-		{"repo.read('missing')", "repo.read: missing: no such file"},
+		{"repo.read('missing')", "repo.read: missing: " + noSuchFile},
 		{"repo.glob('[')", `invalid pattern "["`},
 		{"repo.glob()", "needs at least one path"},
 		{"repo.exists(1)", "argument 1 is int, want string"},
