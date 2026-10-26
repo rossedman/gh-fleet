@@ -42,7 +42,7 @@ Repos to drop. Exclusion always wins, even over `include.repos`.
 | `archived` | boolean | `true` | Skip archived repos. |
 | `forks` | boolean | `true` | Skip forks. |
 | `properties` | map of property to value or list |  | Skip repos whose custom property has any of the listed values. |
-| `repos` | list of `owner/name` or pattern |  | Repos (`owner/name`) to skip. Glob patterns such as `*/legacy-*` skip every matching repo. |
+| `repos` | list of repo or pattern |  | Repos to skip: `owner/name`, a name, or a glob pattern such as `legacy-*` or `*/legacy-*`. |
 | `topics` | list of string |  | Skip repos with any of these topics. |
 
 ## `targets.include`
@@ -53,9 +53,9 @@ Filters a candidate must pass. Keys combine with AND; values within a key combin
 | --- | --- | --- | --- |
 | `files` | list of string |  | Any of these paths (file or directory) exists on the default branch. |
 | `languages` | list of string |  | The repo's primary language is any of these (case-insensitive). |
-| `names` | list of name pattern |  | Glob patterns the repo must match, such as `service-*` or `acme/api-*`. A pattern without a slash matches the repo name, one with a slash the full `owner/name`. |
+| `names` | list of repo or pattern |  | Glob patterns the repo must match, such as `service-*` or `acme/api-*`. A pattern without a slash matches the repo name, one with a slash the full `owner/name`. |
 | `properties` | map of property to value or list |  | Custom property values the repo must have: every listed property must match one of its values (case-insensitive). |
-| `repos` | list of `owner/name` or pattern |  | Repos (`owner/name`) that are always included, bypassing the filters above. Glob patterns such as `acme/tool-*` include every matching repo. |
+| `repos` | list of repo or pattern |  | Repos that are always included, bypassing the filters above: `owner/name`, or a name or glob pattern such as `*-domain` matched against the repos of `orgs`. A pattern with an owner, such as `tools/cli-*`, lists that owner. |
 | `search` | string |  | A code search query; only repos with a hit match. Scoped to `orgs` automatically. |
 | `topics` | list of string |  | The repo has any of these topics. |
 
@@ -134,7 +134,7 @@ Which repos the rule applies to. Every key that is set must match; values within
 | --- | --- | --- | --- |
 | `languages` | list of string |  | The repo's primary language is any of these. |
 | `properties` | map of property to value or list |  | Custom property values, as in `targets.include.properties`. |
-| `repos` | list of `owner/name` or pattern |  | Repos (`owner/name`), or glob patterns such as `acme/payments-*`. |
+| `repos` | list of repo or pattern |  | Repos: `owner/name`, a name, or a glob pattern such as `payments-*`. |
 | `topics` | list of string |  | The repo has any of these topics. |
 
 ## `limits`
@@ -153,6 +153,6 @@ Each entry of `limits.waves`.
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
-| `repos` | list of `owner/name` or pattern |  | Repos (`owner/name`) in this wave, such as canaries, or glob patterns such as `acme/canary-*`. Repos that aren't targets are ignored. |
+| `repos` | list of repo or pattern |  | Repos in this wave, such as canaries: `owner/name`, a name, or a glob pattern such as `canary-*`. Repos that aren't targets are ignored. |
 | `size` | integer or string |  | How many more targets join this wave, in name order: a number, or a percentage of all targets such as `25%`. At least 1. |
 

@@ -331,3 +331,32 @@ func TestResolvePatterns(t *testing.T) {
 		t.Error("listing error swallowed")
 	}
 }
+
+func TestResolveBareNamesAndEmptyRepos(t *testing.T) {
+	t.Parallel()
+	f := newFake()
+	f.AddRepo(ghapi.Repo{Owner: "acme", Name: "billing-domain", CanPush: true})
+	f.AddRepo(ghapi.Repo{Owner: "acme", Name: "users-domain", CanPush: true})
+	f.AddRepo(ghapi.Repo{Owner: "acme", Name: "empty-domain", CanPush: true})
+	empty := f.Repos["acme/empty-domain"]
+	empty.DefaultBranch = "" // GitHub reports no default branch for an empty repo
+	f.Repos["acme/empty-domain"] = empty
+	res, err := (&Resolver{Client: f}).Resolve(context.Background(), campaign.Targets{
+		Orgs: []string{"acme"},
+		// Bare names and name patterns bypass the topic filter, matching
+		// only within orgs, with no lookup of their own.
+		Include: campaign.Include{Topics: []string{"nothing-has-this"}, Repos: []string{"*-domain", "LIB"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := res.Names(); !slices.Equal(got, []string{"acme/billing-domain", "acme/lib", "acme/users-domain"}) {
+		t.Fatalf("targets = %v", got)
+	}
+	if len(res.Skipped) != 1 || res.Skipped[0].Repo != "acme/empty-domain" || res.Skipped[0].Reason != "empty repository" {
+		t.Fatalf("skipped = %+v", res.Skipped)
+	}
+	if n := f.CallCount("GetRepo"); n != 0 {
+		t.Errorf("GetRepo called %d times for bare names", n)
+	}
+}
