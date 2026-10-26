@@ -99,8 +99,20 @@ func readExample(root string) (Example, error) {
 		return ex, err
 	}
 	sort.SliceStable(ex.Files, func(i, j int) bool { return fileRank(ex.Files[i].Path) < fileRank(ex.Files[j].Path) })
-	cases, err := os.ReadDir(tests)
-	if err != nil && !os.IsNotExist(err) {
+	// Windows reports a file read as a directory as missing, so check what
+	// tests is before listing it.
+	st, err := os.Stat(tests)
+	if os.IsNotExist(err) {
+		return ex, nil
+	}
+	if err == nil && !st.IsDir() {
+		err = fmt.Errorf("%s is not a directory", tests)
+	}
+	var cases []fs.DirEntry
+	if err == nil {
+		cases, err = os.ReadDir(tests)
+	}
+	if err != nil {
 		return ex, err
 	}
 	for _, c := range cases {
