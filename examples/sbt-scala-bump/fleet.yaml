@@ -1,0 +1,29 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: scala-2-13-15
+description: Move Scala 2.13 builds to 2.13.15 and sbt 1.10.2
+
+targets:
+  orgs: [acme]
+  include:
+    languages: [Scala]
+    files: [build.sbt]
+
+change:
+  steps:
+    # Replaces Scala 2.13.x with 2.13.15 in scalaVersion and crossScalaVersions
+    # (cross-built Scala 3 versions stay), and sets sbt.version.
+    - name: sbt-scala-bump
+      starlark: ./change.star
+      timeout: 1m
+  env:
+    SCALA: 2.13.15
+    SBT: 1.10.2
+
+pr:
+  title: "build: scala 2.13.15 and sbt 1.10.2"
+  body: |
+    Moves {{ .Repo.Name }} to Scala {{ .Vars.scala }} and sbt 1.10.2.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet, dependencies]

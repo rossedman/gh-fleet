@@ -160,3 +160,42 @@ def outdated(repo, module, version):
         if have != None and semver.less(have, version):
             dirs.append(path.removesuffix("go.mod").rstrip("/") or ".")
     return dirs
+
+def set_work_go_version(repo, version):
+    """Raises the `go` directive in go.work, never lowering it.
+
+    Args:
+        version: the Go version, such as `1.27.3`.
+    Returns:
+        True when the file changed; False when the repo has no go.work.
+    Example:
+        before go.work:
+            go 1.22
+
+            use (
+                ./api
+                ./worker
+            )
+        call:
+            set_work_go_version(repo, "1.27.3")
+        after go.work:
+            go 1.27.3
+
+            use (
+                ./api
+                ./worker
+            )
+        returns:
+            True
+    """
+    content = repo.read("go.work", default = None)
+    if content == None:
+        return False
+    current = go_version(repo, "go.work")
+    if current != None and not semver.less(current, version):
+        return False
+    updated = re.sub(r"(?m)^go\s+\S+.*$", "go " + version, content, count = 1)
+    if updated == content:
+        return False
+    repo.write("go.work", updated)
+    return True

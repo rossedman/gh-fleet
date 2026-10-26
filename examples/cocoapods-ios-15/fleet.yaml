@@ -1,0 +1,29 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: ios-15-minimum
+description: Raise every iOS app to iOS 15 and Alamofire 5.9
+
+targets:
+  orgs: [acme]
+  include:
+    topics: [ios]
+    files: [Podfile]
+
+change:
+  steps:
+    # Raises `platform :ios` to 15.0 (never lowering it) and Alamofire to
+    # ~> 5.9 in every Podfile.
+    - name: cocoapods-ios-15
+      starlark: ./change.star
+      timeout: 1m
+  env:
+    IOS: "15.0"
+
+pr:
+  title: "build: iOS 15 and Alamofire 5.9"
+  body: |
+    Raises {{ .Repo.Name }}'s deployment target to iOS 15 and Alamofire to 5.9.
+    Run `pod install` on a Mac to refresh Podfile.lock.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet, dependencies]

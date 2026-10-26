@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: phoenix-1-7-14
+description: Move Phoenix apps to Phoenix 1.7.14 and Elixir 1.17
+
+targets:
+  orgs: [acme]
+  include:
+    languages: [Elixir]
+
+change:
+  steps:
+    # Sets the phoenix dependency in every mix.exs, raises the elixir
+    # requirement, and pins Elixir 1.17.3 and OTP 27 in .tool-versions where
+    # the repo uses one.
+    - name: elixir-phoenix
+      starlark: ./change.star
+      timeout: 1m
+  env:
+    PHOENIX: "~> 1.7.14"
+
+pr:
+  title: "build(deps): phoenix 1.7.14 on elixir 1.17"
+  body: |
+    Moves {{ .Repo.Name }} to Phoenix 1.7.14 on Elixir 1.17 and OTP 27.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet, dependencies]

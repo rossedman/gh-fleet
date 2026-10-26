@@ -30,7 +30,7 @@ Dedicated files such as .nvmrc are read before .tool-versions.
 | Name | Description |
 | --- | --- |
 | `repo` | The repo passed to `change(repo)`. |
-| `runtime` | One of `node`, `python`, `ruby`, `go`, `java` or `terraform`. |
+| `runtime` | One of `node`, `python`, `ruby`, `go`, `java`, `terraform`, `elixir`, `erlang` or `rust`. |
 
 **Returns:** The version as written, or None when nothing pins it.
 
@@ -50,7 +50,7 @@ version(repo, "node")
     python 3.12.1
     ```
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/runtime.star#L18)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/runtime.star#L21)
 
 ## set_version
 
@@ -70,7 +70,7 @@ Updates the dedicated files (.nvmrc and .node-version for node,
 | Name | Description |
 | --- | --- |
 | `repo` | The repo passed to `change(repo)`. |
-| `runtime` | One of `node`, `python`, `ruby`, `go`, `java` or `terraform`. |
+| `runtime` | One of `node`, `python`, `ruby`, `go`, `java`, `terraform`, `elixir`, `erlang` or `rust`. |
 | `version` | The version to pin, such as `22` or `3.12.7`. |
 | `create` | A file to write, such as `.nvmrc`, when nothing pins the runtime yet. |
 
@@ -113,6 +113,6 @@ set_version(repo, "node", "22")
     python 3.12.1
     ```
 
-**Used in:** [`node-version`](https://github.com/rossedman/gh-fleet/tree/main/examples/node-version), [`python-version`](https://github.com/rossedman/gh-fleet/tree/main/examples/python-version)
+**Used in:** [`elixir-phoenix`](https://github.com/rossedman/gh-fleet/tree/main/examples/elixir-phoenix), [`node-version`](https://github.com/rossedman/gh-fleet/tree/main/examples/node-version), [`python-version`](https://github.com/rossedman/gh-fleet/tree/main/examples/python-version)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/runtime.star#L47)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/runtime.star#L51)

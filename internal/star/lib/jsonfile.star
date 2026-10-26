@@ -2,9 +2,16 @@
 
 For files such as renovate.json, tsconfig.json without comments,
 .eslintrc.json and composer.json. Keys are addressed with dots, such as
-`compilerOptions.strict`. Files with comments (JSONC) can't be decoded and
+`compilerOptions.strict`; for a key that itself contains dots or slashes,
+pass the path as a list, such as `["require", "laravel/framework"]`. Files with comments (JSONC) can't be decoded and
 fail the run.
 """
+
+def _parts(key):
+    # A key path as a list: a dotted string split on dots, or a list as is.
+    if type(key) in ("list", "tuple"):
+        return list(key)
+    return key.split(".")
 
 def _indent(content):
     g = re.groups(r"\n([ \t]+)\"", content or "")
@@ -88,7 +95,7 @@ def get(repo, path, key, default = None):
             "ES2020"
     """
     node = read(repo, path, default = {})
-    for part in key.split("."):
+    for part in _parts(key):
         if type(node) != "dict" or part not in node:
             return default
         node = node[part]
@@ -125,7 +132,7 @@ def set(repo, path, key, value):
             True
     """
     data = read(repo, path, default = {})
-    parts = key.split(".")
+    parts = _parts(key)
     node = data
     for part in parts[:-1]:
         child = node.get(part)
@@ -172,7 +179,7 @@ def delete(repo, path, key):
     if not repo.exists(path):
         return False
     data = read(repo, path)
-    parts = key.split(".")
+    parts = _parts(key)
     node = data
     for part in parts[:-1]:
         node = node.get(part) if type(node) == "dict" else None

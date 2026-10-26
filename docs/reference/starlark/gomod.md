@@ -7,7 +7,7 @@ title: gomod.star
 Read and raise the go directive in go.mod files.
 
 ```python
-load("@fleet//gomod.star", "modules", "go_version", "set_go_version", "requires", "outdated")
+load("@fleet//gomod.star", "modules", "go_version", "set_go_version", "requires", "outdated", "set_work_go_version")
 ```
 
 | Function | What it does |
@@ -17,6 +17,7 @@ load("@fleet//gomod.star", "modules", "go_version", "set_go_version", "requires"
 | [`set_go_version`](#set_go_version) | Raises the `go` directive in every go.mod, never lowering it. |
 | [`requires`](#requires) | Reads every module a go.mod requires, in single-line and block form. |
 | [`outdated`](#outdated) | Finds the modules that require a dependency below a version. |
+| [`set_work_go_version`](#set_work_go_version) | Raises the `go` directive in go.work, never lowering it. |
 
 ## modules
 
@@ -251,3 +252,55 @@ outdated(repo, "golang.org/x/net", "v0.33.0")
 **Used in:** [`go-module-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/go-module-bump)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gomod.star#L133)
+
+## set_work_go_version
+
+```python
+set_work_go_version(repo, version)
+```
+
+Raises the `go` directive in go.work, never lowering it.
+
+**Arguments**
+
+| Name | Description |
+| --- | --- |
+| `repo` | The repo passed to `change(repo)`. |
+| `version` | The Go version, such as `1.27.3`. |
+
+**Returns:** True when the file changed; False when the repo has no go.work.
+
+**Example**
+
+```python
+set_work_go_version(repo, "1.27.3")
+# returns True
+```
+
+=== "Before"
+
+    `go.work`
+
+    ```text
+    go 1.22
+
+    use (
+        ./api
+        ./worker
+    )
+    ```
+
+=== "After"
+
+    `go.work`
+
+    ```text
+    go 1.27.3
+
+    use (
+        ./api
+        ./worker
+    )
+    ```
+
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gomod.star#L164)
