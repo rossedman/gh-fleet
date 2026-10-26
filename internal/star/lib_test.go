@@ -347,13 +347,16 @@ func TestLibErrors(t *testing.T) {
 		files map[string]string
 		want  string
 	}{
-		"unknown module": {map[string]string{"change.star": "load('@fleet//nope.star', 'x')\n"}, "no built-in module nope.star; have ansible.star, "},
+		"unknown module": {map[string]string{"change.star": "load('@fleet//nope.star', 'x')\n"}, "no built-in module nope.star; have "},
 		"nested":         {map[string]string{"change.star": "load('@fleet//a/b.star', 'x')\n"}, "no built-in module a/b.star"},
 		"bad symbol":     {map[string]string{"change.star": "load('@fleet//files.star', 'nope')\ndef change(repo):\n  pass\n"}, "nope"},
 	} {
 		if _, err := load(t, tt.files, Options{}); err == nil || !strings.Contains(err.Error(), tt.want) {
 			t.Errorf("%s: err = %v, want %q", name, err, tt.want)
 		}
+	}
+	if _, err := load(t, map[string]string{"change.star": "load('@fleet//nope.star', 'x')\n"}, Options{}); err == nil || !strings.Contains(err.Error(), ", files.star, ") {
+		t.Errorf("unknown module error does not list the modules: %v", err)
 	}
 	s := &Script{modules: map[string]*module{}, byName: map[string]string{}}
 	if got, root, err := s.resolveLoad(context.Background(), "./files.star", LibPrefix+"gha.star", LibPrefix); err != nil || got != LibPrefix+"files.star" || root != LibPrefix {

@@ -1,0 +1,34 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: rails-7-2
+description: Move every Rails app to Rails 7.2
+
+targets:
+  orgs: [acme]
+  include:
+    languages: [Ruby]
+    search: "rails filename:Gemfile"
+
+change:
+  steps:
+    # Sets the rails requirement in the Gemfile, keeping its options, and
+    # tells the lock step whether anything changed.
+    - name: Gemfile
+      starlark: ./change.star
+      timeout: 1m
+    # Re-resolves only rails in Gemfile.lock.
+    - name: lock
+      run: |
+        if [ "$FLEET_VAR_CHANGED" = true ] && [ -f Gemfile.lock ]; then bundle lock --update rails; fi
+      timeout: 10m
+  env:
+    RAILS: "~> 7.2"
+
+pr:
+  title: "build(deps): rails 7.2"
+  body: |
+    Moves {{ .Repo.Name }} to Rails 7.2. Run the test suite and check the
+    upgrade guide before merging.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet, dependencies]

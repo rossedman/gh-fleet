@@ -38,6 +38,7 @@ campaign is safe.
 | [`changelog-entry`](https://github.com/rossedman/gh-fleet/tree/main/examples/changelog-entry) | Patches lodash and records it under Unreleased > Security in `CHANGELOG.md` | `changelog.add_entry` as part of another change |
 | [`license-year`](https://github.com/rossedman/gh-fleet/tree/main/examples/license-year) | Extends the copyright year in MIT and Apache-2.0 licenses | `license.detect` and `license.set_year` |
 | [`editor-defaults`](https://github.com/rossedman/gh-fleet/tree/main/examples/editor-defaults) | Sets `.editorconfig` and `.gitattributes` defaults | `editorconfig.set` and `gitattributes.set`, merging with what is there |
+| [`github-repo-files`](https://github.com/rossedman/gh-fleet/tree/main/examples/github-repo-files) | Adds release note categories, a label and a security link on the new-issue page | `github.add_release_category`, `set_label` and `add_contact_link` |
 
 ## Dependencies
 
@@ -48,6 +49,8 @@ campaign is safe.
 | [`python-requirement-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/python-requirement-bump) | Pins a package in `requirements*.txt` and `pyproject.toml` | `python.set_requirement` keeping extras, markers and comments |
 | [`cargo-dependency-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/cargo-dependency-bump) | Sets a crate's version in every `Cargo.toml` and refreshes `Cargo.lock` | `cargo.set_dependency` for plain and table forms |
 | [`jvm-dependency-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/jvm-dependency-bump) | Moves jackson-databind to 2.17.2 in Maven poms and Gradle builds | `maven.set_dependency` following `${property}` references, `gradle.set_dependency` including `version.ref` |
+| [`android-target-sdk`](https://github.com/rossedman/gh-fleet/tree/main/examples/android-target-sdk) | Raises compileSdk and targetSdk to 35 in every Android module | `android.set_sdk` on Groovy, Kotlin DSL and catalogs, never lowering |
+| [`ruby-rails-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/ruby-rails-bump) | Moves the Rails requirement to `~> 7.2` and re-locks only rails | `ruby.set_gem`, then a one-line `bundle lock` step |
 | [`terraform-provider-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/terraform-provider-bump) | Moves the AWS provider to `~> 5.0` and raises `required_version` | `terraform.set_provider_version` on block and one-line entries |
 | [`terragrunt-module-ref`](https://github.com/rossedman/gh-fleet/tree/main/examples/terragrunt-module-ref) | Moves every `?ref=` of a shared Terraform modules repo to v2.0.0 | `terragrunt.set_source_ref` with a `*` source, `.tf` and `terragrunt.hcl` alike |
 | [`ansible-collections`](https://github.com/rossedman/gh-fleet/tree/main/examples/ansible-collections) | Sets a collection's version in every `requirements.yml` | `ansible.set_version`, adding a missing `version` |
@@ -56,6 +59,7 @@ campaign is safe.
 | [`docker-base-image`](https://github.com/rossedman/gh-fleet/tree/main/examples/docker-base-image) | Moves `FROM node:18` to `node:22`, keeping variants and stages | `docker.bump_base_image`, draft PRs |
 | [`compose-image-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/compose-image-bump) | Moves `image: redis:7` to `redis:8` in Compose files, Kubernetes manifests and Dockerfiles | `docker.bump_image` |
 | [`add-dependabot`](https://github.com/rossedman/gh-fleet/tree/main/examples/add-dependabot) | Writes `.github/dependabot.yml` for the ecosystems a repo uses | detecting what a repo contains with `dependabot.ecosystems` |
+| [`dependabot-ecosystems`](https://github.com/rossedman/gh-fleet/tree/main/examples/dependabot-ecosystems) | Adds docker and github-actions entries to existing Dependabot configs | `dependabot.add_update` and `dependabot.set_option` |
 
 ## Config files
 
@@ -63,6 +67,9 @@ campaign is safe.
 | --- | --- | --- |
 | [`ruff-config`](https://github.com/rossedman/gh-fleet/tree/main/examples/ruff-config) | Sets `[tool.ruff]` options in `pyproject.toml`, adding tables where missing | `toml.set` keeping comments |
 | [`renovate-preset`](https://github.com/rossedman/gh-fleet/tree/main/examples/renovate-preset) | Points every `renovate.json` at a shared preset | `jsonfile.set` keeping key order and indentation |
+| [`renovate-automerge`](https://github.com/rossedman/gh-fleet/tree/main/examples/renovate-automerge) | Moves off `config:base` and automerges minor and patch devDependency updates | `renovate.remove_preset`, `add_preset` and `add_package_rule` |
+| [`golangci-v2`](https://github.com/rossedman/gh-fleet/tree/main/examples/golangci-v2) | Migrates golangci-lint configs to v2 and enables gosec | Starlark, the official `migrate` command, then Starlark again |
+| [`devcontainer-image`](https://github.com/rossedman/gh-fleet/tree/main/examples/devcontainer-image) | Moves Dev Containers to Go 1.23 and adds the GitHub CLI feature | `devcontainer` edits that keep JSONC comments |
 
 ## Runtimes
 

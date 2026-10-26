@@ -96,6 +96,7 @@ nav:
       - Starlark library:
           # gendocs:starlark-library:begin
           - Overview: reference/starlark-library.md
+          - android.star: reference/starlark/android.md
           - ansible.star: reference/starlark/ansible.md
           - argocd.star: reference/starlark/argocd.md
           - buildkite.star: reference/starlark/buildkite.md
@@ -105,6 +106,7 @@ nav:
           - cmake.star: reference/starlark/cmake.md
           - codeowners.star: reference/starlark/codeowners.md
           - dependabot.star: reference/starlark/dependabot.md
+          - devcontainer.star: reference/starlark/devcontainer.md
           - docker.star: reference/starlark/docker.md
           - dotnet.star: reference/starlark/dotnet.md
           - editorconfig.star: reference/starlark/editorconfig.md
@@ -112,7 +114,9 @@ nav:
           - flux.star: reference/starlark/flux.md
           - gha.star: reference/starlark/gha.md
           - gitattributes.star: reference/starlark/gitattributes.md
+          - github.star: reference/starlark/github.md
           - gitlab.star: reference/starlark/gitlab.md
+          - golangci.star: reference/starlark/golangci.md
           - gomod.star: reference/starlark/gomod.md
           - gradle.star: reference/starlark/gradle.md
           - helm.star: reference/starlark/helm.md
@@ -128,6 +132,8 @@ nav:
           - precommit.star: reference/starlark/precommit.md
           - python.star: reference/starlark/python.md
           - refs.star: reference/starlark/refs.md
+          - renovate.star: reference/starlark/renovate.md
+          - ruby.star: reference/starlark/ruby.md
           - runtime.star: reference/starlark/runtime.md
           - terraform.star: reference/starlark/terraform.md
           - terragrunt.star: reference/starlark/terragrunt.md
