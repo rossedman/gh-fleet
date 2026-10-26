@@ -3,6 +3,7 @@ package state
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -78,7 +79,9 @@ func TestStoreErrors(t *testing.T) {
 	if sums, err := (&Store{Dir: filepath.Join(dir, "none")}).List(); err != nil || sums != nil {
 		t.Fatal("missing dir should list nothing")
 	}
-	if _, err := (&Store{Dir: filepath.Join(dir, "null.json")}).List(); err == nil {
+	// Windows reports a file used as a directory as missing, which lists
+	// nothing.
+	if _, err := (&Store{Dir: filepath.Join(dir, "null.json")}).List(); err == nil && runtime.GOOS != "windows" {
 		t.Fatal("expected error listing a file")
 	}
 	if err := (&Store{Dir: "/dev/null/x"}).Save(&Campaign{Name: "x"}); err == nil {
@@ -100,15 +103,17 @@ func TestStoreErrors(t *testing.T) {
 
 func TestDefaultDir(t *testing.T) {
 	t.Setenv("XDG_STATE_HOME", "/xdg")
-	if d, err := DefaultDir(); err != nil || d != "/xdg/gh-fleet" {
+	if d, err := DefaultDir(); err != nil || d != filepath.Join("/xdg", "gh-fleet") {
 		t.Fatalf("dir = %q, %v", d, err)
 	}
 	t.Setenv("XDG_STATE_HOME", "")
 	t.Setenv("HOME", "/home/x")
-	if d, err := DefaultDir(); err != nil || d != "/home/x/.local/state/gh-fleet" {
+	t.Setenv("USERPROFILE", "/home/x")
+	if d, err := DefaultDir(); err != nil || d != filepath.Join("/home/x", ".local", "state", "gh-fleet") {
 		t.Fatalf("dir = %q, %v", d, err)
 	}
 	t.Setenv("HOME", "")
+	t.Setenv("USERPROFILE", "")
 	if _, err := DefaultDir(); err == nil {
 		t.Fatal("expected error without HOME")
 	}

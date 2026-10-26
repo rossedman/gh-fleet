@@ -21,7 +21,8 @@ func TestRunWritesEveryPage(t *testing.T) {
 			t.Errorf("%s not written", name)
 		}
 	}
-	if err := run("/dev/null/x", "", ""); err == nil {
+	file := filepath.Join(dir, "campaign.md")
+	if err := run(filepath.Join(file, "x"), "", ""); err == nil {
 		t.Fatal("expected error for an unwritable dir")
 	}
 }

@@ -231,7 +231,7 @@ func TestTestDir(t *testing.T) {
 	for o, want := range map[*TestOptions]string{
 		{Dir: repo, Update: true}:                         "--dir can't be combined with --update or --run",
 		{Dir: filepath.Join(repo, "VERSION")}:             "is not a directory",
-		{Dir: filepath.Join(repo, "missing")}:             "no such file",
+		{Dir: filepath.Join(repo, "missing")}:             noSuchFile,
 		{Run: "("}:                                        "--run:",
 		{Run: "nothing-matches"}:                          "no test cases in",
 		{Common: Common{Repos: []string{"x"}}, Dir: repo}: `repo "x" is not owner/name`,

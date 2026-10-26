@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -63,13 +64,16 @@ func runTwice(t *testing.T, name, dir string, env ...string) map[string]any {
 // working directory, to a log file. It returns the PATH entry and the log.
 func stub(t *testing.T, name string) (string, string) {
 	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("the stubs are POSIX shell scripts and the checks compare POSIX working directories")
+	}
 	bin := t.TempDir()
 	log := filepath.Join(bin, name+".log")
 	script := "#!/bin/sh\necho \"$(pwd) $*\" >> " + log + "\n"
 	if err := os.WriteFile(filepath.Join(bin, name), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	return "PATH=" + bin + ":" + os.Getenv("PATH"), log
+	return "PATH=" + bin + string(os.PathListSeparator) + os.Getenv("PATH"), log
 }
 
 func TestSyncFiles(t *testing.T) {
