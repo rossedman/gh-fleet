@@ -100,8 +100,10 @@ type RateLimit struct {
 type Client interface {
 	// ListOwnerRepos lists every repository of an organization or user.
 	ListOwnerRepos(ctx context.Context, owner string) ([]Repo, error)
-	// GetRepo fetches one repository by owner/name.
-	GetRepo(ctx context.Context, fullName string) (Repo, error)
+	// GetRepos looks up repositories by owner/name, keyed by the
+	// lower-cased name asked for. Missing repos are absent from the map.
+	// Queries are batched, BatchSize repos each.
+	GetRepos(ctx context.Context, names []string) (map[string]Repo, error)
 	// PathsExist reports, per repo full name, which of paths exist on the
 	// repo's default branch.
 	PathsExist(ctx context.Context, repos []Repo, paths []string) (map[string][]string, error)

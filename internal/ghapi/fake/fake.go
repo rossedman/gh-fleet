@@ -37,6 +37,8 @@ type Client struct {
 
 	// Calls counts calls per method name.
 	Calls map[string]int
+	// Lookups records the names passed to each GetRepos call.
+	Lookups [][]string
 	// Comments records comment bodies per "repo#number".
 	Comments map[string][]string
 	// Reviewers records requested reviewers per "repo#number".
@@ -112,22 +114,26 @@ func (c *Client) ListOwnerRepos(ctx context.Context, owner string) ([]ghapi.Repo
 	return out, nil
 }
 
-// GetRepo returns one repo.
-func (c *Client) GetRepo(ctx context.Context, fullName string) (ghapi.Repo, error) {
+// GetRepos returns the named repos that exist, in one call.
+func (c *Client) GetRepos(ctx context.Context, names []string) (map[string]ghapi.Repo, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if err := c.call(ctx, "GetRepo", fullName); err != nil {
-		return ghapi.Repo{}, err
+	c.Lookups = append(c.Lookups, slices.Clone(names))
+	if err := c.call(ctx, "GetRepos", ""); err != nil {
+		return nil, err
 	}
+	out := map[string]ghapi.Repo{}
 	// GitHub matches names ignoring case and answers with the canonical
 	// one.
-	for name, r := range c.Repos {
-		if strings.EqualFold(name, fullName) {
-			r.Properties = nil
-			return r, nil
+	for _, n := range names {
+		for name, r := range c.Repos {
+			if strings.EqualFold(name, n) {
+				r.Properties = nil
+				out[strings.ToLower(n)] = r
+			}
 		}
 	}
-	return ghapi.Repo{}, fmt.Errorf("get %s: %w", fullName, ghapi.ErrNotFound)
+	return out, nil
 }
 
 // PathsExist reports which paths exist per repo.
