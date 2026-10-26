@@ -44,12 +44,24 @@ const (
 	DefaultHeadroom    = 0.10
 	defaultRetryAfter  = 60 * time.Second
 	baseBackoff        = time.Second
+	// maxSecondaryWait caps the doubling wait for repeated secondary
+	// rate limits that don't say how long to wait.
+	maxSecondaryWait = 15 * time.Minute
 )
 
-// Transport is an http.RoundTripper shared by every worker. It throttles
-// writes, pauses all requests while a secondary rate limit is in effect,
-// retries server errors with exponential backoff and jitter, and refuses
-// requests once primary quota drops into the reserved headroom.
+// GitHub's secondary limits on content-creating requests.
+const (
+	ContentPerMinute = 80
+	ContentPerHour   = 500
+)
+
+// Transport is an http.RoundTripper shared by every worker. It follows
+// GitHub's rate limit rules: writes are spaced out and kept within the
+// content creation limits, a secondary rate limit pauses every request for
+// as long as GitHub asks (or a minute, doubling, when it doesn't say),
+// spent primary quota stops requests until it resets, and requests are
+// refused once primary quota drops into the reserved headroom. Server
+// errors are retried with exponential backoff and jitter.
 type Transport struct {
 	// Base sends the request. Defaults to http.DefaultTransport.
 	Base http.RoundTripper
@@ -74,6 +86,14 @@ type Transport struct {
 	quotas      map[string]RateLimit
 	pauses      atomic.Int64
 	retries     atomic.Int64
+	// secondaries counts secondary rate limits in a row, for the doubling
+	// wait when GitHub doesn't say how long to wait.
+	secondaries atomic.Int64
+
+	// content holds the content creation windows; nil means no limit.
+	content      []*window
+	contentMu    sync.Mutex
+	contentNoted time.Time
 }
 
 // NewTransport returns a Transport with writes limited to writesPerSecond.
@@ -82,6 +102,7 @@ func NewTransport(base http.RoundTripper, writesPerSecond float64) *Transport {
 	if writesPerSecond > 0 {
 		t.Writes = rate.NewLimiter(rate.Limit(writesPerSecond), 1)
 	}
+	t.content = []*window{{n: ContentPerMinute, period: time.Minute}, {n: ContentPerHour, period: time.Hour}}
 	return t
 }
 
@@ -128,9 +149,14 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 		if err := t.checkQuota(ctx, resource); err != nil {
 			return nil, err
 		}
-		if write && t.Writes != nil {
-			if err := t.Writes.Wait(ctx); err != nil {
+		if write {
+			if err := t.waitForContent(ctx); err != nil {
 				return nil, err
+			}
+			if t.Writes != nil {
+				if err := t.Writes.Wait(ctx); err != nil {
+					return nil, err
+				}
 			}
 		}
 		r := req.Clone(ctx)
@@ -146,11 +172,41 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 		t.recordQuota(resp.Header)
 		last := attempt >= attempts
 
-		if wait, ok := secondaryLimit(resp, t.now()); ok && !last {
+		limit, err := classify(resp, resource, t.now())
+		if err != nil {
+			return nil, err
+		}
+		switch limit.kind {
+		case spentQuota:
+			if !strings.HasSuffix(resource, "search") || last {
+				drain(resp)
+				return nil, limit.quota
+			}
+			// Search quotas reset within a minute: wait it out.
 			drain(resp)
+			if t.OnWait != nil {
+				t.OnWait(resource+" rate limit", limit.wait)
+			}
+			if err := t.sleep(ctx, limit.wait); err != nil {
+				return nil, err
+			}
+			continue
+		case secondary:
+			if last {
+				return resp, nil
+			}
+			drain(resp)
+			wait := limit.wait
+			if wait < 0 {
+				// GitHub didn't say how long: at least a minute, doubling
+				// while the limit keeps hitting.
+				n := min(t.secondaries.Add(1)-1, 10)
+				wait = min(defaultRetryAfter<<n, maxSecondaryWait)
+			}
 			t.pause(wait)
 			continue
 		}
+		t.secondaries.Store(0)
 		if isRetryableStatus(resp.StatusCode) && !last {
 			drain(resp)
 			t.retries.Add(1)
@@ -163,6 +219,65 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 		}
 		return resp, nil
 	}
+}
+
+// waitForContent waits until a content-creating request fits in every
+// content creation window, then counts it.
+func (t *Transport) waitForContent(ctx context.Context) error {
+	for {
+		t.contentMu.Lock()
+		now := t.now()
+		var d time.Duration
+		for _, w := range t.content {
+			d = max(d, w.wait(now))
+		}
+		if d <= 0 {
+			for _, w := range t.content {
+				w.add(now)
+			}
+			t.contentMu.Unlock()
+			return nil
+		}
+		// Every worker waits at once; one note says so.
+		note := now.Add(d).After(t.contentNoted)
+		if note {
+			t.contentNoted = now.Add(d)
+		}
+		t.contentMu.Unlock()
+		if note && t.OnWait != nil {
+			t.OnWait("content creation limit", d)
+		}
+		if err := t.sleep(ctx, d); err != nil {
+			return err
+		}
+	}
+}
+
+// window counts events in a rolling period, as GitHub counts its content
+// creation limits.
+type window struct {
+	n      int
+	period time.Duration
+	times  []time.Time
+}
+
+// wait returns how long until another event fits in the window.
+func (w *window) wait(now time.Time) time.Duration {
+	cutoff := now.Add(-w.period)
+	i := 0
+	for i < len(w.times) && !w.times[i].After(cutoff) {
+		i++
+	}
+	w.times = w.times[i:]
+	if len(w.times) < w.n {
+		return 0
+	}
+	return w.times[len(w.times)-w.n].Add(w.period).Sub(now)
+}
+
+// add counts an event at now.
+func (w *window) add(now time.Time) {
+	w.times = append(w.times, now)
 }
 
 // base returns the underlying RoundTripper.
@@ -289,23 +404,76 @@ func (t *Transport) recordQuota(h http.Header) {
 	t.quotas[res] = RateLimit{Resource: res, Limit: limit, Remaining: remaining, Reset: time.Unix(reset, 0)}
 }
 
-// secondaryLimit reports whether resp is a secondary rate limit and how
-// long to wait before retrying.
-func secondaryLimit(resp *http.Response, now time.Time) (time.Duration, bool) {
-	if resp.StatusCode != http.StatusForbidden && resp.StatusCode != http.StatusTooManyRequests {
-		return 0, false
+// limitKind is what a response says about rate limits.
+type limitKind int
+
+const (
+	notLimited limitKind = iota
+	// secondary is a secondary rate limit: retry after a wait.
+	secondary
+	// spentQuota is a spent primary quota: nothing until it resets.
+	spentQuota
+)
+
+// limit is how a response is rate limited.
+type limit struct {
+	kind limitKind
+	// wait is how long to wait before retrying; negative when GitHub
+	// didn't say.
+	wait time.Duration
+	// quota describes a spent primary quota.
+	quota *QuotaError
+}
+
+// classify reads a response the way GitHub's docs say to: a Retry-After
+// header is a secondary limit with its wait; otherwise no remaining quota
+// means wait until the reset; otherwise a 429, or a 403 that says so, is a
+// secondary limit with no wait given. GraphQL reports spent quota as a
+// 200 with a RATE_LIMITED error. The body is read only when it can tell.
+func classify(resp *http.Response, resource string, now time.Time) (limit, error) {
+	code := resp.StatusCode
+	graphql := resource == "graphql" && code == http.StatusOK && resp.Header.Get("X-RateLimit-Remaining") == "0"
+	if code != http.StatusForbidden && code != http.StatusTooManyRequests && !graphql {
+		return limit{}, nil
 	}
-	ra := resp.Header.Get("Retry-After")
-	if ra == "" {
-		return 0, false
+	if !graphql {
+		if ra := resp.Header.Get("Retry-After"); ra != "" {
+			return limit{kind: secondary, wait: retryAfter(ra, now)}, nil
+		}
 	}
+	body, err := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	resp.Body = io.NopCloser(bytes.NewReader(body))
+	if err != nil {
+		return limit{}, err
+	}
+	if resp.Header.Get("X-RateLimit-Remaining") == "0" {
+		if graphql && !bytes.Contains(body, []byte("RATE_LIMITED")) {
+			return limit{}, nil
+		}
+		q := &QuotaError{Resource: resource, Reset: now.Add(defaultRetryAfter)}
+		q.Limit, _ = strconv.Atoi(resp.Header.Get("X-RateLimit-Limit"))
+		if reset, err := strconv.ParseInt(resp.Header.Get("X-RateLimit-Reset"), 10, 64); err == nil {
+			q.Reset = time.Unix(reset, 0)
+		}
+		return limit{kind: spentQuota, wait: max(q.Reset.Sub(now), time.Second), quota: q}, nil
+	}
+	lower := bytes.ToLower(body)
+	if code == http.StatusTooManyRequests || bytes.Contains(lower, []byte("secondary rate limit")) || bytes.Contains(lower, []byte("abuse")) {
+		return limit{kind: secondary, wait: -1}, nil
+	}
+	return limit{}, nil
+}
+
+// retryAfter parses a Retry-After header: seconds, or an HTTP date.
+func retryAfter(ra string, now time.Time) time.Duration {
 	if secs, err := strconv.Atoi(ra); err == nil && secs >= 0 {
-		return time.Duration(secs) * time.Second, true
+		return time.Duration(secs) * time.Second
 	}
 	if at, err := http.ParseTime(ra); err == nil {
-		return max(at.Sub(now), 0), true
+		return max(at.Sub(now), 0)
 	}
-	return defaultRetryAfter, true
+	return defaultRetryAfter
 }
 
 // isRetryableStatus reports server errors worth retrying.
