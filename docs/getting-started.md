@@ -117,6 +117,9 @@ index e9179e8..4b6957d 100644
 
 Start with `--repo` on one repo, then drop it to preview all of them. A repo where the steps change nothing is reported as `noop`.
 
+!!! tip "Test without GitHub"
+    `gh fleet test --dir ../api` runs the change on a clone you already have. Once it works, keep sample repos in `tests/` next to `fleet.yaml` and `gh fleet test` checks them on every edit. See [Testing a campaign](guides/testing.md).
+
 ## 3. Open the pull requests
 
 ```console

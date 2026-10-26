@@ -16,10 +16,11 @@ change:
     - name: Cargo.toml
       starlark: ./change.star
       timeout: 1m
-    # Refreshes Cargo.lock for that crate only, if the repo commits one.
+    # Refreshes Cargo.lock for that crate only, if the repo commits one and
+    # the step above changed a dependency.
     - name: Cargo.lock
       run: |
-        if [ -f Cargo.lock ]; then cargo update --package "$CRATE"; fi
+        if [ "$FLEET_VAR_CHANGED" = true ] && [ -f Cargo.lock ]; then cargo update --package "$CRATE"; fi
       timeout: 10m
   env:
     CRATE: tokio

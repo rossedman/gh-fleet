@@ -77,6 +77,8 @@ set_package(repo, name, version)
 
 Sets a NuGet package's version wherever a project already references it.
 
+A newer version already there is kept, so a campaign never lowers one.
+
 Covers `<PackageReference>` and central `<PackageVersion>` entries,
 with the version as a `Version="..."` attribute or a `<Version>` child
 element. Package names match case-insensitively, as NuGet does.
@@ -209,7 +211,7 @@ set_target_framework(repo, "net8.0", from_framework = "net6.0")
 
 **Used in:** [`dotnet-8`](https://github.com/rossedman/gh-fleet/tree/main/examples/dotnet-8)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/dotnet.star#L103)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/dotnet.star#L106)
 
 ## sdk_version
 
@@ -243,7 +245,7 @@ sdk_version(repo)
     {"sdk": {"version": "6.0.400", "rollForward": "latestFeature"}}
     ```
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/dotnet.star#L171)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/dotnet.star#L174)
 
 ## set_sdk_version
 
@@ -252,6 +254,8 @@ set_sdk_version(repo, version)
 ```
 
 Sets the .NET SDK version in a global.json that already pins one.
+
+A newer version already there is kept, so a campaign never lowers one.
 
 **Arguments**
 
@@ -297,4 +301,4 @@ set_sdk_version(repo, "8.0.400")
 
 **Used in:** [`dotnet-8`](https://github.com/rossedman/gh-fleet/tree/main/examples/dotnet-8)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/dotnet.star#L187)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/dotnet.star#L190)

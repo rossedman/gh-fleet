@@ -27,6 +27,8 @@ def files(repo):
 def set_chart_version(repo, chart, version):
     """Sets the `version` of every release that installs a chart.
 
+    A newer version already there is kept, so a campaign never lowers one.
+
     Args:
         chart: the chart as releases write it, such as `bitnami/redis`.
         version: the new version or range.
@@ -56,4 +58,4 @@ def set_chart_version(repo, chart, version):
         returns:
             ["helmfile.yaml"]
     """
-    return [p for p in files(repo) if _set_sibling(repo, p, "chart", chart, "version", version)]
+    return [p for p in files(repo) if _set_sibling(repo, p, "chart", chart, "version", version, never_lower = True)]

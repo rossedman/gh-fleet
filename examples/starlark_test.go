@@ -15,7 +15,7 @@ func TestNodeEngines(t *testing.T) {
 		"node_modules/x/package.json": `{"name": "x"}`,
 	})
 	vars := runTwice(t, "node-engines", dir)
-	if got := read(t, filepath.Join(dir, "package.json")); got != "{\n  \"name\": \"web\",\n  \"version\": \"1.0.0\",\n  \"engines\": {\n    \"node\": \">=22\",\n    \"npm\": \">=9\"\n  }\n}\n" {
+	if got := read(t, filepath.Join(dir, "package.json")); got != "{\"name\": \"web\", \"version\": \"1.0.0\", \"engines\": {\"node\": \">=22\", \"npm\": \">=9\"}}\n" {
 		t.Errorf("package.json =\n%s", got)
 	}
 	if got := read(t, filepath.Join(dir, "packages/ui/package.json")); !strings.Contains(got, `"node": ">=22"`) {

@@ -74,6 +74,8 @@ set_dependency(repo, name, version)
 
 Sets a crate's version wherever a Cargo.toml already depends on it.
 
+A newer version already there is kept, so a campaign never lowers one.
+
 Covers `[dependencies]`, `[dev-dependencies]`, `[build-dependencies]`,
 `[workspace.dependencies]` and their `[target.'...'.dependencies]` forms,
 written as `name = "1.0"` or `name = { version = "1.0", ... }`.
@@ -161,7 +163,7 @@ rust_version(repo)
     rust-version = "1.70"
     ```
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/cargo.star#L89)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/cargo.star#L91)
 
 ## set_rust_version
 
@@ -207,4 +209,4 @@ set_rust_version(repo, "1.75")
     rust-version = "1.75"
     ```
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/cargo.star#L109)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/cargo.star#L111)

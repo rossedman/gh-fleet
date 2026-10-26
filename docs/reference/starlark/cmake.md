@@ -156,6 +156,8 @@ set_fetchcontent_tag(repo, name, tag)
 
 Sets the `GIT_TAG` of a `FetchContent_Declare` dependency.
 
+A newer version already there is kept, so a campaign never lowers one.
+
 The declaration may span several lines. Declarations of other names,
 and ones without a `GIT_TAG`, are left alone.
 

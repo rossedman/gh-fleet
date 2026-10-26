@@ -24,6 +24,7 @@ var jsonModule = func() *starlarkstruct.Module {
 
 // jsonEncoders replace the standard module's sorting encoders.
 var jsonEncoders = map[string]builtin{
+	"encode_like": jsonEncodeLike,
 	"encode": func(_ *starlark.Thread, b *starlark.Builtin, args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
 		var x starlark.Value
 		if err := starlark.UnpackPositionalArgs(b.Name(), args, kwargs, 1, &x); err != nil {

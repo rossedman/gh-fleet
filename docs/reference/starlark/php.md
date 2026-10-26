@@ -73,6 +73,8 @@ set_require(repo, package, constraint)
 
 Sets a package's constraint wherever `require` or `require-dev` lists it.
 
+A newer version already there is kept, so a campaign never lowers one.
+
 Packages a manifest doesn't require are left alone.
 
 **Arguments**
@@ -136,6 +138,8 @@ set_php(repo, constraint, platform = None)
 
 Sets the PHP version a project requires, and optionally its `config.platform.php`.
 
+A newer version already there is kept, so a campaign never lowers one.
+
 **Arguments**
 
 | Name | Description |
@@ -189,4 +193,4 @@ set_php(repo, "^8.2", platform = "8.2.0")
 
 **Used in:** [`php-laravel-11`](https://github.com/rossedman/gh-fleet/tree/main/examples/php-laravel-11)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/php.star#L76)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/php.star#L78)

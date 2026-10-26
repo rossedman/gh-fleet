@@ -14,7 +14,7 @@ load("@fleet//markdown.star", "has_section", "set_section", "ensure_badge")
 | --- | --- |
 | [`has_section`](#has_section) | Reports whether a Markdown file has a heading with this text. |
 | [`set_section`](#set_section) | Makes the section under a heading contain the given text. |
-| [`ensure_badge`](#ensure_badge) | Adds a badge under the first heading of a Markdown file. |
+| [`ensure_badge`](#ensure_badge) | Adds a badge to a Markdown file, next to the badges it already shows. |
 
 ## has_section
 
@@ -133,11 +133,12 @@ set_section(repo, "README.md", "Security", "Report issues to security@acme.dev."
 ensure_badge(repo, path, badge)
 ```
 
-Adds a badge under the first heading of a Markdown file.
+Adds a badge to a Markdown file, next to the badges it already shows.
 
-The badge joins any badges already there. A file that already contains
-the badge's text is left alone, and a file with no heading gets the badge
-at the top.
+The badge joins the first run of badges before the first `##` section,
+wherever it is: under the title, or under a logo. Without one, it goes
+under a `#` title, or at the top. A file that already contains the
+badge's text is left alone.
 
 **Arguments**
 

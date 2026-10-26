@@ -42,9 +42,13 @@ def read(repo, path, default = None):
     return json.decode(content)
 
 def write(repo, path, data):
-    """Writes a value as JSON, using the indentation the file already has.
+    """Writes a value as JSON in the layout the file already has.
 
-    A new file gets two spaces. Output ends with a newline.
+    Values that didn't change keep their exact text, so a one-key edit is
+    a one-line diff. Changed and new values follow the indentation and
+    separators around them, and new lists of plain values are written on
+    one line when the file already writes lists that way. A new file gets
+    two spaces. Output ends with a newline.
 
     Args:
         path: the JSON file, relative to the repo root.
@@ -71,8 +75,11 @@ def write(repo, path, data):
             True
     """
     content = repo.read(path, default = None)
-    updated = json.encode_indent(data, indent = _indent(content)) + "\n"
-    if content != None and (content == updated or json.decode(content) == data and content.rstrip("\n") == updated.rstrip("\n")):
+    if content == None or not content.strip():
+        updated = json.encode_indent(data, indent = "  ") + "\n"
+    else:
+        updated = json.encode_like(data, content).rstrip("\n") + "\n"
+    if content != None and content.rstrip("\n") == updated.rstrip("\n"):
         return False
     repo.write(path, updated)
     return True

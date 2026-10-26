@@ -33,6 +33,8 @@ def applications(repo):
 def set_target_revision(repo, repo_url, revision):
     """Sets `targetRevision` for every source that points at a repository.
 
+    A newer version already there is kept, so a campaign never lowers one.
+
     Works for `source` and each entry of `sources`. A Helm chart from a chart
     repository is matched by its `repoURL` too, and its `targetRevision` is
     the chart version.
@@ -64,4 +66,4 @@ def set_target_revision(repo, repo_url, revision):
         returns:
             ["apps/api.yaml"]
     """
-    return [p for p in applications(repo) if _set_sibling(repo, p, "repoURL", repo_url, "targetRevision", revision)]
+    return [p for p in applications(repo) if _set_sibling(repo, p, "repoURL", repo_url, "targetRevision", revision, never_lower = True)]

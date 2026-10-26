@@ -225,7 +225,7 @@ func TestNpmPackageBump(t *testing.T) {
 	if got := read(t, filepath.Join(dir, "package.json")); got != "{\n  \"dependencies\": {\n    \"axios\": \"^1.7.9\"\n  }\n}\n" {
 		t.Errorf("package.json = %q", got)
 	}
-	if got := read(t, filepath.Join(dir, "web/package.json")); !strings.Contains(got, `"axios": "^1.7.9"`) {
+	if got := read(t, filepath.Join(dir, "web/package.json")); !strings.Contains(got, `"axios":"^1.7.9"`) {
 		t.Errorf("web/package.json = %q", got)
 	}
 	if got := read(t, filepath.Join(dir, "web/node_modules/package.json")); strings.Contains(got, "1.7.9") {

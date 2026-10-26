@@ -27,6 +27,8 @@ def templates(repo):
 def set_plugin_version(repo, source, constraint):
     """Sets the `version` of a plugin in `required_plugins`, matched by its `source`.
 
+    A newer version already there is kept, so a campaign never lowers one.
+
     Args:
         source: the plugin source, such as `github.com/hashicorp/amazon`.
         constraint: the new constraint, such as `>= 1.3.3`.
@@ -77,7 +79,7 @@ def set_plugin_version(repo, source, constraint):
                         break
             for j in range(start, end + 1):
                 g = re.groups(version, lines[j])
-                if g and g[1] != constraint:
+                if g and g[1] != constraint and not semver.lowers(g[1], constraint):
                     lines[j] = re.sub(version, "${1}" + _lit(constraint) + "${3}", lines[j], count = 1)
         updated = "\n".join(lines)
         if updated != content:

@@ -87,6 +87,7 @@ nav:
       - Targeting repositories: guides/targeting.md
       - Writing changes: guides/writing-changes.md
       - Starlark changes: guides/starlark.md
+      - Testing a campaign: guides/testing.md
       - Tracking pull requests: guides/tracking-prs.md
       - Rate limits: guides/rate-limits.md
       - Exploring with exec: guides/exec.md
@@ -173,6 +174,7 @@ nav:
           - retry: reference/commands/gh_fleet_retry.md
           - status: reference/commands/gh_fleet_status.md
           - targets: reference/commands/gh_fleet_targets.md
+          - test: reference/commands/gh_fleet_test.md
           - version: reference/commands/gh_fleet_version.md
   - Project:
       - Contributing: contributing.md

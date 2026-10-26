@@ -5,7 +5,7 @@ stay as they were. Gemfile.lock isn't re-resolved; follow with a `run`
 step such as `bundle lock --update <gem>` when the lockfile is committed.
 """
 
-load("./yamlpath.star", _set = "set")
+load("./yamlpath.star", _get = "get", _set = "set")
 
 def _lit(s):
     return s.replace("$", "$$")
@@ -32,6 +32,8 @@ def gemfiles(repo):
 
 def set_gem(repo, name, requirement):
     """Sets a gem's version requirement wherever a Gemfile or gemspec lists it.
+
+    A newer version already there is kept, so a campaign never lowers one.
 
     Covers `gem "x", "~> 1.0"` with any options after it, and gemspec
     `add_dependency`, `add_runtime_dependency` and
@@ -70,6 +72,8 @@ def set_gem(repo, name, requirement):
             if not g:
                 continue
             q = g[1]
+            if semver.lowers(g[2], reqs[0]):
+                continue
             new = g[0] + "".join([", " + q + r + q for r in reqs]) + g[3]
             lines[i] = new
         updated = "\n".join(lines)
@@ -80,6 +84,8 @@ def set_gem(repo, name, requirement):
 
 def set_ruby(repo, version):
     """Sets the Ruby version a Gemfile pins with `ruby "x"`.
+
+    A newer version already there is kept, so a campaign never lowers one.
 
     `ruby file: ".ruby-version"` lines are left alone; use
     `runtime.set_version(repo, "ruby", ...)` for the version file.
@@ -103,7 +109,7 @@ def set_ruby(repo, version):
     changed = []
     for path in repo.glob("**/Gemfile", "**/gems.rb", exclude = ["**/vendor/**"]):
         content = repo.read(path)
-        updated = re.sub(r"""(?m)^(\s*ruby\s*\(?\s*(["']))[^"']*(["'])""", "${1}" + _lit(version) + "${3}", content)
+        updated = re.sub(r"""(?m)^(\s*ruby\s*\(?\s*["'])([^"']*)(["'])""", lambda m: m[0] if semver.lowers(m[2], version) else m[1] + version + m[3], content)
         if updated != content:
             repo.write(path, updated)
             changed.append(path)
@@ -111,6 +117,8 @@ def set_ruby(repo, version):
 
 def set_required_ruby(repo, requirement):
     """Sets `required_ruby_version` in every gemspec that declares it.
+
+    A newer version already there is kept, so a campaign never lowers one.
 
     Args:
         requirement: the requirement, such as `>= 3.1`.
@@ -135,7 +143,7 @@ def set_required_ruby(repo, requirement):
     changed = []
     for path in repo.glob("**/*.gemspec", exclude = ["**/vendor/**"]):
         content = repo.read(path)
-        updated = re.sub(r"""(?m)^(\s*\w+\.required_ruby_version\s*=\s*(["']))[^"']*(["'])""", "${1}" + _lit(requirement) + "${3}", content)
+        updated = re.sub(r"""(?m)^(\s*\w+\.required_ruby_version\s*=\s*["'])([^"']*)(["'])""", lambda m: m[0] if semver.lowers(m[2], requirement) else m[1] + requirement + m[3], content)
         if updated != content:
             repo.write(path, updated)
             changed.append(path)
@@ -143,6 +151,8 @@ def set_required_ruby(repo, requirement):
 
 def set_bundler(repo, version):
     """Sets the Bundler version a Gemfile.lock was `BUNDLED WITH`.
+
+    A newer version already there is kept, so a campaign never lowers one.
 
     Args:
         version: the Bundler version, such as `2.5.22`.
@@ -169,7 +179,7 @@ def set_bundler(repo, version):
     changed = []
     for path in repo.glob("**/Gemfile.lock", "**/gems.locked", exclude = ["**/vendor/**"]):
         content = repo.read(path)
-        updated = re.sub(r"(BUNDLED WITH\n\s+)\S+", "${1}" + _lit(version), content)
+        updated = re.sub(r"(BUNDLED WITH\n\s+)(\S+)", lambda m: m[0] if semver.lowers(m[2], version) else m[1] + version, content)
         if updated != content:
             repo.write(path, updated)
             changed.append(path)
@@ -177,6 +187,8 @@ def set_bundler(repo, version):
 
 def set_rubocop_target(repo, version):
     """Sets `AllCops: TargetRubyVersion` in .rubocop.yml.
+
+    A newer version already there is kept, so a campaign never lowers one.
 
     Args:
         version: the Ruby version RuboCop should target, such as `3.3`.
@@ -197,6 +209,9 @@ def set_rubocop_target(repo, version):
             True
     """
     if not repo.exists(".rubocop.yml"):
+        return False
+    current = _get(repo, ".rubocop.yml", "AllCops.TargetRubyVersion")
+    if current != None and semver.lowers(str(current), version):
         return False
     value = float(version) if re.matches(r"^\d+\.\d+$", version) else version
     return _set(repo, ".rubocop.yml", "AllCops.TargetRubyVersion", value)

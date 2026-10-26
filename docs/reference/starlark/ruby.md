@@ -77,6 +77,8 @@ set_gem(repo, name, requirement)
 
 Sets a gem's version requirement wherever a Gemfile or gemspec lists it.
 
+A newer version already there is kept, so a campaign never lowers one.
+
 Covers `gem "x", "~> 1.0"` with any options after it, and gemspec
 `add_dependency`, `add_runtime_dependency` and
 `add_development_dependency`. Gems listed without a version are left
@@ -132,6 +134,8 @@ set_ruby(repo, version)
 
 Sets the Ruby version a Gemfile pins with `ruby "x"`.
 
+A newer version already there is kept, so a campaign never lowers one.
+
 `ruby file: ".ruby-version"` lines are left alone; use
 `runtime.set_version(repo, "ruby", ...)` for the version file.
 
@@ -169,7 +173,7 @@ set_ruby(repo, "3.3.5")
     ruby "3.3.5"
     ```
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/ruby.star#L81)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/ruby.star#L85)
 
 ## set_required_ruby
 
@@ -178,6 +182,8 @@ set_required_ruby(repo, requirement)
 ```
 
 Sets `required_ruby_version` in every gemspec that declares it.
+
+A newer version already there is kept, so a campaign never lowers one.
 
 **Arguments**
 
@@ -217,7 +223,7 @@ set_required_ruby(repo, ">= 3.1")
     end
     ```
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/ruby.star#L112)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/ruby.star#L118)
 
 ## set_bundler
 
@@ -226,6 +232,8 @@ set_bundler(repo, version)
 ```
 
 Sets the Bundler version a Gemfile.lock was `BUNDLED WITH`.
+
+A newer version already there is kept, so a campaign never lowers one.
 
 **Arguments**
 
@@ -267,7 +275,7 @@ set_bundler(repo, "2.5.22")
        2.5.22
     ```
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/ruby.star#L144)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/ruby.star#L152)
 
 ## set_rubocop_target
 
@@ -276,6 +284,8 @@ set_rubocop_target(repo, version)
 ```
 
 Sets `AllCops: TargetRubyVersion` in .rubocop.yml.
+
+A newer version already there is kept, so a campaign never lowers one.
 
 **Arguments**
 
@@ -313,4 +323,4 @@ set_rubocop_target(repo, "3.3")
       NewCops: enable
     ```
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/ruby.star#L178)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/ruby.star#L188)

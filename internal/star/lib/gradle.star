@@ -9,6 +9,12 @@ WRAPPER = "gradle/wrapper/gradle-wrapper.properties"
 def _lit(s):
     return s.replace("$", "$$")
 
+
+def _keep_newer(version):
+    # A re.sub replacement for patterns of (prefix)(version)(suffix) that
+    # sets version unless the file already has a newer one.
+    return lambda m: m[0] if semver.lowers(m[2], version) else m[1] + version + m[3]
+
 def build_files(repo):
     """Lists the build scripts and version catalogs.
 
@@ -33,6 +39,8 @@ def build_files(repo):
 
 def set_dependency(repo, module, version):
     """Sets a library's version wherever the build declares it.
+
+    A newer version already there is kept, so a campaign never lowers one.
 
     Covers string coordinates in build scripts (`"group:name:1.0"`, in
     Groovy or Kotlin), and in version catalogs both `alias = "group:name:1.0"`
@@ -83,13 +91,13 @@ def set_dependency(repo, module, version):
     changed = []
     for path in build_files(repo):
         content = repo.read(path)
-        updated = re.sub(script, "${1}${2}" + _lit(version) + "${4}${5}", content)
+        updated = re.sub(script, lambda m: m[0] if semver.lowers(m[3], version) else m[1] + m[2] + version + m[4] + m[5], content)
         if path.endswith(".toml"):
             for pattern in (inline, split):
-                updated = re.sub(pattern, "${1}" + _lit(version) + "${3}", updated)
+                updated = re.sub(pattern, _keep_newer(version), updated)
             for r in re.find_all(ref, updated):
                 key = re.groups(ref, r)[0]
-                updated = re.sub(r"""(?m)^(\s*""" + re.escape(key) + r"""\s*=\s*["'])[^"']*(["'])""", "${1}" + _lit(version) + "${2}", updated, count = 1)
+                updated = re.sub(r"""(?m)^(\s*""" + re.escape(key) + r"""\s*=\s*["'])([^"']*)(["'])""", _keep_newer(version), updated, count = 1)
         if updated != content:
             repo.write(path, updated)
             changed.append(path)
@@ -159,6 +167,8 @@ def set_wrapper_version(repo, version, sha256 = None):
 def set_plugin(repo, plugin, version):
     """Sets the version of a Gradle plugin wherever the build applies or declares it.
 
+    A newer version already there is kept, so a campaign never lowers one.
+
     Covers `id 'x' version 'v'` (Groovy), `id("x") version "v"` (Kotlin), and
     version catalog `[plugins]` entries, written as `{ id = "x", version = "v" }`,
     `{ id = "x", version.ref = "key" }` (setting `[versions]` instead) or
@@ -212,13 +222,13 @@ def set_plugin(repo, plugin, version):
         content = repo.read(path)
         updated = content
         for pattern in forms:
-            updated = re.sub(pattern, "${1}" + _lit(version) + "${3}", updated)
+            updated = re.sub(pattern, _keep_newer(version), updated)
         if path.endswith(".toml"):
             for pattern in (inline, short_form):
-                updated = re.sub(pattern, "${1}" + _lit(version) + "${3}", updated)
+                updated = re.sub(pattern, _keep_newer(version), updated)
             for r in re.find_all(ref, updated):
                 key = re.groups(ref, r)[0]
-                updated = re.sub(r"""(?m)^(\s*""" + re.escape(key) + r"""\s*=\s*["'])[^"']*(["'])""", "${1}" + _lit(version) + "${2}", updated, count = 1)
+                updated = re.sub(r"""(?m)^(\s*""" + re.escape(key) + r"""\s*=\s*["'])([^"']*)(["'])""", _keep_newer(version), updated, count = 1)
         if updated != content:
             repo.write(path, updated)
             changed.append(path)
@@ -226,6 +236,8 @@ def set_plugin(repo, plugin, version):
 
 def set_kotlin_version(repo, version):
     """Moves every Kotlin Gradle plugin, and the Kotlin standard library, to one version.
+
+    A newer version already there is kept, so a campaign never lowers one.
 
     Sets every `org.jetbrains.kotlin.*` plugin a build applies (in either
     DSL or a version catalog), the `kotlin-gradle-plugin` classpath
@@ -272,9 +284,9 @@ def set_kotlin_version(repo, version):
             changed.append(p)
     for path in build_files(repo):
         content = repo.read(path)
-        updated = re.sub(r"""(?m)^(\s*(?:ext\.)?kotlin_version\s*=\s*["'])[^"']*(["'])""", "${1}" + _lit(version) + "${2}", content)
+        updated = re.sub(r"""(?m)^(\s*(?:ext\.)?kotlin_version\s*=\s*["'])([^"']*)(["'])""", _keep_newer(version), content)
         if path.endswith(".toml"):
-            updated = re.sub(r"""(?m)^(\s*kotlin(?:_version|-version)?\s*=\s*["'])[^"']*(["'])""", "${1}" + _lit(version) + "${2}", updated)
+            updated = re.sub(r"""(?m)^(\s*kotlin(?:_version|-version)?\s*=\s*["'])([^"']*)(["'])""", _keep_newer(version), updated)
         if updated != content:
             repo.write(path, updated)
             if path not in changed:

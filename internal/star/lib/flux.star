@@ -36,6 +36,8 @@ def helm_releases(repo):
 def set_chart_version(repo, chart, version):
     """Sets the chart `version` of every HelmRelease that installs a chart.
 
+    A newer version already there is kept, so a campaign never lowers one.
+
     Args:
         chart: the chart name, as in `spec.chart.spec.chart`.
         version: the new version or range, such as `19.x`.
@@ -69,10 +71,12 @@ def set_chart_version(repo, chart, version):
         returns:
             ["clusters/prod/redis.yaml"]
     """
-    return [p for p in helm_releases(repo) if _set_sibling(repo, p, "chart", chart, "version", version)]
+    return [p for p in helm_releases(repo) if _set_sibling(repo, p, "chart", chart, "version", version, never_lower = True)]
 
 def set_git_tag(repo, url, tag):
     """Sets `ref.tag` of every GitRepository that points at a URL.
+
+    A newer version already there is kept, so a campaign never lowers one.
 
     Only sources already pinned by `tag` change; sources following a
     branch, semver range or commit are left alone.
@@ -113,7 +117,7 @@ def set_git_tag(repo, url, tag):
                 found = g[1] == url
                 continue
             t = re.groups(r"""^(\s*tag:\s*["']?)([^"'\s#]+)(.*)$""", line)
-            if found and t and t[1] != tag:
+            if found and t and t[1] != tag and not semver.lowers(t[1], tag):
                 lines[i] = t[0] + tag + t[2]
         updated = "\n".join(lines)
         if updated != content:

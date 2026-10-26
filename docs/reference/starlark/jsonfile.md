@@ -19,7 +19,7 @@ load("@fleet//jsonfile.star", "read", "write", "get", "set", "delete")
 | Function | What it does |
 | --- | --- |
 | [`read`](#read) | Reads a JSON file into a value whose dict keys keep the file's order. |
-| [`write`](#write) | Writes a value as JSON, using the indentation the file already has. |
+| [`write`](#write) | Writes a value as JSON in the layout the file already has. |
 | [`get`](#get) | Reads a value by dotted key path. |
 | [`set`](#set) | Sets a value by dotted key path, adding missing objects on the way. |
 | [`delete`](#delete) | Removes a key by dotted key path. |
@@ -65,9 +65,13 @@ read(repo, "renovate.json")["extends"]
 write(repo, path, data)
 ```
 
-Writes a value as JSON, using the indentation the file already has.
+Writes a value as JSON in the layout the file already has.
 
-A new file gets two spaces. Output ends with a newline.
+Values that didn't change keep their exact text, so a one-key edit is
+a one-line diff. Changed and new values follow the indentation and
+separators around them, and new lists of plain values are written on
+one line when the file already writes lists that way. A new file gets
+two spaces. Output ends with a newline.
 
 **Arguments**
 
@@ -147,7 +151,7 @@ get(repo, "tsconfig.json", "compilerOptions.target")
     {"compilerOptions": {"strict": false, "target": "ES2020"}}
     ```
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/jsonfile.star#L80)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/jsonfile.star#L87)
 
 ## set
 
@@ -204,7 +208,7 @@ set(repo, "tsconfig.json", "compilerOptions.strict", True)
 
 **Used in:** [`renovate-preset`](https://github.com/rossedman/gh-fleet/tree/main/examples/renovate-preset)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/jsonfile.star#L104)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/jsonfile.star#L111)
 
 ## delete
 
@@ -258,4 +262,4 @@ delete(repo, "package.json", "scripts.postinstall")
     }
     ```
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/jsonfile.star#L150)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/jsonfile.star#L157)

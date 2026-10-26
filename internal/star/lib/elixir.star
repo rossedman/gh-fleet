@@ -30,6 +30,8 @@ def projects(repo):
 def set_dep(repo, name, requirement):
     """Sets a dependency's requirement wherever a mix.exs lists it with one.
 
+    A newer version already there is kept, so a campaign never lowers one.
+
     Covers `{:phoenix, "~> 1.7"}` with any options after it. Dependencies
     from `git:` or `path:` without a version are left alone.
 
@@ -64,7 +66,7 @@ def set_dep(repo, name, requirement):
     changed = []
     for path in projects(repo):
         content = repo.read(path)
-        updated = re.sub(pattern, "${1}" + _lit(requirement) + "${3}", content)
+        updated = re.sub(pattern, lambda m: m[0] if semver.lowers(m[2], requirement) else m[1] + requirement + m[3], content)
         if updated != content:
             repo.write(path, updated)
             changed.append(path)
@@ -72,6 +74,8 @@ def set_dep(repo, name, requirement):
 
 def set_elixir(repo, requirement):
     """Sets the `elixir:` requirement in each project definition.
+
+    A newer version already there is kept, so a campaign never lowers one.
 
     Args:
         requirement: the requirement, such as `~> 1.17`.
@@ -102,7 +106,7 @@ def set_elixir(repo, requirement):
     changed = []
     for path in projects(repo):
         content = repo.read(path)
-        updated = re.sub(r"""(\belixir:\s*")[^"]*(")""", "${1}" + _lit(requirement) + "${2}", content)
+        updated = re.sub(r"""(\belixir:\s*")([^"]*)(")""", lambda m: m[0] if semver.lowers(m[2], requirement) else m[1] + requirement + m[3], content)
         if updated != content:
             repo.write(path, updated)
             changed.append(path)

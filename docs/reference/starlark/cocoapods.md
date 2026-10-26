@@ -67,6 +67,8 @@ set_pod(repo, name, requirement)
 
 Sets a pod's version requirement wherever a Podfile lists it with one.
 
+A newer version already there is kept, so a campaign never lowers one.
+
 Pods without a version, or pinned to a `:git` source, are left alone.
 Subspecs match by their full name, such as `Firebase/Analytics`.
 
@@ -158,4 +160,4 @@ set_platform(repo, "ios", "15.0")
 
 **Used in:** [`cocoapods-ios-15`](https://github.com/rossedman/gh-fleet/tree/main/examples/cocoapods-ios-15)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/cocoapods.star#L65)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/cocoapods.star#L67)

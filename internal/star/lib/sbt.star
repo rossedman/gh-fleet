@@ -30,6 +30,8 @@ def build_files(repo):
 def set_sbt_version(repo, version):
     """Sets `sbt.version` in project/build.properties.
 
+    A newer version already there is kept, so a campaign never lowers one.
+
     Args:
         version: the sbt version, such as `1.10.2`.
     Returns:
@@ -48,7 +50,7 @@ def set_sbt_version(repo, version):
     content = repo.read(path, default = None)
     if content == None:
         return False
-    updated = re.sub(r"(?m)^(\s*sbt\.version\s*=\s*)\S+", "${1}" + _lit(version), content)
+    updated = re.sub(r"(?m)^(\s*sbt\.version\s*=\s*)(\S+)", lambda m: m[0] if semver.lowers(m[2], version) else m[1] + version, content)
     if updated == content:
         return False
     repo.write(path, updated)
@@ -56,6 +58,8 @@ def set_sbt_version(repo, version):
 
 def set_dependency(repo, organization, name, version):
     """Sets the version of a library or sbt plugin wherever the build declares it.
+
+    A newer version already there is kept, so a campaign never lowers one.
 
     Covers `"org" % "name" % "v"` and `"org" %% "name" % "v"` (with any
     configuration such as `% Test` after it), and `addSbtPlugin(...)`.
@@ -88,7 +92,7 @@ def set_dependency(repo, organization, name, version):
     changed = []
     for path in build_files(repo):
         content = repo.read(path)
-        updated = re.sub(pattern, "${1}" + _lit(version) + "${3}", content)
+        updated = re.sub(pattern, lambda m: m[0] if semver.lowers(m[2], version) else m[1] + version + m[3], content)
         if updated != content:
             repo.write(path, updated)
             changed.append(path)

@@ -110,11 +110,12 @@ def set_section(repo, path, heading, body, level = 2, replace = True):
     return True
 
 def ensure_badge(repo, path, badge):
-    """Adds a badge under the first heading of a Markdown file.
+    """Adds a badge to a Markdown file, next to the badges it already shows.
 
-    The badge joins any badges already there. A file that already contains
-    the badge's text is left alone, and a file with no heading gets the badge
-    at the top.
+    The badge joins the first run of badges before the first `##` section,
+    wherever it is: under the title, or under a logo. Without one, it goes
+    under a `#` title, or at the top. A file that already contains the
+    badge's text is left alone.
 
     Args:
         path: the Markdown file.
@@ -142,24 +143,42 @@ def ensure_badge(repo, path, badge):
     if content == None or badge in content:
         return False
     lines = content.split("\n")
-    at = -1
+    is_badge = lambda line: line.startswith(("[![", "![")) and "](" in line and ("badge" in line or "shields.io" in line or "[![" in line)
+
+    # The preamble ends at the first section heading below the title.
+    end = len(lines)
     for i, line in enumerate(lines):
-        if _heading(line):
-            at = i + 1
+        h = _heading(line)
+        if h and h[0] > 1:
+            end = i
             break
-    if at < 0:
-        lines = [badge, ""] + lines
+    run = -1
+    for i in range(end):
+        if is_badge(lines[i]):
+            run = i
+            break
+    if run >= 0:
+        k = run
+        for _ in range(len(lines)):
+            if k < len(lines) and is_badge(lines[k]):
+                k += 1
+            else:
+                break
+        lines = lines[:k] + [badge] + lines[k:]
     else:
-        # Keep badges together: after a blank line, behind any already there.
-        j = at + 1 if at < len(lines) and lines[at] == "" else at
-        k = j
-        while k < len(lines) and lines[k].startswith(("[![", "![")):
-            k += 1
-        if k > j:
-            lines = lines[:k] + [badge] + lines[k:]
-        elif at < len(lines) and lines[at] != "":
-            lines = lines[:at] + ["", badge, ""] + lines[at:]
+        title = -1
+        for i in range(end):
+            h = _heading(lines[i])
+            if h and h[0] == 1:
+                title = i
+                break
+        if title < 0:
+            lines = [badge, ""] + lines
         else:
-            lines = lines[:at] + ["", badge] + lines[at:]
+            at = title + 1
+            if at < len(lines) and lines[at] != "":
+                lines = lines[:at] + ["", badge, ""] + lines[at:]
+            else:
+                lines = lines[:at] + ["", badge] + lines[at:]
     repo.write(path, "\n".join(lines))
     return True

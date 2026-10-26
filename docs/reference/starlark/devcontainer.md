@@ -208,6 +208,8 @@ set_feature_version(repo, feature, version)
 
 Moves a feature to a new major version, such as `docker-in-docker:1` to `:2`.
 
+A newer version already there is kept, so a campaign never lowers one.
+
 **Arguments**
 
 | Name | Description |
@@ -313,7 +315,7 @@ add_feature(repo, "ghcr.io/devcontainers/features/github-cli:1")
 
 **Used in:** [`devcontainer-image`](https://github.com/rossedman/gh-fleet/tree/main/examples/devcontainer-image)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/devcontainer.star#L198)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/devcontainer.star#L200)
 
 ## set
 
@@ -369,4 +371,4 @@ set(repo, "remoteUser", "vscode")
     }
     ```
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/devcontainer.star#L273)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/devcontainer.star#L275)

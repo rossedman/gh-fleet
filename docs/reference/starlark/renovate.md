@@ -11,7 +11,7 @@ and .renovaterc.json), keeping key order and indentation. JSON5 configs
 can't be edited this way and are skipped by `find`.
 
 ```python
-load("@fleet//renovate.star", "find", "add_preset", "remove_preset", "add_package_rule", "set_option")
+load("@fleet//renovate.star", "find", "add_preset", "remove_preset", "replace_preset", "add_package_rule", "set_option")
 ```
 
 | Function | What it does |
@@ -19,6 +19,7 @@ load("@fleet//renovate.star", "find", "add_preset", "remove_preset", "add_packag
 | [`find`](#find) | Finds the repo's Renovate config. |
 | [`add_preset`](#add_preset) | Adds a preset to `extends` unless it is already there. |
 | [`remove_preset`](#remove_preset) | Removes a preset from `extends`, such as a retired `config:base`. |
+| [`replace_preset`](#replace_preset) | Replaces a preset in `extends` where it is, such as `config:base` with `config:recommended`. |
 | [`add_package_rule`](#add_package_rule) | Appends a rule to `packageRules` unless an identical rule is already there. |
 | [`set_option`](#set_option) | Sets a top-level or nested option, such as `schedule` or `lockFileMaintenance.enabled`. |
 
@@ -95,14 +96,9 @@ add_preset(repo, "github>acme/renovate-config")
 
     ```json
     {
-      "extends": [
-        "config:recommended",
-        "github>acme/renovate-config"
-      ]
+      "extends": ["config:recommended", "github>acme/renovate-config"]
     }
     ```
-
-**Used in:** [`renovate-automerge`](https://github.com/rossedman/gh-fleet/tree/main/examples/renovate-automerge)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/renovate.star#L30)
 
@@ -143,16 +139,61 @@ remove_preset(repo, "config:base")
     `renovate.json`
 
     ```json
+    {"extends": [":semanticCommits"]}
+    ```
+
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/renovate.star#L60)
+
+## replace_preset
+
+```python
+replace_preset(repo, old, new)
+```
+
+Replaces a preset in `extends` where it is, such as `config:base` with `config:recommended`.
+
+When `new` is already there too, `old` is just removed.
+
+**Arguments**
+
+| Name | Description |
+| --- | --- |
+| `repo` | The repo passed to `change(repo)`. |
+| `old` | The preset to replace. |
+| `new` | The preset to put in its place. |
+
+**Returns:** True when the file changed.
+
+**Example**
+
+```python
+replace_preset(repo, "config:base", "config:recommended")
+# returns True
+```
+
+=== "Before"
+
+    `renovate.json`
+
+    ```json
     {
-      "extends": [
-        ":semanticCommits"
-      ]
+      "extends": ["config:base", ":semanticCommits"]
+    }
+    ```
+
+=== "After"
+
+    `renovate.json`
+
+    ```json
+    {
+      "extends": ["config:recommended", ":semanticCommits"]
     }
     ```
 
 **Used in:** [`renovate-automerge`](https://github.com/rossedman/gh-fleet/tree/main/examples/renovate-automerge)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/renovate.star#L63)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/renovate.star#L85)
 
 ## add_package_rule
 
@@ -194,14 +235,10 @@ add_package_rule(repo, {"matchDepTypes": ["devDependencies"], "automerge": True}
 
     ```json
     {
-      "extends": [
-        "config:recommended"
-      ],
+      "extends": ["config:recommended"],
       "packageRules": [
         {
-          "matchDepTypes": [
-            "devDependencies"
-          ],
+          "matchDepTypes": ["devDependencies"],
           "automerge": true
         }
       ]
@@ -210,7 +247,7 @@ add_package_rule(repo, {"matchDepTypes": ["devDependencies"], "automerge": True}
 
 **Used in:** [`renovate-automerge`](https://github.com/rossedman/gh-fleet/tree/main/examples/renovate-automerge)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/renovate.star#L92)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/renovate.star#L122)
 
 ## set_option
 
@@ -254,13 +291,9 @@ set_option(repo, "schedule", ["before 6am on monday"])
 
     ```json
     {
-      "extends": [
-        "config:recommended"
-      ],
-      "schedule": [
-        "before 6am on monday"
-      ]
+      "extends": ["config:recommended"],
+      "schedule": ["before 6am on monday"]
     }
     ```
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/renovate.star#L132)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/renovate.star#L158)

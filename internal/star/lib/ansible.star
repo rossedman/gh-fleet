@@ -26,6 +26,8 @@ def requirements(repo):
 def set_version(repo, name, version):
     """Sets the version of a role or collection wherever a requirements file lists it.
 
+    A newer version already there is kept, so a campaign never lowers one.
+
     Entries are matched by `name`, and for roles also by `src`. A missing
     `version` key is added.
 
@@ -54,8 +56,8 @@ def set_version(repo, name, version):
     """
     changed = []
     for path in requirements(repo):
-        a = _set_sibling(repo, path, "name", name, "version", version)
-        b = _set_sibling(repo, path, "src", name, "version", version)
+        a = _set_sibling(repo, path, "name", name, "version", version, never_lower = True)
+        b = _set_sibling(repo, path, "src", name, "version", version, never_lower = True)
         if a or b:
             changed.append(path)
     return changed

@@ -24,7 +24,7 @@ func TestRenovatePreset(t *testing.T) {
 	t.Parallel()
 	dir := scratch(t, map[string]string{"renovate.json": "{\n    \"extends\": [\"config:base\"],\n    \"schedule\": [\"weekly\"]\n}\n"})
 	runTwice(t, "renovate-preset", dir)
-	if got := read(t, filepath.Join(dir, "renovate.json")); got != "{\n    \"extends\": [\n        \"github>acme/renovate-config\"\n    ],\n    \"schedule\": [\n        \"weekly\"\n    ]\n}\n" {
+	if got := read(t, filepath.Join(dir, "renovate.json")); got != "{\n    \"extends\": [\"github>acme/renovate-config\"],\n    \"schedule\": [\"weekly\"]\n}\n" {
 		t.Errorf("renovate.json = %q", got)
 	}
 }
@@ -33,7 +33,7 @@ func TestRuffConfig(t *testing.T) {
 	t.Parallel()
 	dir := scratch(t, map[string]string{"pyproject.toml": "[project]\nname = \"api\"\n\n[tool.ruff]\nline-length = 88  # was black's\n"})
 	runTwice(t, "ruff-config", dir)
-	if got := read(t, filepath.Join(dir, "pyproject.toml")); got != "[project]\nname = \"api\"\n\n[tool.ruff]\nline-length = 100  # was black's\n\n[tool.ruff.lint]\nselect = [\"E\", \"F\", \"I\"]\n" {
+	if got := read(t, filepath.Join(dir, "pyproject.toml")); got != "[project]\nname = \"api\"\n\n[tool.ruff]\nline-length = 88  # was black's\n\n[tool.ruff.lint]\nextend-select = [\"E\", \"F\", \"I\"]\n" {
 		t.Errorf("pyproject.toml = %q", got)
 	}
 	runScript(t, "ruff-config", t.TempDir())

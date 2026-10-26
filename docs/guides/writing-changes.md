@@ -115,7 +115,8 @@ Press Ctrl-C once and gh fleet stops starting new repos but lets the scripts alr
 
 - Every step's output is written, under a `## step <name>` heading, to `$XDG_STATE_HOME/gh-fleet/<name>/logs/<owner>__<repo>.log`, replaced on each run. The last lines of output are also in the `NOTE` column of `gh fleet status`.
 - `--keep-workdirs` leaves the clones on disk, under `gh-fleet/<campaign>/<owner>/<repo>` in your temporary directory, so you can reproduce a failure by hand.
-- `gh fleet plan --repo owner/name` is the fastest loop: one repo, no writes.
+- `gh fleet test --dir ../repo` is the fastest loop: it runs the change on a clone you already have, with no network. `gh fleet plan --repo owner/name` does the same on a fresh clone.
+- Keep the repos that broke as [test cases](testing.md), so `gh fleet test` catches the bug if it comes back.
 
 ## Pull request text
 

@@ -236,7 +236,15 @@ set_in("metadata:\n  name: api\n", "metadata.labels.team", "payments")
 ## set_sibling
 
 ```python
-set_sibling(repo, path, match_key, match_value, key, value)
+set_sibling(
+    repo,
+    path,
+    match_key,
+    match_value,
+    key,
+    value,
+    never_lower = False,
+)
 ```
 
 Sets `key` in every mapping where `match_key` has the value `match_value`, list items included.
@@ -257,6 +265,7 @@ one is added at the end of the mapping.
 | `match_value` | The value `match_key` must have, compared unquoted. |
 | `key` | The sibling key to set. |
 | `value` | A string, number, boolean or None. |
+| `never_lower` | Leave an existing value alone when it is a higher version than `value`. |
 
 **Returns:** True when the file changed.
 
@@ -341,4 +350,4 @@ delete(repo, ".github/workflows/ci.yml", "jobs.test.continue-on-error")
         steps: []
     ```
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/yamlpath.star#L445)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/yamlpath.star#L448)

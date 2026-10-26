@@ -74,6 +74,8 @@ set_requirement(repo, name, spec)
 
 Sets a package's version specifier wherever it is already required.
 
+A newer version already there is kept, so a campaign never lowers one.
+
 Changes requirements*.txt lines and the quoted entries of pyproject.toml
 dependency lists, keeping extras such as `[socks]`, environment markers
 and comments. Names match the way pip matches them: `Django`, `django`
@@ -166,7 +168,7 @@ requires_python(repo)
     requires-python = ">=3.9"
     ```
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/python.star#L92)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/python.star#L94)
 
 ## set_requires_python
 
@@ -175,6 +177,8 @@ set_requires_python(repo, spec, path = "pyproject.toml")
 ```
 
 Sets `requires-python` in a pyproject.toml that already has it.
+
+A newer version already there is kept, so a campaign never lowers one.
 
 **Arguments**
 
@@ -213,4 +217,4 @@ set_requires_python(repo, ">=3.12")
 
 **Used in:** [`python-version`](https://github.com/rossedman/gh-fleet/tree/main/examples/python-version)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/python.star#L111)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/python.star#L113)

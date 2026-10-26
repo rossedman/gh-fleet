@@ -73,6 +73,8 @@ set_required_version(repo, constraint)
 
 Sets every `required_version` constraint.
 
+A newer version already there is kept, so a campaign never lowers one.
+
 **Arguments**
 
 | Name | Description |
@@ -120,6 +122,8 @@ set_provider_version(repo, source, constraint)
 ```
 
 Sets the version constraint of a provider in `required_providers`.
+
+A newer version already there is kept, so a campaign never lowers one.
 
 Works on entries written as a block or on one line
 (`aws = { source = "hashicorp/aws", version = "~> 5.0" }`), and on
@@ -175,4 +179,4 @@ set_provider_version(repo, "hashicorp/aws", "~> 5.0")
 
 **Used in:** [`terraform-provider-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/terraform-provider-bump)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/terraform.star#L61)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/terraform.star#L63)

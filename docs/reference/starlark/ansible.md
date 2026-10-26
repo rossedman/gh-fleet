@@ -65,6 +65,8 @@ set_version(repo, name, version)
 
 Sets the version of a role or collection wherever a requirements file lists it.
 
+A newer version already there is kept, so a campaign never lowers one.
+
 Entries are matched by `name`, and for roles also by `src`. A missing
 `version` key is added.
 

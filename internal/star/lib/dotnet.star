@@ -41,6 +41,8 @@ def projects(repo):
 def set_package(repo, name, version):
     """Sets a NuGet package's version wherever a project already references it.
 
+    A newer version already there is kept, so a campaign never lowers one.
+
     Covers `<PackageReference>` and central `<PackageVersion>` entries,
     with the version as a `Version="..."` attribute or a `<Version>` child
     element. Package names match case-insensitively, as NuGet does.
@@ -77,7 +79,8 @@ def set_package(repo, name, version):
             ["src/Api/Api.csproj"]
     """
     ref = r"""(?i)<(PackageReference|PackageVersion)\b[^>]*\b(?:Include|Update)\s*=\s*"\s*""" + re.escape(name) + r"""\s*\""""
-    attr = r"""(\bVersion\s*=\s*")[^"]*(")"""
+    attr = r"""(\bVersion\s*=\s*")([^"]*)(")"""
+    keep = lambda m: m[0] if semver.lowers(m[2], version) else m[1] + version + m[3]
     changed = []
     for path in projects(repo):
         content = repo.read(path)
@@ -86,13 +89,13 @@ def set_package(repo, name, version):
             if not re.matches(ref, line):
                 continue
             if re.matches(r"\bVersion\s*=", line):
-                lines[i] = re.sub(attr, "${1}" + _lit(version) + "${2}", line, count = 1)
+                lines[i] = re.sub(attr, keep, line, count = 1)
             elif not re.matches(r"/>\s*$", line):
                 for j in range(i + 1, len(lines)):
                     if re.matches(r"</Package(Reference|Version)>", lines[j]):
                         break
                     if "<Version>" in lines[j]:
-                        lines[j] = re.sub(r"(<Version>)[^<]*(</Version>)", "${1}" + _lit(version) + "${2}", lines[j], count = 1)
+                        lines[j] = re.sub(r"(<Version>)([^<]*)(</Version>)", keep, lines[j], count = 1)
                         break
         updated = "\n".join(lines)
         if updated != content:
@@ -187,6 +190,8 @@ def sdk_version(repo):
 def set_sdk_version(repo, version):
     """Sets the .NET SDK version in a global.json that already pins one.
 
+    A newer version already there is kept, so a campaign never lowers one.
+
     Args:
         version: the SDK version, such as `8.0.400`.
     Returns:
@@ -211,6 +216,7 @@ def set_sdk_version(repo, version):
         returns:
             True
     """
-    if sdk_version(repo) == None:
+    current = sdk_version(repo)
+    if current == None or semver.lowers(current, version):
         return False
     return _set(repo, "global.json", "sdk.version", version)

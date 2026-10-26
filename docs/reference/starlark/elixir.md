@@ -73,6 +73,8 @@ set_dep(repo, name, requirement)
 
 Sets a dependency's requirement wherever a mix.exs lists it with one.
 
+A newer version already there is kept, so a campaign never lowers one.
+
 Covers `{:phoenix, "~> 1.7"}` with any options after it. Dependencies
 from `git:` or `path:` without a version are left alone.
 
@@ -133,6 +135,8 @@ set_elixir(repo, requirement)
 
 Sets the `elixir:` requirement in each project definition.
 
+A newer version already there is kept, so a campaign never lowers one.
+
 **Arguments**
 
 | Name | Description |
@@ -179,4 +183,4 @@ set_elixir(repo, "~> 1.17")
 
 **Used in:** [`elixir-phoenix`](https://github.com/rossedman/gh-fleet/tree/main/examples/elixir-phoenix)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/elixir.star#L73)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/elixir.star#L75)

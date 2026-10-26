@@ -66,6 +66,10 @@ set_rule(repo, rule, level, options = None)
 
 Sets a rule's level, and optionally its options.
 
+Without `options`, a rule that already has options keeps them and only
+its level changes, so `["error", "allow-null"]` becomes
+`["warn", "allow-null"]` rather than losing `allow-null`.
+
 **Arguments**
 
 | Name | Description |
@@ -104,17 +108,12 @@ set_rule(repo, "no-console", "error", {"allow": ["warn", "error"]})
 
     ```json
     {
-      "extends": [
-        "eslint:recommended"
-      ],
+      "extends": ["eslint:recommended"],
       "rules": {
         "no-console": [
           "error",
           {
-            "allow": [
-              "warn",
-              "error"
-            ]
+            "allow": ["warn", "error"]
           }
         ]
       }
@@ -163,12 +162,7 @@ add_extends(repo, "plugin:security/recommended")
     `.eslintrc.json`
 
     ```json
-    {
-      "extends": [
-        "eslint:recommended",
-        "plugin:security/recommended"
-      ]
-    }
+    {"extends": ["eslint:recommended", "plugin:security/recommended"]}
     ```
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/eslint.star#L102)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/eslint.star#L139)

@@ -323,6 +323,7 @@ def change(repo):
     repo.set_var("valid", [semver.valid("1.2.3"), semver.valid("one")])
     repo.set_var("major", [semver.major("v3.4.5"), semver.major_minor("3.4.5")])
     repo.set_var("max", semver.max("1.2.0", "v1.10.0", "1.9.0"))
+    repo.set_var("lowers", [semver.lowers(a, b) for a, b in [("^13.17", "^11.0"), ("3.15", "3.12"), ("v1.9", "v1.10.0"), ("main", "v2"), ("22-alpine", "22"), ("1.2", "1.2.0"), ("2024.01.15.1", "2024.01.15"), ("9f8e7d6c5b4a", "v1.2.0"), ("v9", "sha256:1234abcd")]])
 
     repo.set_var("re", [
         re.matches(r"^v\d+$", "v12"),
@@ -334,6 +335,7 @@ def change(repo):
         re.split(r",\s*", "a, b,c"),
         re.sub(r"node:(\d+)", "node:22", "FROM node:18 AS a\nFROM node:20\n"),
         re.sub(r"(\w)", "${1}${1}", "abc", count = 2),
+        re.sub(r"v(\d+)", lambda m: "v" + str(int(m[1]) + 1), "v1 v9 $"),
     ])
 `
 	dir, res, _, err := run(t, src, map[string]string{
@@ -369,7 +371,8 @@ def change(repo):
 	check("valid", "[true false]")
 	check("major", "[3 3.4]")
 	check("max", "v1.10.0")
-	check("re", "[true 1 true [checkout v4] true [1 2] [a b c] FROM node:22 AS a|FROM node:22| aabbc]")
+	check("lowers", "[true true false false false false true false false]")
+	check("re", "[true 1 true [checkout v4] true [1 2] [a b c] FROM node:22 AS a|FROM node:22| aabbc v2 v10 $]")
 }
 
 func TestModuleErrors(t *testing.T) {
@@ -383,6 +386,8 @@ func TestModuleErrors(t *testing.T) {
 		{"semver.major('x')", "not a semantic version"},
 		{"semver.major_minor('x')", "not a semantic version"},
 		{"re.matches('(', 'x')", "missing closing )"},
+		{"re.sub('a', 1, 'a')", "repl must be a string or a function, not int"},
+		{"re.sub('a', lambda m: 1, 'a')", "repl function returned int, want string"},
 		{"re.sub('(', 'x', 'y')", "missing closing )"},
 		{"re.sub(1, 'x', 'y')", "for parameter pattern"},
 		{"re.search('a')", "got 1 arguments, want 2"},

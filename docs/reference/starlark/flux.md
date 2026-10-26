@@ -68,6 +68,8 @@ set_chart_version(repo, chart, version)
 
 Sets the chart `version` of every HelmRelease that installs a chart.
 
+A newer version already there is kept, so a campaign never lowers one.
+
 **Arguments**
 
 | Name | Description |
@@ -131,6 +133,8 @@ set_git_tag(repo, url, tag)
 
 Sets `ref.tag` of every GitRepository that points at a URL.
 
+A newer version already there is kept, so a campaign never lowers one.
+
 Only sources already pinned by `tag` change; sources following a
 branch, semver range or commit are left alone.
 
@@ -177,4 +181,4 @@ set_git_tag(repo, "https://github.com/acme/deploy", "v1.5.0")
         tag: v1.5.0
     ```
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/flux.star#L74)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/flux.star#L76)

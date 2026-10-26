@@ -102,7 +102,7 @@ read_package(repo)["name"]
     {"name": "web", "private": true}
     ```
 
-**Used in:** [`node-engines`](https://github.com/rossedman/gh-fleet/tree/main/examples/node-engines)
+**Used in:** [`node-engines`](https://github.com/rossedman/gh-fleet/tree/main/examples/node-engines), [`node-pnpm-9`](https://github.com/rossedman/gh-fleet/tree/main/examples/node-pnpm-9)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/npm.star#L31)
 
@@ -169,6 +169,8 @@ set_dependency(repo, name, version, sections = SECTIONS)
 
 Sets a dependency's version range in every package.json that already lists it.
 
+A newer version already there is kept, so a campaign never lowers one.
+
 Packages that do not depend on `name` are left alone, so this never adds
 a dependency. package-lock.json is not touched; follow with a `run` step
 such as `npm install --package-lock-only --ignore-scripts`.
@@ -233,6 +235,8 @@ set_package_manager(repo, spec, path = "package.json")
 
 Sets the `packageManager` field Corepack uses, such as `pnpm@9.12.0`, where a package already has one.
 
+A newer version of the same package manager is kept.
+
 **Arguments**
 
 | Name | Description |
@@ -274,7 +278,7 @@ set_package_manager(repo, "pnpm@9.12.0")
 
 **Used in:** [`node-pnpm-9`](https://github.com/rossedman/gh-fleet/tree/main/examples/node-pnpm-9)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/npm.star#L125)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/npm.star#L127)
 
 ## set_npmrc
 
@@ -326,4 +330,4 @@ set_npmrc(repo, "engine-strict", "true")
 
 **Used in:** [`node-pnpm-9`](https://github.com/rossedman/gh-fleet/tree/main/examples/node-pnpm-9)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/npm.star#L158)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/npm.star#L165)
