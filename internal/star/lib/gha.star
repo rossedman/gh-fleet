@@ -287,3 +287,74 @@ def pin(repo, shas):
             repo.write(path, updated)
             changed.append(path)
     return changed
+
+def rename_branch(repo, old, new):
+    """Renames a branch in workflow triggers and branch checks, as when `master` becomes `main`.
+
+    Changes the `branches` and `branches-ignore` lists of triggers, in flow
+    (`[master, dev]`) and block form, and `refs/heads/<old>` anywhere in a
+    workflow, such as in `if:` conditions. Glob patterns such as `master-*`
+    and branches that only start with the old name are left alone.
+
+    Args:
+        old: the old branch name.
+        new: the new branch name.
+    Returns:
+        The list of paths that changed.
+    Example:
+        before .github/workflows/ci.yml:
+            on:
+              push:
+                branches: [master, "release/*"]
+              pull_request:
+                branches:
+                  - master  # default branch
+                  - master-legacy
+            jobs:
+              deploy:
+                if: github.ref == 'refs/heads/master'
+        call:
+            rename_branch(repo, "master", "main")
+        after .github/workflows/ci.yml:
+            on:
+              push:
+                branches: [main, "release/*"]
+              pull_request:
+                branches:
+                  - main  # default branch
+                  - master-legacy
+            jobs:
+              deploy:
+                if: github.ref == 'refs/heads/main'
+        returns:
+            [".github/workflows/ci.yml"]
+    """
+    changed = []
+    for path in workflows(repo):
+        content = repo.read(path)
+        lines = content.split("\n")
+        block = -1
+        for i, line in enumerate(lines):
+            indent = len(line) - len(line.lstrip(" "))
+            g = re.groups(r"^(\s*branches(?:-ignore)?:\s*\[)([^\]]*)(\].*)$", line)
+            if g:
+                items = []
+                for item in g[1].split(","):
+                    bare = item.strip().strip("\"'")
+                    items.append(item.replace(bare, new, 1) if bare == old else item)
+                line = g[0] + ",".join(items) + g[2]
+            if re.matches(r"^\s*branches(?:-ignore)?:\s*(#.*)?$", line):
+                block = indent
+            elif block >= 0 and line.strip() and indent <= block:
+                block = -1
+            elif block >= 0:
+                item = re.groups(r"""^(\s*-\s*["']?)([^"'\s#]+)(.*)$""", line)
+                if item and item[1] == old:
+                    line = item[0] + new + item[2]
+            line = re.sub(r"refs/heads/" + re.escape(old) + r"([^\w./-]|$)", "refs/heads/" + _lit(new) + "${1}", line)
+            lines[i] = line
+        updated = "\n".join(lines)
+        if updated != content:
+            repo.write(path, updated)
+            changed.append(path)
+    return changed

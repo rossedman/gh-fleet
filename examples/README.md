@@ -31,6 +31,9 @@ campaign is safe.
 | [`readme-section`](readme-section/) | Writes a Security section and a CI badge into every README | `markdown.set_section` and `markdown.ensure_badge`, per-repo URLs |
 | [`security-policy`](security-policy/) | Adds `SECURITY.md` from a template, unless one exists | a template shipped with the campaign, filled in per repo |
 | [`add-codeowners`](add-codeowners/) | Writes `.github/CODEOWNERS` naming each repo's team | per-repo variables from defaults, match rules and a CSV, read as `repo.vars` |
+| [`changelog-entry`](changelog-entry/) | Patches lodash and records it under Unreleased > Security in `CHANGELOG.md` | `changelog.add_entry` as part of another change |
+| [`license-year`](license-year/) | Extends the copyright year in MIT and Apache-2.0 licenses | `license.detect` and `license.set_year` |
+| [`editor-defaults`](editor-defaults/) | Sets `.editorconfig` and `.gitattributes` defaults | `editorconfig.set` and `gitattributes.set`, merging with what is there |
 
 ## Dependencies
 
@@ -42,6 +45,9 @@ campaign is safe.
 | [`cargo-dependency-bump`](cargo-dependency-bump/) | Sets a crate's version in every `Cargo.toml` and refreshes `Cargo.lock` | `cargo.set_dependency` for plain and table forms |
 | [`jvm-dependency-bump`](jvm-dependency-bump/) | Moves jackson-databind to 2.17.2 in Maven poms and Gradle builds | `maven.set_dependency` following `${property}` references, `gradle.set_dependency` including `version.ref` |
 | [`terraform-provider-bump`](terraform-provider-bump/) | Moves the AWS provider to `~> 5.0` and raises `required_version` | `terraform.set_provider_version` on block and one-line entries |
+| [`terragrunt-module-ref`](terragrunt-module-ref/) | Moves every `?ref=` of a shared Terraform modules repo to v2.0.0 | `terragrunt.set_source_ref` with a `*` source, `.tf` and `terragrunt.hcl` alike |
+| [`ansible-collections`](ansible-collections/) | Sets a collection's version in every `requirements.yml` | `ansible.set_version`, adding a missing `version` |
+| [`cmake-minimum`](cmake-minimum/) | Raises `cmake_minimum_required` and moves a FetchContent tag | `cmake.set_minimum_version` keeping `...max` ranges |
 | [`node-engines`](node-engines/) | Requires Node 22 in every `package.json`, never lowering a newer requirement | JSON edited as data with key order kept, values handed back to the PR |
 | [`docker-base-image`](docker-base-image/) | Moves `FROM node:18` to `node:22`, keeping variants and stages | `docker.bump_base_image`, draft PRs |
 | [`compose-image-bump`](compose-image-bump/) | Moves `image: redis:7` to `redis:8` in Compose files, Kubernetes manifests and Dockerfiles | `docker.bump_image` |
@@ -60,6 +66,7 @@ campaign is safe.
 | --- | --- | --- |
 | [`bump-go-version`](bump-go-version/) | Raises the `go` directive and workflow `go-version` pins | `exclude.repos`, `gomod.set_go_version` never lowering a version |
 | [`python-version`](python-version/) | Moves `.python-version`, `requires-python` and `setup-python` to 3.12 | three helpers in one step: `runtime`, `python` and `gha` |
+| [`make-go-version`](make-go-version/) | Sets `GO_VERSION` in Makefiles and raises `go.mod` to match | `make.set_var` keeping `?=`, `:=` and comments |
 | [`node-version`](node-version/) | Pins Node 22 in `.nvmrc`, `.tool-versions` and `setup-node`, creating `.nvmrc` where nothing pins it | `runtime.set_version` with `create`, the version as a variable |
 | [`gradle-wrapper-bump`](gradle-wrapper-bump/) | Moves the Gradle wrapper to 8.10.2, with the right checksum for `-bin` or `-all` | `gradle.set_wrapper_version`, never lowering a version |
 | [`dotnet-8`](dotnet-8/) | Retargets `net6.0` projects to `net8.0` and pins the 8.0 SDK | `dotnet.set_target_framework` on single and multi-targeted projects |
@@ -73,12 +80,21 @@ campaign is safe.
 | [`workflow-permissions`](workflow-permissions/) | Adds a read-only top-level `permissions:` to workflows without one | line-based YAML edits so comments and layout survive |
 | [`pre-commit-rev`](pre-commit-rev/) | Moves a hook repository to a new `rev` in `.pre-commit-config.yaml` | `precommit.set_rev`, the old rev reported in the PR |
 | [`runner-label`](runner-label/) | Pins jobs on `ubuntu-latest` to `ubuntu-24.04` | `yamlpath.values` with a `*` wildcard, then `yamlpath.set` |
+| [`buildkite-plugin-bump`](buildkite-plugin-bump/) | Moves the docker-compose plugin to v5.4.1 in every Buildkite pipeline | `buildkite.bump_plugin`, reporting the old version |
+| [`buildkite-agents`](buildkite-agents/) | Moves steps to a new agent queue and adds `timeout_in_minutes` where missing | `buildkite.set_queue` and `buildkite.set_step_defaults`, including grouped steps |
+| [`jenkins-shared-library`](jenkins-shared-library/) | Moves a Jenkins shared library and a CircleCI orb to v3 | the generic `refs.bump` on `name@ref` |
+| [`branch-rename`](branch-rename/) | Updates workflow branch filters and `refs/heads/` checks after `master` becomes `main` | `gha.rename_branch` |
 
 ## Deployments
 
 | Campaign | What it changes | Shows |
 | --- | --- | --- |
 | [`helm-image-tag`](helm-image-tag/) | Rolls an image tag out to every Helm chart that deploys it, bumping `appVersion` and the chart version | `helm.set_image_tag`, then reading a value back with `yamlpath.get` |
+| [`kustomize-image`](kustomize-image/) | Sets `newTag` for an image in every Kustomize overlay that lists it | `kustomize.set_image` |
+| [`argocd-revision`](argocd-revision/) | Points Argo CD Applications at a new revision of the platform manifests | `argocd.set_target_revision` across `source` and `sources` |
+| [`flux-chart-bump`](flux-chart-bump/) | Moves a Flux HelmRelease to a new chart version | `flux.set_chart_version` |
+| [`k8s-api-migration`](k8s-api-migration/) | Moves manifests off API versions Kubernetes removed | `k8s.migrate_api_versions` on multi-document files |
+| [`k8s-labels`](k8s-labels/) | Labels every resource and pod template with the owning team | `k8s.set_label` with a per-repo variable |
 
 ## Writing your own
 

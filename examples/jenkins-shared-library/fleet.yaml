@@ -1,0 +1,29 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: ci-lib-v3
+description: Move every Jenkinsfile and CircleCI config to the shared CI library v3
+
+targets:
+  orgs: [acme]
+  include:
+    search: "ci-lib@ OR acme/ci-orb@"
+
+change:
+  steps:
+    # The `refs` helper works on any `name@ref`: here a Jenkins shared library
+    # (`@Library('ci-lib@v2')`) and a CircleCI orb (`acme/ci-orb@2.1.0`), in
+    # one step.
+    - name: jenkins-shared-library
+      starlark: ./change.star
+      timeout: 1m
+  env:
+    VERSION: v3.0.0
+    ORB: "3.0.0"
+
+pr:
+  title: "ci: shared CI library v3"
+  body: |
+    Moves {{ .Repo.Name }} to ci-lib v3.0.0 and acme/ci-orb 3.0.0.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet]

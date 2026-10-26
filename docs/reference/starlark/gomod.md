@@ -159,7 +159,7 @@ set_go_version(repo, "1.27.3")
     go 1.27.3
     ```
 
-**Used in:** [`bump-go-version`](https://github.com/rossedman/gh-fleet/tree/main/examples/bump-go-version)
+**Used in:** [`bump-go-version`](https://github.com/rossedman/gh-fleet/tree/main/examples/bump-go-version), [`make-go-version`](https://github.com/rossedman/gh-fleet/tree/main/examples/make-go-version)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gomod.star#L44)
 

@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: makefile-go-1-27
+description: Keep the Go version in Makefiles in step with go.mod
+
+targets:
+  orgs: [acme]
+  include:
+    languages: [Go]
+    files: [Makefile]
+
+change:
+  steps:
+    # Sets GO_VERSION wherever a Makefile assigns it, keeping the operator
+    # (?=, :=, =) and comments, and raises go.mod to match.
+    - name: make-go-version
+      starlark: ./change.star
+      timeout: 1m
+  env:
+    GO_VERSION: "1.27.3"
+
+pr:
+  title: "build: go 1.27.3 in Makefile"
+  body: |
+    Sets `GO_VERSION` to 1.27.3 in {{ .Repo.Name }}'s Makefiles and go.mod.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet]

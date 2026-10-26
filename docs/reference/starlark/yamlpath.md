@@ -7,14 +7,16 @@ title: yamlpath.star
 Read, set and delete keys in any YAML file by path, keeping comments and layout.
 
 Keys are addressed with dots, such as `spec.replicas` or `jobs.test.runs-on`,
-and `*` matches any one key, as in `jobs.*.runs-on`. Edits change only the
+and `*` matches any one key, as in `jobs.*.runs-on`. For a key that itself
+contains dots, such as the label `app.kubernetes.io/name`, pass the path as
+a list: `["metadata", "labels", "app.kubernetes.io/name"]`. Edits change only the
 lines they must, so comments, quoting, blank lines and key order survive,
 which a decode and re-encode would lose. Paths go through mappings only:
 keys inside list items can't be addressed. Only the first document of a
 multi-document file is read.
 
 ```python
-load("@fleet//yamlpath.star", "get", "values", "set", "delete")
+load("@fleet//yamlpath.star", "get", "values", "set", "get_in", "set_in", "set_sibling", "delete")
 ```
 
 | Function | What it does |
@@ -22,6 +24,9 @@ load("@fleet//yamlpath.star", "get", "values", "set", "delete")
 | [`get`](#get) | Reads a scalar value by key path. |
 | [`values`](#values) | Reads every scalar whose key path matches a pattern with `*` wildcards. |
 | [`set`](#set) | Sets a key to a value, adding the key and any missing parents if needed. |
+| [`get_in`](#get_in) | Reads a scalar value by key path from YAML text rather than a file. |
+| [`set_in`](#set_in) | Sets a key in YAML text rather than a file, the same way `set` does. |
+| [`set_sibling`](#set_sibling) | Sets `key` in every mapping where `match_key` has the value `match_value`, list items included. |
 | [`delete`](#delete) | Removes a key and everything nested under it. |
 
 ## get
@@ -65,7 +70,7 @@ get(repo, "deploy.yaml", "spec.template.metadata.labels.app")
 
 **Used in:** [`helm-image-tag`](https://github.com/rossedman/gh-fleet/tree/main/examples/helm-image-tag)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/yamlpath.star#L146)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/yamlpath.star#L154)
 
 ## values
 
@@ -106,7 +111,7 @@ values(repo, ".github/workflows/ci.yml", "jobs.*.runs-on")
 
 **Used in:** [`runner-label`](https://github.com/rossedman/gh-fleet/tree/main/examples/runner-label)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/yamlpath.star#L174)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/yamlpath.star#L182)
 
 ## set
 
@@ -169,7 +174,124 @@ set(repo, "deploy.yaml", "spec.revisionHistoryLimit", 5)
 
 **Used in:** [`runner-label`](https://github.com/rossedman/gh-fleet/tree/main/examples/runner-label)
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/yamlpath.star#L204)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/yamlpath.star#L212)
+
+## get_in
+
+```python
+get_in(text, key)
+```
+
+Reads a scalar value by key path from YAML text rather than a file.
+
+Use it on text you already have, such as one document of a
+multi-document file.
+
+**Arguments**
+
+| Name | Description |
+| --- | --- |
+| `text` | The YAML text. |
+| `key` | The dotted key path. |
+
+**Returns:** The value as a string, unquoted, or None when the key is missing or
+holds a mapping or block scalar.
+
+**Example**
+
+```python
+get_in("kind: Deployment\nmetadata:\n  name: api\n", "metadata.name")
+# returns "api"
+```
+
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/yamlpath.star#L300)
+
+## set_in
+
+```python
+set_in(text, key, value)
+```
+
+Sets a key in YAML text rather than a file, the same way `set` does.
+
+**Arguments**
+
+| Name | Description |
+| --- | --- |
+| `text` | The YAML text. |
+| `key` | The dotted key path, where `*` matches any one key. |
+| `value` | A string, number, boolean, None or list of those. |
+
+**Returns:** The new text; unchanged when the key already had the value.
+
+**Example**
+
+```python
+set_in("metadata:\n  name: api\n", "metadata.labels.team", "payments")
+# returns "metadata:\n  name: api\n  labels:\n    team: payments\n"
+```
+
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/yamlpath.star#L323)
+
+## set_sibling
+
+```python
+set_sibling(repo, path, match_key, match_value, key, value)
+```
+
+Sets `key` in every mapping where `match_key` has the value `match_value`, list items included.
+
+This is the common "set the version next to the name" edit: the `tag`
+beside `repository: nginx`, the `targetRevision` beside a `repoURL`, the
+`version` of the list item whose `name` is `community.general`. An
+existing `key` is replaced, keeping its quotes and comment; a missing
+one is added at the end of the mapping.
+
+**Arguments**
+
+| Name | Description |
+| --- | --- |
+| `repo` | The repo passed to `change(repo)`. |
+| `path` | The YAML file, relative to the repo root. |
+| `match_key` | The key that identifies the mapping. |
+| `match_value` | The value `match_key` must have, compared unquoted. |
+| `key` | The sibling key to set. |
+| `value` | A string, number, boolean or None. |
+
+**Returns:** True when the file changed.
+
+**Example**
+
+```python
+set_sibling(repo, "requirements.yml", "name", "community.general", "version", "9.4.0")
+set_sibling(repo, "requirements.yml", "name", "ansible.posix", "version", "1.6.0")
+# returns True
+```
+
+=== "Before"
+
+    `requirements.yml`
+
+    ```yaml
+    collections:
+      - name: community.general
+        version: 7.0.0  # pinned
+      - name: ansible.posix
+    ```
+
+=== "After"
+
+    `requirements.yml`
+
+    ```yaml
+    collections:
+      - name: community.general
+        version: 9.4.0  # pinned
+      - name: ansible.posix
+        version: 1.6.0
+    ```
+
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/yamlpath.star#L340)
 
 ## delete
 
@@ -219,4 +341,4 @@ delete(repo, ".github/workflows/ci.yml", "jobs.test.continue-on-error")
         steps: []
     ```
 
-[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/yamlpath.star#L288)
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/yamlpath.star#L445)

@@ -1,0 +1,27 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: k8s-removed-apis
+description: Move manifests off API versions Kubernetes removed
+
+targets:
+  orgs: [acme]
+  include:
+    search: "policy/v1beta1 OR batch/v1beta1 OR autoscaling/v2beta2"
+
+change:
+  steps:
+    # Rewrites apiVersion for kinds whose only change is the version
+    # (PodDisruptionBudget, CronJob, HorizontalPodAutoscaler and others),
+    # document by document. Moves that change the schema are not attempted.
+    - name: k8s-api-migration
+      starlark: ./change.star
+      timeout: 1m
+
+pr:
+  title: "deploy: move off removed Kubernetes APIs"
+  body: |
+    Updates {{ .Vars.resources }} in {{ .Repo.Name }} to API versions current
+    Kubernetes serves. Nothing else in the manifests changes.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet, deploy]

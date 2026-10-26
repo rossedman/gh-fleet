@@ -1,0 +1,34 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: label-owning-team
+description: Label every Kubernetes resource with its owning team
+
+targets:
+  orgs: [acme]
+  include:
+    topics: [service]
+
+change:
+  steps:
+    # Sets app.kubernetes.io/part-of and a team label on every resource and
+    # the pods workloads create. The team comes from vars, so each repo gets
+    # its own.
+    - name: k8s-labels
+      starlark: ./change.star
+      timeout: 1m
+
+pr:
+  title: "deploy: label resources with team {{ .Vars.team }}"
+  body: |
+    Labels every resource in {{ .Repo.Name }} with `team: {{ .Vars.team }}`,
+    so costs and alerts can be grouped by owner.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet, deploy]
+
+vars:
+  default:
+    team: platform
+  match:
+    - when: { topics: [payments] }
+      set: { team: payments }
