@@ -52,7 +52,7 @@ targets:
   orgs: [acme]
   include:
     names: [service-*, "acme/api-v[0-9]"]
-    repos: ["*/tool-*", other/cli-*]
+    repos: ["*/tool-*", other/cli-*, "*-domain", billing]
   exclude:
     repos: ["*/legacy-*"]
 vars:
@@ -112,7 +112,28 @@ change:
   steps: [{run: "true"}]
 pr:
   title: x
-`, `targets.include.repos.0: "*/tool-*" has a pattern for the owner, which needs orgs to match against`},
+`, `targets.include.repos.0: "*/tool-*" has a pattern for the owner, so it only matches the repos of orgs; add orgs`},
+		"bare name without orgs": {`apiVersion: fleet.gh/v1
+name: globs
+targets:
+  include:
+    repos: ["*-domain"]
+change:
+  steps: [{run: "true"}]
+pr:
+  title: x
+`, `targets.include.repos.0: "*-domain" has no owner, so it only matches the repos of orgs; add orgs or write owner/*-domain`},
+		"not a repo": {`apiVersion: fleet.gh/v1
+name: globs
+targets:
+  orgs: [acme]
+  exclude:
+    repos: ["a b"]
+change:
+  steps: [{run: "true"}]
+pr:
+  title: x
+`, "fleet.yaml:6:13: targets.exclude.repos.0: use owner/name, a repo name, or a glob pattern such as *-domain or acme/svc-*"},
 		"slash in a name pattern is owner/name only": {`apiVersion: fleet.gh/v1
 name: globs
 targets:

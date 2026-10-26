@@ -326,8 +326,8 @@ func searchScope(camp *campaign.Campaign) []string {
 		q = append(q, "user:"+o)
 	}
 	for _, r := range camp.Targets.Include.Repos {
-		owner, _, _ := strings.Cut(r, "/")
-		covered := campaign.IsPattern(owner) // only allowed alongside orgs
+		owner, _, hasOwner := strings.Cut(r, "/")
+		covered := !hasOwner || campaign.IsPattern(owner) // only allowed alongside orgs
 		for _, o := range camp.Targets.Orgs {
 			if strings.EqualFold(o, owner) {
 				covered = true

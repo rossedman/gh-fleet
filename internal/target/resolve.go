@@ -118,11 +118,16 @@ func (rs *Resolver) Resolve(ctx context.Context, t campaign.Targets) (*Result, e
 		if _, ok := candidates[strings.ToLower(name)]; ok {
 			continue
 		}
+		owner, _, hasOwner := strings.Cut(name, "/")
+		if !hasOwner {
+			// A bare name or name pattern matches among the repos of orgs;
+			// load rejects one without orgs.
+			continue
+		}
 		if campaign.IsPattern(name) {
 			// A pattern names repos of one owner: list that owner, unless
 			// orgs already did, and keep the matches. Load rejects a
 			// pattern in the owner without orgs to match against.
-			owner, _, _ := strings.Cut(name, "/")
 			if campaign.IsPattern(owner) || listed[strings.ToLower(owner)] {
 				continue
 			}
@@ -193,6 +198,12 @@ func (rs *Resolver) Resolve(ctx context.Context, t campaign.Targets) (*Result, e
 	for _, r := range live {
 		d := Evaluate(t, r, Facts{Files: files[r.FullName()], SearchHit: hits[strings.ToLower(r.FullName())]})
 		if !d.Match {
+			continue
+		}
+		if r.DefaultBranch == "" {
+			// GitHub has no default branch for an empty repo, so there is
+			// nothing to clone or change.
+			res.Skipped = append(res.Skipped, Skipped{Repo: r.FullName(), Reason: "empty repository"})
 			continue
 		}
 		if !r.CanPush && !rs.AllowReadOnly {

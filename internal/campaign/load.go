@@ -168,9 +168,9 @@ func (c *Campaign) semanticErrors(filename string, doc *yaml.Node) []FieldError 
 	return out
 }
 
-// patternErrors reports repo glob patterns that don't parse, and patterns
-// in include.repos whose owner is a pattern when there are no orgs to
-// match them against.
+// patternErrors reports repo glob patterns that don't parse, and entries
+// of include.repos that can only match the repos of orgs (a bare name, or
+// a pattern in the owner) when there are no orgs.
 func (c *Campaign) patternErrors(filename string, doc *yaml.Node) []FieldError {
 	var out []FieldError
 	check := func(patterns []string, at ...string) {
@@ -192,10 +192,14 @@ func (c *Campaign) patternErrors(filename string, doc *yaml.Node) []FieldError {
 	}
 	if len(c.Targets.Orgs) == 0 {
 		for i, p := range c.Targets.Include.Repos {
-			if owner, _, _ := strings.Cut(p, "/"); IsPattern(owner) {
+			if owner, _, ok := strings.Cut(p, "/"); !ok || IsPattern(owner) {
 				at := []string{"targets", "include", "repos", strconv.Itoa(i)}
 				n := lookup(doc, at)
-				out = append(out, FieldError{File: filename, Line: n.Line, Column: n.Column, Path: strings.Join(at, "."), Message: fmt.Sprintf("%q has a pattern for the owner, which needs orgs to match against", p)})
+				msg := fmt.Sprintf("%q has no owner, so it only matches the repos of orgs; add orgs or write owner/%s", p, p)
+				if ok {
+					msg = fmt.Sprintf("%q has a pattern for the owner, so it only matches the repos of orgs; add orgs", p)
+				}
+				out = append(out, FieldError{File: filename, Line: n.Line, Column: n.Column, Path: strings.Join(at, "."), Message: msg})
 			}
 		}
 	}
@@ -416,12 +420,20 @@ func schemaErrors(filename string, doc *yaml.Node, ve *jsonschema.ValidationErro
 	return &ValidationError{Errors: out}
 }
 
+// repoHint says what a repo in a list may be.
+const repoHint = "use owner/name, a repo name, or a glob pattern such as *-domain or acme/svc-*"
+
 // patternHints replace a regular expression in an error with what the
 // field should look like.
 var patternHints = map[string]string{
-	"name":                    "use lowercase letters, digits and dashes, starting with a letter or digit",
-	"change.steps.*.timeout":  "use a Go duration such as 30s, 5m or 1h",
-	"change.steps.*.starlark": "must be a .star file",
+	"name":                      "use lowercase letters, digits and dashes, starting with a letter or digit",
+	"change.steps.*.timeout":    "use a Go duration such as 30s, 5m or 1h",
+	"change.steps.*.starlark":   "must be a .star file",
+	"targets.include.names.*":   repoHint,
+	"targets.include.repos.*":   repoHint,
+	"targets.exclude.repos.*":   repoHint,
+	"vars.match.*.when.repos.*": repoHint,
+	"limits.waves.*.repos.*":    repoHint,
 }
 
 // hintKey joins a location with list indexes replaced by "*".
