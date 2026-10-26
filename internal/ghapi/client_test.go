@@ -8,6 +8,8 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -179,9 +181,15 @@ func TestGetRepos(t *testing.T) {
 
 func TestPathsExistBatches(t *testing.T) {
 	t.Parallel()
+	var mu sync.Mutex
 	var queries []string
 	s := &apiServer{gql: func(q string, _ map[string]any) (any, int) {
+		mu.Lock()
 		queries = append(queries, q)
+		mu.Unlock()
+		if strings.Contains(q, `"boom"`) {
+			return nil, 400
+		}
 		out := map[string]any{}
 		for i := range BatchSize {
 			alias := fmt.Sprintf("r%d", i)
@@ -209,14 +217,23 @@ func TestPathsExistBatches(t *testing.T) {
 	if len(queries) != 3 {
 		t.Fatalf("want 3 batched queries, got %d", len(queries))
 	}
-	if !strings.Contains(queries[0], `object(expression: "main:.github/workflows")`) || !strings.Contains(queries[0], `"HEAD:Dockerfile"`) {
-		t.Fatalf("query = %s", queries[0][:300])
+	// Batches run concurrently, so find the first by its first repo.
+	first := queries[slices.IndexFunc(queries, func(q string) bool { return strings.Contains(q, `"r000"`) })]
+	if !strings.Contains(first, `object(expression: "main:.github/workflows")`) || !strings.Contains(first, `"HEAD:Dockerfile"`) {
+		t.Fatalf("query = %s", first[:300])
 	}
 	if len(got["acme/r000"]) != 1 || got["acme/r001"] != nil || len(got["acme/r050"]) != 1 {
 		t.Fatalf("got = %v", got)
 	}
 	if m, err := newClient(t, s).PathsExist(context.Background(), repos, nil); err != nil || len(m) != 0 {
 		t.Fatal("no paths should mean no queries")
+	}
+	// A failing batch fails the check.
+	repos[70].Name = "boom"
+	c := newClient(t, s)
+	c.Transport.MaxAttempts = 1
+	if _, err := c.PathsExist(context.Background(), repos, []string{"go.mod"}); err == nil {
+		t.Error("batch error swallowed")
 	}
 }
 
@@ -239,15 +256,112 @@ func TestSearchCodePaginates(t *testing.T) {
 		},
 	}}
 	c := newClient(t, s)
-	repos, err := c.SearchCode(context.Background(), "uses: actions/ org:acme")
+	res, err := c.SearchCode(context.Background(), "uses: actions/ org:acme")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(repos) != 5 || repos[0] != "acme/r0" {
-		t.Fatalf("repos = %v", repos)
+	if len(res.Repos) != 5 || res.Repos[0] != "acme/r0" || res.Partial {
+		t.Fatalf("result = %+v", res)
 	}
 	if _, err := c.SearchCode(context.Background(), "x"); err == nil {
 		t.Fatal("expected error")
+	}
+}
+
+// searchServer answers code searches over files, as GitHub does: a
+// size:lo..hi qualifier filters by file size, and only the first
+// codeSearchCap matches can be paged through.
+func searchServer(files []searchFile, incomplete bool) *apiServer {
+	sizeQ := regexp.MustCompile(`size:(\d+)\.\.(\d+)`)
+	return &apiServer{rest: map[string]func(*http.Request, []byte) (any, int){
+		"GET /search/code": func(r *http.Request, _ []byte) (any, int) {
+			lo, hi := 0, maxIndexedFileSize
+			if m := sizeQ.FindStringSubmatch(r.URL.Query().Get("q")); m != nil {
+				lo, _ = strconv.Atoi(m[1])
+				hi, _ = strconv.Atoi(m[2])
+			}
+			var match []searchFile
+			for _, f := range files {
+				if f.size >= lo && f.size <= hi {
+					match = append(match, f)
+				}
+			}
+			page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+			items := []any{}
+			for i := (page - 1) * 100; i < min(page*100, len(match), codeSearchCap); i++ {
+				items = append(items, map[string]any{"repository": map[string]any{"full_name": match[i].repo}})
+			}
+			return map[string]any{"total_count": len(match), "incomplete_results": incomplete, "items": items}, 200
+		},
+	}}
+}
+
+// searchFile is one indexed file in searchServer.
+type searchFile struct {
+	repo string
+	size int
+}
+
+func TestSearchCodeSplitsPastTheCap(t *testing.T) {
+	t.Parallel()
+	// 2500 matching files in 40 busy repos, and one file in a quiet repo
+	// that a single query's first 1000 results never reach.
+	var files []searchFile
+	for i := range 2500 {
+		files = append(files, searchFile{fmt.Sprintf("acme/busy%d", i%40), 100 + i*50})
+	}
+	files = append(files, searchFile{"acme/quiet", 300000})
+	s := searchServer(files, false)
+	res, err := newClient(t, s).SearchCode(context.Background(), "uses: actions/ org:acme")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Repos) != 41 || !slices.Contains(res.Repos, "acme/quiet") || res.Partial {
+		t.Fatalf("got %d repos, partial %v, quiet found %v", len(res.Repos), res.Partial, slices.Contains(res.Repos, "acme/quiet"))
+	}
+
+	// More matches than the cap in one file size, or a query that sets
+	// its own size, can't be split: the result says it is partial.
+	same := make([]searchFile, 1200)
+	for i := range same {
+		same[i] = searchFile{fmt.Sprintf("acme/r%d", i), 10}
+	}
+	for _, q := range []string{"x org:acme", "x size:>5 org:acme"} {
+		res, err := newClient(t, searchServer(same, false)).SearchCode(context.Background(), q)
+		if err != nil || !res.Partial || len(res.Repos) != codeSearchCap {
+			t.Errorf("%s: partial %v, %d repos, %v", q, res.Partial, len(res.Repos), err)
+		}
+	}
+	// GitHub's own incomplete_results flag makes it partial too.
+	res, err = newClient(t, searchServer(files[:5], true)).SearchCode(context.Background(), "x")
+	if err != nil || !res.Partial {
+		t.Errorf("incomplete results: %+v, %v", res, err)
+	}
+	// An error in a split half fails the search.
+	broken := searchServer(files, false)
+	ok := broken.rest["GET /search/code"]
+	broken.rest["GET /search/code"] = func(r *http.Request, b []byte) (any, int) {
+		if strings.Contains(r.URL.Query().Get("q"), "size:") {
+			return map[string]any{"message": "boom"}, 422
+		}
+		return ok(r, b)
+	}
+	if _, err := newClient(t, broken).SearchCode(context.Background(), "x"); err == nil {
+		t.Error("error in a split half was swallowed")
+	}
+}
+
+func TestSplitSize(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct{ lo, hi, want int }{
+		{0, maxIndexedFileSize, 626},
+		{0, 626, 24},
+		{5, 6, 5},
+		{0, 1, 0},
+	} {
+		if got := splitSize(tc.lo, tc.hi); got != tc.want {
+			t.Errorf("splitSize(%d, %d) = %d, want %d", tc.lo, tc.hi, got, tc.want)
+		}
 	}
 }
 

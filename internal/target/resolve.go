@@ -111,19 +111,28 @@ type Resolver struct {
 // unless AllowReadOnly is set.
 func (rs *Resolver) Resolve(ctx context.Context, t campaign.Targets) (*Result, error) {
 	rs.props = rs.RequireProperties || len(t.Include.Properties) > 0 || len(t.Exclude.Properties) > 0
+	// Search first: its hits are the only repos that can match, so with
+	// orgs they replace listing every repo.
+	var hits map[string]string
+	if t.Include.Search != "" {
+		var err error
+		if hits, err = rs.search(ctx, t); err != nil {
+			return nil, err
+		}
+	}
 	var candidates map[string]ghapi.Repo
 	var err error
 	if len(rs.Only) > 0 {
 		candidates, err = rs.named(ctx, t)
 	} else {
-		candidates, err = rs.candidates(ctx, t)
+		candidates, err = rs.candidates(ctx, t, hits)
 	}
 	if err != nil {
 		return nil, err
 	}
 
-	// Cheap metadata filters first, so file and search lookups only run
-	// for repos that can still match.
+	// Cheap metadata filters first, so file lookups only run for repos
+	// that can still match.
 	var live []ghapi.Repo
 	for _, r := range candidates {
 		if MetadataOnly(t, r) {
@@ -141,31 +150,11 @@ func (rs *Resolver) Resolve(ctx context.Context, t campaign.Targets) (*Result, e
 			return nil, err
 		}
 	}
-	hits := map[string]bool{}
-	if t.Include.Search != "" {
-		rs.progress(fmt.Sprintf("Searching code for %q", t.Include.Search))
-		owners := t.Orgs
-		if len(owners) == 0 {
-			owners = []string{""}
-		}
-		for _, o := range owners {
-			q := t.Include.Search
-			if o != "" {
-				q += " org:" + o
-			}
-			repos, err := rs.Client.SearchCode(ctx, q)
-			if err != nil {
-				return nil, err
-			}
-			for _, n := range repos {
-				hits[strings.ToLower(n)] = true
-			}
-		}
-	}
 
 	res := &Result{}
 	for _, r := range live {
-		d := Evaluate(t, r, Facts{Files: files[r.FullName()], SearchHit: hits[strings.ToLower(r.FullName())]})
+		_, hit := hits[strings.ToLower(r.FullName())]
+		d := Evaluate(t, r, Facts{Files: files[r.FullName()], SearchHit: hit})
 		if !d.Match {
 			continue
 		}
@@ -182,6 +171,35 @@ func (rs *Resolver) Resolve(ctx context.Context, t campaign.Targets) (*Result, e
 		res.Targets = append(res.Targets, Target{Repo: r, Reasons: d.Reasons})
 	}
 	return res, nil
+}
+
+// search runs the campaign's code search in each org, or across GitHub
+// without orgs, and returns the repos with hits by lower-cased full name.
+func (rs *Resolver) search(ctx context.Context, t campaign.Targets) (map[string]string, error) {
+	rs.progress(fmt.Sprintf("Searching code for %q", t.Include.Search))
+	owners := t.Orgs
+	if len(owners) == 0 {
+		owners = []string{""}
+	}
+	hits := map[string]string{}
+	for _, o := range owners {
+		q := t.Include.Search
+		if o != "" {
+			q += " org:" + o
+		}
+		res, err := rs.Client.SearchCode(ctx, q)
+		if err != nil {
+			return nil, err
+		}
+		if res.Partial {
+			rs.progress(fmt.Sprintf("warning: GitHub returned only part of the results for %q, so some repos with matches may be missing; narrow the query, or use include.files for exact paths", q))
+		}
+		for _, n := range res.Repos {
+			hits[strings.ToLower(n)] = n
+		}
+	}
+	rs.progress(fmt.Sprintf("Code search matched %s", countRepos(len(hits))))
+	return hits, nil
 }
 
 // listOwner lists an owner's repos, with their custom properties, through
@@ -315,11 +333,12 @@ func countRepos(n int) string {
 }
 
 // candidates gathers the repos the campaign could target. When include
-// filters apply to orgs, every org is listed. When include.repos is the
+// filters apply to orgs, every org is listed, unless a code search ran in
+// them: then only its hits are looked up. When include.repos is the
 // whole selection, only what it names is fetched: an owner/name by itself,
 // a bare name in each org, and a pattern from a listing of its owner, or
 // of orgs for a bare or wildcard-owner pattern.
-func (rs *Resolver) candidates(ctx context.Context, t campaign.Targets) (map[string]ghapi.Repo, error) {
+func (rs *Resolver) candidates(ctx context.Context, t campaign.Targets, hits map[string]string) (map[string]ghapi.Repo, error) {
 	candidates := map[string]ghapi.Repo{}
 	listed := map[string]bool{}
 	list := func(owner string, keep func(ghapi.Repo) bool) error {
@@ -339,7 +358,19 @@ func (rs *Resolver) candidates(ctx context.Context, t campaign.Targets) (map[str
 		return nil
 	}
 	named := func(r ghapi.Repo) bool { return campaign.MatchAny(t.Include.Repos, r.FullName()) != "" }
-	if !OnlyRepos(t.Include) {
+	switch {
+	case OnlyRepos(t.Include):
+	case hits != nil && len(t.Orgs) > 0:
+		names := slices.Sorted(maps.Values(hits))
+		rs.progress("Looking up " + countRepos(len(names)) + " with matches")
+		found, err := rs.lookup(ctx, names)
+		if err != nil {
+			return nil, err
+		}
+		for _, r := range found {
+			candidates[strings.ToLower(r.FullName())] = r
+		}
+	default:
 		for _, org := range t.Orgs {
 			if err := list(org, func(ghapi.Repo) bool { return true }); err != nil {
 				return nil, err

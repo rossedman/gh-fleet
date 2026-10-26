@@ -27,6 +27,8 @@ type Client struct {
 	Files map[string][]string
 	// Search maps a code search query to the repos it hits.
 	Search map[string][]string
+	// SearchPartial marks every code search result as partial.
+	SearchPartial bool
 	// PRs holds every pull request, in creation order.
 	PRs []*ghapi.PR
 	// Errors makes the named method (e.g. "CreatePR") fail. A key of
@@ -156,18 +158,18 @@ func (c *Client) PathsExist(ctx context.Context, repos []ghapi.Repo, paths []str
 }
 
 // SearchCode returns the repos registered for query.
-func (c *Client) SearchCode(ctx context.Context, query string) ([]string, error) {
+func (c *Client) SearchCode(ctx context.Context, query string) (ghapi.CodeSearch, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if err := c.call(ctx, "SearchCode", ""); err != nil {
-		return nil, err
+		return ghapi.CodeSearch{}, err
 	}
 	for q, repos := range c.Search {
 		if strings.HasPrefix(query, q) {
-			return slices.Clone(repos), nil
+			return ghapi.CodeSearch{Repos: slices.Clone(repos), Partial: c.SearchPartial}, nil
 		}
 	}
-	return nil, nil
+	return ghapi.CodeSearch{Partial: c.SearchPartial}, nil
 }
 
 // PRsByHead returns the newest PR from head per repo.

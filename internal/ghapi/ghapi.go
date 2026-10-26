@@ -96,6 +96,15 @@ type RateLimit struct {
 	Reset     time.Time `json:"reset"`
 }
 
+// CodeSearch is the result of a code search.
+type CodeSearch struct {
+	// Repos holds the full names of repos with a hit.
+	Repos []string
+	// Partial is set when GitHub could not return every match, so some
+	// repos with hits may be missing.
+	Partial bool
+}
+
 // Client is every GitHub operation gh fleet performs.
 type Client interface {
 	// ListOwnerRepos lists every repository of an organization or user.
@@ -108,7 +117,7 @@ type Client interface {
 	// repo's default branch.
 	PathsExist(ctx context.Context, repos []Repo, paths []string) (map[string][]string, error)
 	// SearchCode returns the full names of repos with a code search hit.
-	SearchCode(ctx context.Context, query string) ([]string, error)
+	SearchCode(ctx context.Context, query string) (CodeSearch, error)
 	// PRsByHead returns, per repo full name, the most recent PR from head
 	// in any state, with checks and review state. Repos without one are
 	// absent from the map. Queries are batched, BatchSize repos each.
