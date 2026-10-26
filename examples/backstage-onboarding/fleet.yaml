@@ -1,0 +1,30 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: backstage-onboarding
+description: Register every service in the Backstage catalog, owned by the team in its custom property
+
+targets:
+  orgs: [acme]
+  exclude:
+    topics: [no-fleet]
+
+change:
+  steps:
+    # Writes catalog-info.yaml where it's missing, with the owner from the
+    # repo's `team` custom property. Repos with docs get the TechDocs
+    # annotation and every component gets a tag for its language.
+    - name: catalog
+      starlark: ./change.star
+      timeout: 1m
+  env:
+    FALLBACK_OWNER: group:platform
+
+pr:
+  title: "chore: register in the Backstage catalog"
+  body: |
+    Registers {{ .Repo.Name }} in Backstage, owned by `{{ .Vars.owner }}`.
+    Check the owner, type and lifecycle in `catalog-info.yaml`; they're
+    best guesses.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet]
