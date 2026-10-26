@@ -58,6 +58,9 @@ type App struct {
 	Git        gitops.Git
 	// Confirm asks a yes/no question; only called when Interactive.
 	Confirm func(title string) (bool, error)
+	// Version is the gh fleet version. A new version can change what a
+	// change does, so it is part of the change's fingerprint.
+	Version string
 	// LibCache holds Starlark libraries loaded from other repositories.
 	LibCache string
 	// LibURL overrides the clone URL of those libraries (for tests).

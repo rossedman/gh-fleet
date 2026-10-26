@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -128,5 +129,44 @@ func TestBatchedLookupErrors(t *testing.T) {
 	}
 	if _, err := c.GetRepos(ctx, []string{"acme/api"}); err == nil {
 		t.Error("GetRepos error swallowed")
+	}
+}
+
+func TestBranchHeads(t *testing.T) {
+	t.Parallel()
+	alias := regexp.MustCompile(`(r\d+): repository\(owner: "[^"]+", name: "([^"]+)"\) \{ ref\(qualifiedName: "refs/heads/([^"]+)"\)`)
+	s := &apiServer{gql: func(q string, _ map[string]any) (any, int) {
+		data := map[string]any{}
+		var errs []any
+		for _, m := range alias.FindAllStringSubmatch(q, -1) {
+			switch m[2] {
+			case "gone":
+				data[m[1]] = nil
+				errs = append(errs, map[string]any{"type": "NOT_FOUND", "path": []any{m[1]}, "message": "Could not resolve"})
+			case "nobranch":
+				data[m[1]] = map[string]any{"ref": nil}
+			default:
+				data[m[1]] = map[string]any{"ref": map[string]any{"target": map[string]any{"oid": m[2] + "@" + m[3]}}}
+			}
+		}
+		if errs != nil {
+			data["__errors"] = errs
+		}
+		return data, 200
+	}}
+	c := newClient(t, s)
+	got, err := c.BranchHeads(context.Background(), map[string]string{"acme/api": "main", "acme/web": "trunk", "acme/gone": "main", "acme/nobranch": "main"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 || got["acme/api"] != "api@main" || got["acme/web"] != "web@trunk" {
+		t.Fatalf("heads = %v", got)
+	}
+	if _, err := c.BranchHeads(context.Background(), map[string]string{"bad": "main"}); err == nil {
+		t.Error("bad name accepted")
+	}
+	broken := newClient(t, &apiServer{gql: func(string, map[string]any) (any, int) { return nil, 400 }})
+	if _, err := broken.BranchHeads(context.Background(), map[string]string{"acme/api": "main"}); err == nil {
+		t.Error("error swallowed")
 	}
 }

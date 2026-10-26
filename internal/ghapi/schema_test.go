@@ -59,6 +59,7 @@ func TestQueriesMatchSchema(t *testing.T) {
 	repos := []Repo{{Owner: "acme", Name: "api"}, {Owner: "acme", Name: "web"}}
 	calls := map[string]func(){
 		"GetRepos":        func() { _, _ = c.GetRepos(ctx, []string{"acme/api", "acme/web"}) },
+		"BranchHeads":     func() { _, _ = c.BranchHeads(ctx, map[string]string{"acme/api": "main"}) },
 		"PathsExist":      func() { _, _ = c.PathsExist(ctx, repos, []string{"go.mod", ".github/workflows"}) },
 		"PRsByHead":       func() { _, _ = c.PRsByHead(ctx, []string{"acme/api", "acme/web"}, "fleet/x") },
 		"EnableAutoMerge": func() { _ = c.EnableAutoMerge(ctx, PR{Repo: "acme/api", Number: 1, NodeID: "PR_x"}, MergeMethodSquash) },
