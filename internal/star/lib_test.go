@@ -214,6 +214,38 @@ def change(repo):
 			},
 			vars: map[string]string{"changed": "[Dockerfile web/app.Dockerfile]"},
 		},
+		"docker replace any tag": {
+			repo: map[string]string{
+				"Dockerfile": "FROM --platform=$BUILDPLATFORM python:3.12-slim AS build\nfrom python\nFROM python@sha256:abc AS pinned\nFROM python:3.12@sha256:def\n" +
+					"FROM python-dev:1\nFROM python/tools:2\nFROM mypython:3\nFROM ghcr.io/python:1\nRUN echo FROM python:3\n",
+				"svc/Dockerfile.prod": "FROM localhost:5000/base:1\n",
+			},
+			script: `load("@fleet//docker.star", "replace_base_image")
+def change(repo):
+    repo.set_var("changed", replace_base_image(repo, "python", "registry.acme.io/py/3.14-slim:main-$x"))
+    replace_base_image(repo, "localhost:5000/base", "base:2")
+`,
+			want: map[string]string{
+				"Dockerfile": "FROM --platform=$BUILDPLATFORM registry.acme.io/py/3.14-slim:main-$x AS build\nfrom registry.acme.io/py/3.14-slim:main-$x\n" +
+					"FROM registry.acme.io/py/3.14-slim:main-$x AS pinned\nFROM registry.acme.io/py/3.14-slim:main-$x\n" +
+					"FROM python-dev:1\nFROM python/tools:2\nFROM mypython:3\nFROM ghcr.io/python:1\nRUN echo FROM python:3\n",
+				"svc/Dockerfile.prod": "FROM base:2\n",
+			},
+			vars: map[string]string{"changed": "[Dockerfile]"},
+		},
+		"docker replace one tag": {
+			repo: map[string]string{
+				"Dockerfile": "FROM node:18\nFROM node:18-alpine\nFROM node:20\nFROM ghcr.io/acme/node@sha256:1 AS x\n",
+			},
+			script: `load("@fleet//docker.star", "replace_base_image")
+def change(repo):
+    replace_base_image(repo, "node:18", "registry.acme.io/node:22")
+    replace_base_image(repo, "ghcr.io/acme/node@sha256:1", "registry.acme.io/node:22")
+`,
+			want: map[string]string{
+				"Dockerfile": "FROM registry.acme.io/node:22\nFROM node:18-alpine\nFROM node:20\nFROM registry.acme.io/node:22 AS x\n",
+			},
+		},
 		"gomod": {
 			repo: map[string]string{
 				"go.mod":            "module a\n\ngo 1.21\n\ntoolchain go1.22.1\n\nrequire x v1\n",

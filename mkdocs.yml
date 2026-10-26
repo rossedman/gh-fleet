@@ -122,6 +122,7 @@ nav:
       - dependabot-ecosystems: reference/examples/dependabot-ecosystems.md
       - devcontainer-image: reference/examples/devcontainer-image.md
       - docker-base-image: reference/examples/docker-base-image.md
+      - docker-replace-image: reference/examples/docker-replace-image.md
       - dotnet-8: reference/examples/dotnet-8.md
       - drone-golang: reference/examples/drone-golang.md
       - editor-defaults: reference/examples/editor-defaults.md

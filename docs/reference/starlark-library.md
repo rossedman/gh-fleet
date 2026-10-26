@@ -45,7 +45,7 @@ This reference is generated from the library's docstrings, and every example on 
 | [`codeql.star`](starlark/codeql.md) | Set up CodeQL code scanning: add a workflow, add languages and move the action. | 5 |
 | [`dependabot.star`](starlark/dependabot.md) | Detect package ecosystems, write a Dependabot configuration, and edit existing ones. | 6 |
 | [`devcontainer.star`](starlark/devcontainer.md) | Edit Dev Container configs: images, feature versions and top-level settings. | 7 |
-| [`docker.star`](starlark/docker.md) | Find Dockerfiles and move images to a new tag in Dockerfiles, Compose files and Kubernetes manifests. | 3 |
+| [`docker.star`](starlark/docker.md) | Find Dockerfiles, replace base images, and move images to a new tag in Dockerfiles, Compose files and Kubernetes manifests. | 4 |
 | [`dotnet.star`](starlark/dotnet.md) | .NET: bump NuGet packages, target frameworks and the SDK pinned in global.json. | 5 |
 | [`drone.star`](starlark/drone.md) | Move step and plugin images in Drone and Woodpecker CI pipelines. | 2 |
 | [`editorconfig.star`](starlark/editorconfig.md) | Read and set properties in .editorconfig, line by line. | 2 |
@@ -219,6 +219,7 @@ This reference is generated from the library's docstrings, and every example on 
 | [`renovate.remove_preset`](starlark/renovate.md#remove_preset) | Removes a preset from `extends`, such as a retired `config:base`. |
 | [`gha.rename_branch`](starlark/gha.md#rename_branch) | Renames a branch in workflow triggers and branch checks, as when `master` becomes `main`. |
 | [`files.replace_all`](starlark/files.md#replace_all) | Replaces every occurrence of a string with another, literally, in text files. |
+| [`docker.replace_base_image`](starlark/docker.md#replace_base_image) | Replaces a whole image reference in the `FROM` lines of every Dockerfile. |
 | [`renovate.replace_preset`](starlark/renovate.md#replace_preset) | Replaces a preset in `extends` where it is, such as `config:base` with `config:recommended`. |
 | [`ansible.requirements`](starlark/ansible.md#requirements) | Lists the repo's Ansible Galaxy requirements files. |
 | [`python.requirements_files`](starlark/python.md#requirements_files) | Lists the repo's requirements files. |
