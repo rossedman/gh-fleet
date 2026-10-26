@@ -123,7 +123,8 @@ func TestResolveFetchesProperties(t *testing.T) {
 		f.AddRepo(ghapi.Repo{Owner: "acme", Name: "api"})
 		f.AddRepo(ghapi.Repo{Owner: "other", Name: "x"})
 		f.Errors[method] = errors.New("boom")
-		tg := campaign.Targets{Orgs: []string{"acme"}, Include: campaign.Include{Repos: []string{"other/x"}}}
+		// A filter, so the org is listed as well as other/x fetched.
+		tg := campaign.Targets{Orgs: []string{"acme"}, Include: campaign.Include{Names: []string{"*"}, Repos: []string{"other/x"}}}
 		if _, err := (&Resolver{Client: f, RequireProperties: true}).Resolve(context.Background(), tg); err == nil {
 			t.Errorf("%s error not returned", method)
 		}
