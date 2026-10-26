@@ -2,14 +2,51 @@ package workspace
 
 import (
 	"context"
+	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/rossedman/gh-fleet/internal/ghapi"
 	"github.com/rossedman/gh-fleet/internal/testutil"
 )
+
+// failGitEnv names the git call the test binary fails when it runs as git:
+// a subcommand ("fetch"), or a subcommand and its last argument
+// ("checkout:origin/main").
+const failGitEnv = "WORKSPACE_TEST_FAIL_GIT"
+
+// TestMain lets the test binary stand in for git, so tests can fail one
+// git call and reach Prepare's error paths on every platform.
+func TestMain(m *testing.M) {
+	if spec, ok := os.LookupEnv(failGitEnv); ok {
+		os.Exit(fakeGit(spec, os.Args[1:]))
+	}
+	os.Exit(m.Run())
+}
+
+// fakeGit fails the git call that spec names and runs every other call
+// with the real git, returning the exit code.
+func fakeGit(spec string, args []string) int {
+	sub, last, _ := strings.Cut(spec, ":")
+	if len(args) > 0 && args[0] == sub && (last == "" || args[len(args)-1] == last) {
+		_, _ = os.Stderr.WriteString("injected failure\n")
+		return 1
+	}
+	cmd := exec.Command("git", args...)
+	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
+	if err := cmd.Run(); err != nil {
+		var exit *exec.ExitError
+		if errors.As(err, &exit) {
+			return exit.ExitCode()
+		}
+		return 1
+	}
+	return 0
+}
 
 func TestPrepareNewAndExistingBranch(t *testing.T) {
 	t.Parallel()
@@ -129,5 +166,63 @@ func TestDefaults(t *testing.T) {
 	repo.URL = "https://ghe.example.com/acme/api"
 	if m.url(repo) != "https://ghe.example.com/acme/api.git" {
 		t.Fatal(m.url(repo))
+	}
+}
+
+func TestPrepareGitFailures(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		fail string
+		// conflict makes the existing branch conflict with main, so the
+		// rebase fails and Prepare falls back to resetting to main.
+		conflict bool
+	}{
+		{name: "ls-remote", fail: "ls-remote"},
+		{name: "fetch", fail: "fetch"},
+		{name: "checkout existing branch", fail: "checkout:origin/fleet/c"},
+		{name: "reset after conflict", fail: "checkout:origin/main", conflict: true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ctx := t.Context()
+			env := testutil.GitEnv(t)
+			remote := testutil.NewRemote(t, env, map[string]string{"a.txt": "a\n"})
+			remote.Commit("fleet/c", "branch", map[string]string{"a.txt": "branch\n"})
+			if tc.conflict {
+				remote.Commit("main", "main", map[string]string{"a.txt": "main\n"})
+			}
+			m := &Manager{
+				Root:     t.TempDir(),
+				Git:      testutil.Git(slices.Concat(env, []string{failGitEnv + "=" + tc.fail})),
+				CloneURL: func(ghapi.Repo) string { return remote.URL() },
+			}
+			m.Git.Bin = os.Args[0]
+			repo := ghapi.Repo{Owner: "acme", Name: "api"}
+			ws, err := m.Prepare(ctx, "c", repo, "main", "fleet/c")
+			if err == nil || !strings.Contains(err.Error(), "injected failure") {
+				t.Fatalf("err = %v, want the injected failure", err)
+			}
+			if ws != nil {
+				t.Fatalf("ws = %+v, want nil on error", ws)
+			}
+			if _, statErr := os.Stat(m.Path("c", repo)); !os.IsNotExist(statErr) {
+				t.Fatal("failed prepare left the workspace")
+			}
+		})
+	}
+}
+
+func TestRemoveError(t *testing.T) {
+	t.Parallel()
+	// A NUL byte makes every path operation fail, before any git runs.
+	m := &Manager{Root: t.TempDir()}
+	repo := ghapi.Repo{Owner: "acme", Name: "api"}
+	if _, err := m.Prepare(t.Context(), "bad\x00", repo, "main", "fleet/c"); err == nil {
+		t.Fatal("Prepare: expected an error for an invalid path")
+	}
+	if _, err := m.Clone(t.Context(), "bad\x00", repo, "main"); err == nil {
+		t.Fatal("Clone: expected an error for an invalid path")
 	}
 }
