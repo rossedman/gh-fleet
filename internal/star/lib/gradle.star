@@ -155,3 +155,128 @@ def set_wrapper_version(repo, version, sha256 = None):
         updated = re.sub(r"(?m)^distributionSha256Sum=.*$", "distributionSha256Sum=" + _lit(sha256), updated)
     repo.write(WRAPPER, updated)
     return True
+
+def set_plugin(repo, plugin, version):
+    """Sets the version of a Gradle plugin wherever the build applies or declares it.
+
+    Covers `id 'x' version 'v'` (Groovy), `id("x") version "v"` (Kotlin), and
+    version catalog `[plugins]` entries, written as `{ id = "x", version = "v" }`,
+    `{ id = "x", version.ref = "key" }` (setting `[versions]` instead) or
+    `"x:v"`. For Kotlin plugins, `kotlin("jvm") version "v"` matches
+    `org.jetbrains.kotlin.jvm`.
+
+    Args:
+        plugin: the plugin ID, such as `com.android.application`.
+        version: the new version.
+    Returns:
+        The list of paths that changed.
+    Example:
+        before build.gradle.kts:
+            plugins {
+                id("com.android.application") version "8.1.4" apply false
+                kotlin("android") version "1.9.10" apply false
+            }
+        before gradle/libs.versions.toml:
+            [versions]
+            agp = "8.1.4"
+
+            [plugins]
+            android-application = { id = "com.android.application", version.ref = "agp" }
+        call:
+            set_plugin(repo, "org.jetbrains.kotlin.android", "2.0.21")
+            set_plugin(repo, "com.android.application", "8.7.2")
+        after build.gradle.kts:
+            plugins {
+                id("com.android.application") version "8.7.2" apply false
+                kotlin("android") version "2.0.21" apply false
+            }
+        after gradle/libs.versions.toml:
+            [versions]
+            agp = "8.7.2"
+
+            [plugins]
+            android-application = { id = "com.android.application", version.ref = "agp" }
+        returns:
+            ["build.gradle.kts", "gradle/libs.versions.toml"]
+    """
+    pid = re.escape(plugin)
+    forms = [r"""(\bid\s*\(?\s*["']""" + pid + r"""["']\s*\)?\s*version\s*\(?\s*["'])([^"'$]+)(["'])"""]
+    if plugin.startswith("org.jetbrains.kotlin."):
+        short = re.escape(plugin.removeprefix("org.jetbrains.kotlin."))
+        forms.append(r"""(\bkotlin\s*\(\s*["']""" + short + r"""["']\s*\)\s*version\s*\(?\s*["'])([^"'$]+)(["'])""")
+    inline = r"""(\bid\s*=\s*["']""" + pid + r"""["'][^}]*\bversion\s*=\s*["'])([^"']+)(["'])"""
+    short_form = r"""(=\s*["']""" + pid + r""":)([^"']+)(["'])"""
+    ref = r"""\bid\s*=\s*["']""" + pid + r"""["'][^}]*\bversion\.ref\s*=\s*["']([^"']+)["']"""
+    changed = []
+    for path in build_files(repo):
+        content = repo.read(path)
+        updated = content
+        for pattern in forms:
+            updated = re.sub(pattern, "${1}" + _lit(version) + "${3}", updated)
+        if path.endswith(".toml"):
+            for pattern in (inline, short_form):
+                updated = re.sub(pattern, "${1}" + _lit(version) + "${3}", updated)
+            for r in re.find_all(ref, updated):
+                key = re.groups(ref, r)[0]
+                updated = re.sub(r"""(?m)^(\s*""" + re.escape(key) + r"""\s*=\s*["'])[^"']*(["'])""", "${1}" + _lit(version) + "${2}", updated, count = 1)
+        if updated != content:
+            repo.write(path, updated)
+            changed.append(path)
+    return changed
+
+def set_kotlin_version(repo, version):
+    """Moves every Kotlin Gradle plugin, and the Kotlin standard library, to one version.
+
+    Sets every `org.jetbrains.kotlin.*` plugin a build applies (in either
+    DSL or a version catalog), the `kotlin-gradle-plugin` classpath
+    dependency of older builds, a `kotlin` or `kotlin_version` entry in
+    `[versions]`, and `ext.kotlin_version` in Groovy builds.
+
+    Args:
+        version: the Kotlin version, such as `2.0.21`.
+    Returns:
+        The list of paths that changed.
+    Example:
+        before build.gradle:
+            buildscript {
+                ext.kotlin_version = '1.8.22'
+                dependencies {
+                    classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+                }
+            }
+        call:
+            set_kotlin_version(repo, "2.0.21")
+        after build.gradle:
+            buildscript {
+                ext.kotlin_version = '2.0.21'
+                dependencies {
+                    classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+                }
+            }
+        returns:
+            ["build.gradle"]
+    """
+    changed = []
+    ids = set()
+    for path in build_files(repo):
+        for m in re.find_all(r"""org\.jetbrains\.kotlin\.[\w.-]+""", repo.read(path)):
+            ids.add(m)
+        for m in re.find_all(r"""\bkotlin\s*\(\s*["']([\w.-]+)["']\s*\)\s*version""", repo.read(path)):
+            ids.add("org.jetbrains.kotlin." + re.groups(r"""["']([\w.-]+)["']""", m)[0])
+    for pid in sorted(ids):
+        for p in set_plugin(repo, pid, version):
+            if p not in changed:
+                changed.append(p)
+    for p in set_dependency(repo, "org.jetbrains.kotlin:kotlin-gradle-plugin", version):
+        if p not in changed:
+            changed.append(p)
+    for path in build_files(repo):
+        content = repo.read(path)
+        updated = re.sub(r"""(?m)^(\s*(?:ext\.)?kotlin_version\s*=\s*["'])[^"']*(["'])""", "${1}" + _lit(version) + "${2}", content)
+        if path.endswith(".toml"):
+            updated = re.sub(r"""(?m)^(\s*kotlin(?:_version|-version)?\s*=\s*["'])[^"']*(["'])""", "${1}" + _lit(version) + "${2}", updated)
+        if updated != content:
+            repo.write(path, updated)
+            if path not in changed:
+                changed.append(path)
+    return sorted(changed)

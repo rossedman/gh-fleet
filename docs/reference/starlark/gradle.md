@@ -10,7 +10,7 @@ Edits are line-based, so comments and formatting in build scripts and
 libs.versions.toml stay as they were.
 
 ```python
-load("@fleet//gradle.star", "build_files", "set_dependency", "wrapper_version", "set_wrapper_version")
+load("@fleet//gradle.star", "build_files", "set_dependency", "wrapper_version", "set_wrapper_version", "set_plugin", "set_kotlin_version")
 ```
 
 | Function | What it does |
@@ -19,6 +19,8 @@ load("@fleet//gradle.star", "build_files", "set_dependency", "wrapper_version", 
 | [`set_dependency`](#set_dependency) | Sets a library's version wherever the build declares it. |
 | [`wrapper_version`](#wrapper_version) | Reads the Gradle version the wrapper downloads. |
 | [`set_wrapper_version`](#set_wrapper_version) | Points the Gradle wrapper at a new version, never lowering it. |
+| [`set_plugin`](#set_plugin) | Sets the version of a Gradle plugin wherever the build applies or declares it. |
+| [`set_kotlin_version`](#set_kotlin_version) | Moves every Kotlin Gradle plugin, and the Kotlin standard library, to one version. |
 
 ## build_files
 
@@ -235,3 +237,136 @@ set_wrapper_version(repo, "8.10.2")
 **Used in:** [`gradle-wrapper-bump`](https://github.com/rossedman/gh-fleet/tree/main/examples/gradle-wrapper-bump)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gradle.star#L114)
+
+## set_plugin
+
+```python
+set_plugin(repo, plugin, version)
+```
+
+Sets the version of a Gradle plugin wherever the build applies or declares it.
+
+Covers `id 'x' version 'v'` (Groovy), `id("x") version "v"` (Kotlin), and
+version catalog `[plugins]` entries, written as `{ id = "x", version = "v" }`,
+`{ id = "x", version.ref = "key" }` (setting `[versions]` instead) or
+`"x:v"`. For Kotlin plugins, `kotlin("jvm") version "v"` matches
+`org.jetbrains.kotlin.jvm`.
+
+**Arguments**
+
+| Name | Description |
+| --- | --- |
+| `repo` | The repo passed to `change(repo)`. |
+| `plugin` | The plugin ID, such as `com.android.application`. |
+| `version` | The new version. |
+
+**Returns:** The list of paths that changed.
+
+**Example**
+
+```python
+set_plugin(repo, "org.jetbrains.kotlin.android", "2.0.21")
+set_plugin(repo, "com.android.application", "8.7.2")
+# returns ["build.gradle.kts", "gradle/libs.versions.toml"]
+```
+
+=== "Before"
+
+    `build.gradle.kts`
+
+    ```text
+    plugins {
+        id("com.android.application") version "8.1.4" apply false
+        kotlin("android") version "1.9.10" apply false
+    }
+    ```
+
+    `gradle/libs.versions.toml`
+
+    ```toml
+    [versions]
+    agp = "8.1.4"
+
+    [plugins]
+    android-application = { id = "com.android.application", version.ref = "agp" }
+    ```
+
+=== "After"
+
+    `build.gradle.kts`
+
+    ```text
+    plugins {
+        id("com.android.application") version "8.7.2" apply false
+        kotlin("android") version "2.0.21" apply false
+    }
+    ```
+
+    `gradle/libs.versions.toml`
+
+    ```toml
+    [versions]
+    agp = "8.7.2"
+
+    [plugins]
+    android-application = { id = "com.android.application", version.ref = "agp" }
+    ```
+
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gradle.star#L159)
+
+## set_kotlin_version
+
+```python
+set_kotlin_version(repo, version)
+```
+
+Moves every Kotlin Gradle plugin, and the Kotlin standard library, to one version.
+
+Sets every `org.jetbrains.kotlin.*` plugin a build applies (in either
+DSL or a version catalog), the `kotlin-gradle-plugin` classpath
+dependency of older builds, a `kotlin` or `kotlin_version` entry in
+`[versions]`, and `ext.kotlin_version` in Groovy builds.
+
+**Arguments**
+
+| Name | Description |
+| --- | --- |
+| `repo` | The repo passed to `change(repo)`. |
+| `version` | The Kotlin version, such as `2.0.21`. |
+
+**Returns:** The list of paths that changed.
+
+**Example**
+
+```python
+set_kotlin_version(repo, "2.0.21")
+# returns ["build.gradle"]
+```
+
+=== "Before"
+
+    `build.gradle`
+
+    ```text
+    buildscript {
+        ext.kotlin_version = '1.8.22'
+        dependencies {
+            classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        }
+    }
+    ```
+
+=== "After"
+
+    `build.gradle`
+
+    ```text
+    buildscript {
+        ext.kotlin_version = '2.0.21'
+        dependencies {
+            classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        }
+    }
+    ```
+
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/gradle.star#L227)

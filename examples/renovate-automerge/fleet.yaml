@@ -1,0 +1,27 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: renovate-automerge-dev
+description: Automerge devDependency updates and move off config:base
+
+targets:
+  orgs: [acme]
+  include:
+    files: [renovate.json]
+
+change:
+  steps:
+    # Replaces the deprecated config:base preset with config:recommended and
+    # adds a rule that automerges minor and patch devDependency updates,
+    # unless the repo already has that exact rule.
+    - name: renovate-automerge
+      starlark: ./change.star
+      timeout: 1m
+
+pr:
+  title: "chore: automerge devDependency updates"
+  body: |
+    Lets Renovate automerge minor and patch devDependency updates in
+    {{ .Repo.Name }}, and moves the config off the deprecated `config:base`.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet, dependencies]

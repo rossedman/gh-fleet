@@ -1,0 +1,27 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: github-repo-defaults
+description: Standard release notes, labels and issue links for every repo
+
+targets:
+  orgs: [acme]
+  exclude:
+    topics: [no-fleet]
+
+change:
+  steps:
+    # Adds release note categories (dependencies and security before the
+    # catch-all), a fleet label, and a security contact link on the new issue
+    # page, keeping whatever each repo already has.
+    - name: github-repo-files
+      starlark: ./change.star
+      timeout: 1m
+
+pr:
+  title: "chore: release notes, labels and issue links"
+  body: |
+    Adds the org's standard release note categories, labels and new-issue
+    links to {{ .Repo.Name }}.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet]

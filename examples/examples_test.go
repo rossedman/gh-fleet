@@ -126,8 +126,8 @@ func read(t *testing.T, path string) string {
 func TestExamplesLoad(t *testing.T) {
 	t.Parallel()
 	dirs, _ := filepath.Glob("*/fleet.yaml")
-	if len(dirs) != 51 {
-		t.Fatalf("want 51 examples, got %v", dirs)
+	if len(dirs) != 58 {
+		t.Fatalf("want 58 examples, got %v", dirs)
 	}
 	for _, f := range dirs {
 		c, err := campaign.Load(f)
@@ -147,7 +147,7 @@ func TestExamplesLoad(t *testing.T) {
 				t.Errorf("%s: step %d has no name", f, i)
 			}
 		}
-		vars := map[string]any{"node": 22, "previous": "unset", "files": "requirements.txt", "jobs": "test", "license": "MIT", "overlays": "deploy/prod", "resources": "CronJob/nightly"}
+		vars := map[string]any{"node": 22, "previous": "unset", "files": "requirements.txt", "jobs": "test", "license": "MIT", "overlays": "deploy/prod", "resources": "CronJob/nightly", "format": "1", "added": "docker"}
 		for k, v := range c.Vars.Default {
 			vars[k] = v
 		}

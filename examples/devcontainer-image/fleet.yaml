@@ -1,0 +1,31 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rossedman/gh-fleet/main/internal/campaign/campaign.schema.json
+apiVersion: fleet.gh/v1
+name: devcontainer-go-1-23
+description: Move every Go Dev Container to Go 1.23 and add the GitHub CLI
+
+targets:
+  orgs: [acme]
+  include:
+    files: [.devcontainer]
+
+change:
+  steps:
+    # Moves the devcontainers/go image from 1.22 to 1.23 (keeping variants
+    # such as -bookworm) and adds the github-cli feature where it is missing,
+    # keeping comments in devcontainer.json.
+    - name: devcontainer-image
+      starlark: ./change.star
+      timeout: 1m
+  env:
+    IMAGE: mcr.microsoft.com/devcontainers/go
+    FROM: "1.22"
+    TO: "1.23"
+
+pr:
+  title: "chore: Go 1.23 Dev Container"
+  body: |
+    Moves {{ .Repo.Name }}'s Dev Container to Go 1.23 and adds the GitHub
+    CLI to it.
+
+    Opened by the `{{ .Campaign.Name }}` campaign with [gh fleet](https://github.com/rossedman/gh-fleet).
+  labels: [fleet]

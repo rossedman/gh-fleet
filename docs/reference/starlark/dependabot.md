@@ -4,10 +4,10 @@ title: dependabot.star
 
 # dependabot.star
 
-Detect package ecosystems and write a Dependabot configuration.
+Detect package ecosystems, write a Dependabot configuration, and edit existing ones.
 
 ```python
-load("@fleet//dependabot.star", "find", "ecosystems", "config", "write_if_missing")
+load("@fleet//dependabot.star", "find", "ecosystems", "config", "write_if_missing", "add_update", "set_option")
 ```
 
 | Function | What it does |
@@ -16,6 +16,8 @@ load("@fleet//dependabot.star", "find", "ecosystems", "config", "write_if_missin
 | [`ecosystems`](#ecosystems) | Detects the package ecosystems a repo uses, from files at its root. |
 | [`config`](#config) | Builds the text of a dependabot.yml with one update entry per ecosystem. |
 | [`write_if_missing`](#write_if_missing) | Writes .github/dependabot.yml for the detected ecosystems unless a config exists. |
+| [`add_update`](#add_update) | Adds an update entry to an existing Dependabot config, unless one covers that ecosystem and directory. |
+| [`set_option`](#set_option) | Sets an option on update entries, such as `open-pull-requests-limit` or `rebase-strategy`. |
 
 ## find
 
@@ -96,6 +98,8 @@ ecosystems(repo)
     ```yaml
     on: push
     ```
+
+**Used in:** [`dependabot-ecosystems`](https://github.com/rossedman/gh-fleet/tree/main/examples/dependabot-ecosystems)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/dependabot.star#L36)
 
@@ -196,3 +200,142 @@ write_if_missing(repo, group = False)
 **Used in:** [`add-dependabot`](https://github.com/rossedman/gh-fleet/tree/main/examples/add-dependabot)
 
 [Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/dependabot.star#L95)
+
+## add_update
+
+```python
+add_update(
+    repo,
+    ecosystem,
+    directory = "/",
+    interval = "weekly",
+    prefix = None,
+)
+```
+
+Adds an update entry to an existing Dependabot config, unless one covers that ecosystem and directory.
+
+**Arguments**
+
+| Name | Description |
+| --- | --- |
+| `repo` | The repo passed to `change(repo)`. |
+| `ecosystem` | The package ecosystem, such as `docker` or `gomod`. |
+| `directory` | The directory Dependabot looks in. |
+| `interval` | How often to check. |
+| `prefix` | The commit message prefix; `ci(deps)` for github-actions and `build(deps)` otherwise when None. |
+
+**Returns:** True when the file changed; False when the entry exists or the repo
+has no config (use `write_if_missing` to create one).
+
+**Example**
+
+```python
+add_update(repo, "docker")
+# returns True
+```
+
+=== "Before"
+
+    `.github/dependabot.yml`
+
+    ```yaml
+    version: 2
+    updates:
+      - package-ecosystem: gomod
+        directory: /
+        schedule:
+          interval: weekly
+    ```
+
+=== "After"
+
+    `.github/dependabot.yml`
+
+    ```yaml
+    version: 2
+    updates:
+      - package-ecosystem: gomod
+        directory: /
+        schedule:
+          interval: weekly
+      - package-ecosystem: docker
+        directory: /
+        schedule:
+          interval: weekly
+        commit-message:
+          prefix: "build(deps)"
+    ```
+
+**Used in:** [`dependabot-ecosystems`](https://github.com/rossedman/gh-fleet/tree/main/examples/dependabot-ecosystems)
+
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/dependabot.star#L153)
+
+## set_option
+
+```python
+set_option(repo, key, value, ecosystem = None)
+```
+
+Sets an option on update entries, such as `open-pull-requests-limit` or `rebase-strategy`.
+
+An existing option is replaced; a missing one is added to the entry.
+Use `schedule.interval` for the check interval.
+
+**Arguments**
+
+| Name | Description |
+| --- | --- |
+| `repo` | The repo passed to `change(repo)`. |
+| `key` | The option, dotted for nested ones, such as `schedule.interval`. |
+| `value` | A string, number or boolean. |
+| `ecosystem` | Only entries for this ecosystem change; every entry when None. |
+
+**Returns:** True when the file changed.
+
+**Example**
+
+```python
+set_option(repo, "schedule.interval", "weekly", ecosystem = "npm")
+set_option(repo, "open-pull-requests-limit", 5, ecosystem = "npm")
+# returns True
+```
+
+=== "Before"
+
+    `.github/dependabot.yml`
+
+    ```yaml
+    version: 2
+    updates:
+      - package-ecosystem: npm
+        directory: /
+        schedule:
+          interval: daily  # too noisy
+      - package-ecosystem: github-actions
+        directory: /
+        schedule:
+          interval: weekly
+    ```
+
+=== "After"
+
+    `.github/dependabot.yml`
+
+    ```yaml
+    version: 2
+    updates:
+      - package-ecosystem: npm
+        directory: /
+        schedule:
+          interval: weekly  # too noisy
+        open-pull-requests-limit: 5
+      - package-ecosystem: github-actions
+        directory: /
+        schedule:
+          interval: weekly
+    ```
+
+**Used in:** [`dependabot-ecosystems`](https://github.com/rossedman/gh-fleet/tree/main/examples/dependabot-ecosystems)
+
+[Source](https://github.com/rossedman/gh-fleet/blob/main/internal/star/lib/dependabot.star#L222)
