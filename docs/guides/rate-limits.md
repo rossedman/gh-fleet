@@ -10,7 +10,8 @@ Changing hundreds of repositories means hundreds of writes, which is exactly wha
 
 | Situation | Behavior |
 | --- | --- |
-| Writes (creating or updating PRs, labels, reviewers, comments, GraphQL mutations) | Limited to **1 per second** across all workers by default, and kept within GitHub's content creation limits: **80 a minute and 500 an hour**, counted over a rolling window. Reads are not throttled. |
+| Writes (anything but a read) | Limited to **1 per second** across all workers by default. Reads are not throttled. |
+| Content creation (a new PR, issue, comment or review) | Also kept within GitHub's content creation limits: **80 a minute and 500 an hour**, counted over a rolling window. Labels, review requests, edits, merges and branch deletions don't create content, so they only get the per-second pacing. |
 | A secondary rate limit with `Retry-After` | **Every worker pauses** for as long as GitHub asks, then the request is retried. |
 | A secondary rate limit without `Retry-After` (a `429`, or a `403` saying so) | Every worker pauses for **1 minute**, doubling each time it happens again in a row, up to 15 minutes. |
 | Primary quota spent (`x-ratelimit-remaining: 0` on a `403` or `429`, or a GraphQL `RATE_LIMITED` error) | Nothing is retried before the reset. Search quotas reset within a minute, so gh fleet waits; core and GraphQL quotas reset hourly, so the run stops with an error naming the resource and when it resets. |
@@ -31,7 +32,7 @@ Set it permanently with `GH_FLEET_WRITE_RATE` or `write-rate` in the [config fil
 
 `--concurrency` (or `limits.concurrency`, default 8) sets how many repos are processed in parallel. It affects clone and script time, not the write rate: more workers share the same writes-per-second budget.
 
-The content creation limits are GitHub's and can't be raised. A campaign that opens a PR and adds labels and reviewers makes about three writes per repo, so past roughly 150 repos an `apply` is paced by the 500-an-hour limit. Waves (`limits.waves`) and `retry` let a long rollout span several sessions.
+The content creation limits are GitHub's and can't be raised. Each new PR is one content-creating request, however many labels and reviewers it gets, so `apply` can open up to **500 PRs an hour**; past that it waits for the window. Re-running `apply` on repos that already have their PR creates nothing, and `merge`, `close` and `status` don't count toward the limit (closing with a comment counts the comment). Waves (`limits.waves`) and `retry` let a rollout of thousands of repos span several sessions.
 
 ## Keeping an eye on quota
 

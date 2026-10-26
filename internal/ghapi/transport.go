@@ -136,6 +136,7 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 		body = b
 	}
 	write := isWrite(req.Method, req.URL.Path, body)
+	content := createsContent(req.Method, req.URL.Path)
 	resource := resourceFor(req.URL.Path)
 	attempts := t.MaxAttempts
 	if attempts < 1 {
@@ -149,10 +150,12 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 		if err := t.checkQuota(ctx, resource); err != nil {
 			return nil, err
 		}
-		if write {
+		if content {
 			if err := t.waitForContent(ctx); err != nil {
 				return nil, err
 			}
+		}
+		if write {
 			if t.Writes != nil {
 				if err := t.Writes.Wait(ctx); err != nil {
 					return nil, err
@@ -511,6 +514,22 @@ func isMutation(body []byte) bool {
 		rest = bytes.TrimLeft(rest[2:], " ")
 	}
 	return bytes.HasPrefix(rest, []byte("mutation"))
+}
+
+// createsContent reports whether a request creates content, which GitHub
+// limits to ContentPerMinute and ContentPerHour: a new pull request, issue,
+// comment or review. Other writes, such as labels, review requests, edits,
+// merges and branch deletions, only get the per-second write pacing.
+func createsContent(method, path string) bool {
+	if method != http.MethodPost {
+		return false
+	}
+	for _, suffix := range []string{"/pulls", "/issues", "/comments", "/reviews"} {
+		if strings.HasSuffix(path, suffix) {
+			return true
+		}
+	}
+	return false
 }
 
 // resourceFor maps a request path to its rate limit resource name.
