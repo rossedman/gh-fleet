@@ -13,6 +13,10 @@ get it, so a change made the same way in 300 repos is read once. Blob hashes
 and hunk line numbers don't count as differences. --ungrouped prints each
 repo's diff as it finishes instead.
 
+With limits.waves, plan takes one wave at a time, like apply: the wave apply
+would roll out now. --wave plans another wave, and --all-waves plans every
+target. --repo plans the repos you name, whatever their wave.
+
 The script sees FLEET_DRY_RUN=true.
 
 ```
@@ -23,12 +27,14 @@ gh fleet plan [campaign] [flags]
 
 ```
   gh fleet plan --repo acme/api
+  gh fleet plan --wave 3
   gh fleet plan --json repo,status --jq '[.[] | select(.status == "changed") | .repo]'
 ```
 
 ### Options
 
 ```
+      --all-waves              plan every target, whatever its wave
       --concurrency int        repos processed in parallel (default limits.concurrency, else 8)
       --exclude strings        leave out these repos (owner/name, repeatable)
       --exclude-file strings   leave out the repos listed in this file, one per line (- for stdin, repeatable)
@@ -41,6 +47,7 @@ gh fleet plan [campaign] [flags]
       --repo-file strings      limit to the repos listed in this file, one per line (- for stdin, repeatable)
   -t, --template string        format JSON output using a Go template; see gh help formatting
       --ungrouped              print each repo's diff as it finishes instead of grouping identical diffs
+      --wave wave              plan this wave of limits.waves (default the one apply would roll out now)
       --write-rate float       GitHub API writes per second (default 1)
 ```
 
