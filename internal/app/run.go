@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"regexp"
 	"slices"
@@ -53,6 +54,11 @@ type PlanOptions struct {
 	// Ungrouped prints each repo's diff as it finishes, instead of each
 	// distinct diff once at the end with the repos that get it.
 	Ungrouped bool
+	// Wave plans only this 1-based wave of limits.waves. Zero means the
+	// wave apply would roll out now.
+	Wave int
+	// AllWaves plans every target, whatever wave it is in.
+	AllWaves bool
 }
 
 // Plan runs the change in every target and shows the diffs, without
@@ -71,12 +77,24 @@ func (a *App) Plan(ctx context.Context, o PlanOptions) error {
 	if err != nil {
 		return err
 	}
+	if (o.Wave > 0 || o.AllWaves) && len(c.Repos) > 0 {
+		return errors.New("--repo plans the repos you name, so it can't be combined with --wave or --all-waves")
+	}
+	if o.Wave > 0 && o.AllWaves {
+		return errors.New("--wave and --all-waves can't be combined")
+	}
 	res, err := a.resolve(ctx, c, client, camp, c.Repos, true)
 	if err != nil {
 		return err
 	}
 	p := a.printer(c)
 	progress := a.errPrinter(c)
+	// Like apply, plan takes one wave at a time; --repo names its own.
+	if len(c.Repos) == 0 && !o.AllWaves {
+		if res.Targets, err = a.planWave(ctx, c, client, camp, res, o.Wave); err != nil {
+			return err
+		}
+	}
 	pipe := &engine.Pipeline{
 		Mode: engine.Plan, Campaign: camp, Workspaces: a.workspaces(c), Git: a.Git, Scripts: scripts,
 		LogPath:     func(repo string) string { return a.Store.LogPath(camp.Name, repo) },
@@ -192,16 +210,7 @@ func (a *App) apply(ctx context.Context, o ApplyOptions, keep func(*state.Campai
 	// explicit --repo is a deliberate choice and isn't held.
 	var held []state.RepoState
 	if len(camp.Limits.Waves) > 0 && len(o.Repos) == 0 {
-		gate := gateWaves(camp.Limits.Waves, all, func(r string) bool {
-			if p := prs.Existing(r); p != nil && p.State == ghapi.StateMerged {
-				return true
-			}
-			rs := st.Get(r)
-			return rs != nil && rs.Status == state.Noop
-		}, func(r string) bool {
-			p := prs.Existing(r)
-			return p != nil && p.State == ghapi.StateOpen
-		})
+		gate := gateWaves(camp.Limits.Waves, all, waveDone(st, prs), waveOpen(prs))
 		var kept []target.Target
 		for _, t := range res.Targets {
 			name := t.Repo.FullName()

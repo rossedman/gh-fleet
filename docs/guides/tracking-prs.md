@@ -140,6 +140,14 @@ pending  acme/billing wave 2 of 4: starts when wave 1 is done (0 of 2 merged or 
 ...
 ```
 
+`plan` follows the same waves, so it only clones and runs the repos `apply` would touch next, and its output stays readable however big the campaign is. `--wave 3` plans a later wave ahead of time, and `--all-waves` plans every target. Working out the current wave means looking up the campaign's PRs, the same batched lookup `apply` makes.
+
+```console
+$ gh fleet plan
+Wave 2 of 4: planning 10 repos; 40 repos in other waves (--wave N or --all-waves plans them)
+...
+```
+
 A canary PR closed without merging stops the rollout there until you decide what to do. PRs already open in later waves keep being updated, and `--repo` acts on the repos you name regardless of waves. Waves combine with `merge`: `gh fleet merge --auto` merges each wave as it passes, and the next `apply` starts the next one.
 
 ## Merging

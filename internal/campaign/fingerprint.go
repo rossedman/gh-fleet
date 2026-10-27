@@ -42,11 +42,9 @@ func (c *Campaign) Fingerprint() string {
 	h := sha256.New()
 	seen := map[string]bool{}
 	files, size := 0, int64(0)
-	add := func(p string) error {
-		abs, err := filepath.Abs(p)
-		if err != nil {
-			return err
-		}
+	// Every path is absolute: the walk starts from an absolute directory,
+	// and the files outside it are resolved by fileRef.
+	add := func(abs string) error {
 		if seen[abs] {
 			return nil
 		}
@@ -70,7 +68,7 @@ func (c *Campaign) Fingerprint() string {
 		write(h, abs, b)
 		return nil
 	}
-	dir := c.Dir()
+	dir, _ := filepath.Abs(c.Dir()) // an error leaves "", which fails the walk
 	err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err

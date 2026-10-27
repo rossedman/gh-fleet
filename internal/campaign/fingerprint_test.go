@@ -63,6 +63,20 @@ func TestFingerprint(t *testing.T) {
 	}
 	write("shared/lib.star", "def f(): pass\n")
 
+	// Symlinks and other special files are left out; a load of a file
+	// that doesn't exist means no fingerprint (the run fails anyway).
+	before := c.Fingerprint()
+	if err := os.Symlink(filepath.Join(root, "shared", "run.sh"), filepath.Join(dir, "link.sh")); err != nil {
+		t.Fatal(err)
+	}
+	if c.Fingerprint() != before {
+		t.Error("a symlink changed the fingerprint")
+	}
+	write("camp/change.star", `load("./missing.star", "f")`+"\n")
+	if c.Fingerprint() != "" {
+		t.Error("missing load fingerprinted")
+	}
+
 	// A directory too big to be a campaign has none.
 	big := &Campaign{Path: filepath.Join(root, "big", "fleet.yaml")}
 	write("big/fleet.yaml", strings.Repeat("x", maxFingerprintBytes+1))

@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -125,5 +127,92 @@ func TestApplyWaves(t *testing.T) {
 	}
 	if err := h2.app.Apply(ctx, ApplyOptions{Common: Common{File: f2, Yes: true, Repos: []string{"acme/web"}}}); err != nil || len(h2.gh.OpenPRs()) != 1 {
 		t.Fatalf("--repo should bypass waves: %v %+v", err, h2.gh.OpenPRs())
+	}
+}
+
+func TestPlanWaves(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	f := h.campaign(strings.Replace(basic, "pr:\n", "limits:\n  waves:\n    - repos: [acme/web]\npr:\n", 1), files)
+	ctx := context.Background()
+	plan := func(o PlanOptions) []state.RepoState {
+		t.Helper()
+		h.reset()
+		o.File, o.JSON = f, true
+		if err := h.app.Plan(ctx, o); err != nil {
+			t.Fatal(err)
+		}
+		var out []state.RepoState
+		if err := json.Unmarshal(h.out.Bytes(), &out); err != nil {
+			t.Fatalf("%v: %s", err, h.out)
+		}
+		return out
+	}
+	repos := func(rs []state.RepoState) string {
+		var names []string
+		for _, r := range rs {
+			if r.Status != state.Skipped {
+				names = append(names, r.Repo)
+			}
+		}
+		return strings.Join(names, ",")
+	}
+
+	// Before any apply, wave 1 is current: only the canary is planned.
+	if got := repos(plan(PlanOptions{})); got != "acme/web" {
+		t.Fatalf("current wave planned %s", got)
+	}
+	if got := repos(plan(PlanOptions{Wave: 2})); got != "acme/api" {
+		t.Fatalf("--wave 2 planned %s", got)
+	}
+	if got := repos(plan(PlanOptions{AllWaves: true})); got != "acme/api,acme/web" {
+		t.Fatalf("--all-waves planned %s", got)
+	}
+	// Once the canary merges, wave 2 is current, as apply sees it.
+	if err := h.app.Apply(ctx, ApplyOptions{Common: Common{File: f, Yes: true}}); err != nil {
+		t.Fatal(err)
+	}
+	h.gh.SetPRState("acme/web", 1, ghapi.StateMerged, "SUCCESS", "APPROVED")
+	if got := repos(plan(PlanOptions{})); got != "acme/api" {
+		t.Fatalf("after the canary merged, planned %s", got)
+	}
+
+	// People see which wave is planned.
+	h.reset()
+	if err := h.app.Plan(ctx, PlanOptions{Common: Common{File: f}, Wave: 1}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(h.errOut.String(), "Wave 1 of 2: planning 1 repo; 1 repo in other waves (--wave N or --all-waves plans them)") {
+		t.Fatalf("output:\n%s", h.errOut)
+	}
+
+	// Mistakes are errors.
+	for _, tc := range []struct {
+		o    PlanOptions
+		want string
+	}{
+		{PlanOptions{Wave: 3}, "--wave 3: the campaign's targets make 2 waves"},
+		{PlanOptions{Wave: 1, AllWaves: true}, "--wave and --all-waves can't be combined"},
+		{PlanOptions{Common: Common{Repos: []string{"acme/api"}}, Wave: 1}, "--repo plans the repos you name"},
+	} {
+		tc.o.File = f
+		if err := h.app.Plan(ctx, tc.o); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%+v: err = %v", tc.o, err)
+		}
+	}
+	// Without waves, --wave is an error and plan covers every target.
+	plain := h.campaign(basic, files)
+	if err := h.app.Plan(ctx, PlanOptions{Common: Common{File: plain}, Wave: 1}); err == nil || !strings.Contains(err.Error(), "--wave needs limits.waves") {
+		t.Errorf("err = %v", err)
+	}
+	f = plain
+	if got := repos(plan(PlanOptions{})); got != "acme/api,acme/web" {
+		t.Fatalf("no waves planned %s", got)
+	}
+	// A failed PR lookup fails the plan.
+	f = h.campaign(strings.Replace(basic, "pr:\n", "limits:\n  waves:\n    - repos: [acme/web]\npr:\n", 1), files)
+	h.gh.Errors["PRsByHead"] = errors.New("boom")
+	if err := h.app.Plan(ctx, PlanOptions{Common: Common{File: f}}); err == nil {
+		t.Error("PR lookup error swallowed")
 	}
 }
