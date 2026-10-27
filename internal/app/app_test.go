@@ -143,9 +143,10 @@ func TestTargets(t *testing.T) {
 	if strings.TrimSpace(h.out.String()) != "2" {
 		t.Fatalf("jq output = %q", h.out.String())
 	}
-	// The org listing is cached, so a second resolve does not list again.
-	if n := h.gh.CallCount("ListOwnerRepos"); n != 1 {
-		t.Fatalf("ListOwnerRepos called %d times", n)
+	// The campaign filters on a topic, so each run asks repo search for
+	// the matches rather than listing the org.
+	if l, n := h.gh.CallCount("ListOwnerRepos"), h.gh.CallCount("SearchRepos"); l != 0 || n != 2 {
+		t.Fatalf("ListOwnerRepos called %d times, SearchRepos %d", l, n)
 	}
 
 	h.reset()

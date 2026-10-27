@@ -801,3 +801,38 @@ func TestNewWithoutAuth(t *testing.T) {
 		t.Fatalf("err = %v", err)
 	}
 }
+
+func TestSearchRepos(t *testing.T) {
+	t.Parallel()
+	total := map[string]int{"small": 150, "big": 1001, "flaky": 5}
+	s := &apiServer{rest: map[string]func(*http.Request, []byte) (any, int){
+		"GET /search/repositories": func(r *http.Request, _ []byte) (any, int) {
+			q := r.URL.Query().Get("q")
+			if q == "broken" {
+				return map[string]any{"message": "bad"}, 422
+			}
+			n := total[q]
+			page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+			items := []any{}
+			for i := (page - 1) * 100; i < min(page*100, n); i++ {
+				items = append(items, map[string]any{"full_name": fmt.Sprintf("acme/r%d", i)})
+			}
+			return map[string]any{"total_count": n, "incomplete_results": q == "flaky", "items": items}, 200
+		},
+	}}
+	c := newClient(t, s)
+	ctx := context.Background()
+	res, err := c.SearchRepos(ctx, "small")
+	if err != nil || !res.Complete || len(res.Repos) != 150 || res.Repos[149] != "acme/r149" {
+		t.Fatalf("small: %d repos, complete %v, %v", len(res.Repos), res.Complete, err)
+	}
+	// Past the cap, or unfinished: not complete, and nothing to use.
+	for _, q := range []string{"big", "flaky"} {
+		if res, err := c.SearchRepos(ctx, q); err != nil || res.Complete || res.Repos != nil {
+			t.Errorf("%s: %+v, %v", q, res, err)
+		}
+	}
+	if _, err := c.SearchRepos(ctx, "broken"); err == nil {
+		t.Error("error swallowed")
+	}
+}

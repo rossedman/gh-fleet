@@ -53,6 +53,14 @@ targets:
 
 **Different keys combine with AND, and the values within one key with OR.** The example above selects Go repos that have the `service` topic and a `go.mod`. With no filters at all, every non-excluded repo in the org matches, unless `include.repos` is set: then only the repos it names do.
 
+### Filtering a big org by topic or language
+
+With `topics` or `languages` in `include`, gh fleet asks GitHub's repository search for the matching repos of each org, one search per value, and looks up only those. The org is never listed, so selecting 40 `service` repos out of 5,000 costs a few requests. The other filters then apply as usual, and the result is the same as listing the org would give.
+
+gh fleet lists the org instead when that is cheaper or safer: when a search matches more than 1,000 repos (GitHub's limit for one search), when GitHub can't finish a search, when the campaign uses [custom properties](#custom-properties) (the listing reads them for every repo at once), or when a listing from the last 10 minutes is cached.
+
+GitHub's search index can lag a few minutes behind changes, so a topic added moments ago may not be found yet. Run `targets` again a few minutes later if a just-tagged repo is missing.
+
 ### Searching a big org
 
 With `search` and `orgs`, gh fleet runs the search first and looks up only the repos with hits, 50 to a query. The org is never listed, so finding a few matches in an org of 5,000 repos takes a few requests rather than one per 100 repos. The other filters then apply to those repos only.

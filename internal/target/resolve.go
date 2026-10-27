@@ -202,6 +202,61 @@ func (rs *Resolver) search(ctx context.Context, t campaign.Targets) (map[string]
 	return hits, nil
 }
 
+// searchQueries are repo searches that between them find every repo of
+// org that can pass the include topics, or failing those the include
+// languages: one per value, since a search ANDs its qualifiers. Forks are
+// included, since exclude.forks decides about them later.
+func searchQueries(org string, inc campaign.Include) []string {
+	var qs []string
+	switch {
+	case len(inc.Topics) > 0:
+		for _, tp := range inc.Topics {
+			qs = append(qs, fmt.Sprintf("org:%s topic:%s fork:true", org, tp))
+		}
+	case len(inc.Languages) > 0:
+		for _, l := range inc.Languages {
+			qs = append(qs, fmt.Sprintf("org:%s language:%q fork:true", org, l))
+		}
+	}
+	return qs
+}
+
+// searchRepos asks GitHub's repo search for the repos of org that can pass
+// the topic or language filter, so a big org needn't be listed whole. It
+// reports false, meaning list the org instead, when neither filter is set,
+// when custom properties are needed (the listing reads them in bulk), when
+// a fresh listing is cached, or when search can't return every match.
+func (rs *Resolver) searchRepos(ctx context.Context, org string, inc campaign.Include) ([]string, bool) {
+	qs := searchQueries(org, inc)
+	if len(qs) == 0 || rs.props {
+		return nil, false
+	}
+	if rs.Cache != nil {
+		if _, ok := rs.Cache.Get(org); ok {
+			return nil, false
+		}
+	}
+	found := map[string]string{}
+	for _, q := range qs {
+		rs.progress(fmt.Sprintf("Searching for repos: %s", q))
+		res, err := rs.Client.SearchRepos(ctx, q)
+		if err != nil {
+			rs.progress(fmt.Sprintf("Repo search failed (%v); listing %s instead", err, org))
+			return nil, false
+		}
+		if !res.Complete {
+			rs.progress(fmt.Sprintf("Repo search matched too many to list; listing %s instead", org))
+			return nil, false
+		}
+		for _, n := range res.Repos {
+			found[strings.ToLower(n)] = n
+		}
+	}
+	names := slices.Sorted(maps.Values(found))
+	rs.progress(fmt.Sprintf("Repo search found %s in %s", countRepos(len(names)), org))
+	return names, true
+}
+
 // listOwner lists an owner's repos, with their custom properties, through
 // the cache.
 func (rs *Resolver) listOwner(ctx context.Context, owner string) ([]ghapi.Repo, error) {
@@ -372,8 +427,19 @@ func (rs *Resolver) candidates(ctx context.Context, t campaign.Targets, hits map
 		}
 	default:
 		for _, org := range t.Orgs {
-			if err := list(org, func(ghapi.Repo) bool { return true }); err != nil {
+			names, ok := rs.searchRepos(ctx, org, t.Include)
+			if !ok {
+				if err := list(org, func(ghapi.Repo) bool { return true }); err != nil {
+					return nil, err
+				}
+				continue
+			}
+			found, err := rs.lookup(ctx, names)
+			if err != nil {
 				return nil, err
+			}
+			for _, r := range found {
+				candidates[strings.ToLower(r.FullName())] = r
 			}
 		}
 	}
