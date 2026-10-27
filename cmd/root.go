@@ -287,6 +287,7 @@ func run(cmd *cobra.Command, f func(a *app.App) error) error {
 	if err != nil {
 		return err
 	}
+	a.Version = version
 	return f(a)
 }
 

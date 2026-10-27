@@ -10,6 +10,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -157,6 +158,52 @@ func (c *GitHub) GetRepos(ctx context.Context, names []string) (map[string]Repo,
 		for i, n := range batch {
 			if r := resp["r"+strconv.Itoa(i)]; r != nil {
 				out[strings.ToLower(n)] = r.toRepo()
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// BranchHeads returns the commit each repo's branch points at, for
+// branches keyed by repo full name. Repos or branches that don't exist are
+// absent. Queries are batched like GetRepos.
+func (c *GitHub) BranchHeads(ctx context.Context, branches map[string]string) (map[string]string, error) {
+	repos := slices.Sorted(maps.Keys(branches))
+	for _, r := range repos {
+		if _, _, err := SplitRepo(r); err != nil {
+			return nil, err
+		}
+	}
+	out := map[string]string{}
+	var mu sync.Mutex
+	err := forBatches(ctx, len(repos), func(ctx context.Context, lo, hi int) error {
+		batch := repos[lo:hi]
+		var q strings.Builder
+		q.WriteString("query {")
+		for i, r := range batch {
+			owner, name, _ := SplitRepo(r)
+			fmt.Fprintf(&q, " r%d: repository(owner: %s, name: %s) { ref(qualifiedName: %s) { target { oid } } }", i, gqlString(owner), gqlString(name), gqlString("refs/heads/"+branches[r]))
+		}
+		q.WriteString(" }")
+		var resp map[string]*struct {
+			Ref *struct {
+				Target struct {
+					OID string `json:"oid"`
+				} `json:"target"`
+			} `json:"ref"`
+		}
+		if err := c.gql.DoWithContext(ctx, q.String(), nil, &resp); err != nil && !onlyNotFound(err) {
+			return fmt.Errorf("look up branches: %w", err)
+		}
+		mu.Lock()
+		defer mu.Unlock()
+		for i, r := range batch {
+			if n := resp["r"+strconv.Itoa(i)]; n != nil && n.Ref != nil {
+				out[r] = n.Ref.Target.OID
 			}
 		}
 		return nil

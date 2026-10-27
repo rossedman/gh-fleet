@@ -46,13 +46,17 @@ type RepoState struct {
 	Checks   string `json:"checks,omitempty"`
 	Review   string `json:"review,omitempty"`
 	// MergeState is the PR's mergeStateStatus, such as CLEAN or DIRTY.
-	MergeState string    `json:"mergeState,omitempty"`
-	LastError  string    `json:"lastError,omitempty"`
-	Detail     string    `json:"detail,omitempty"`
-	Diff       string    `json:"diff,omitempty"`
-	Output     string    `json:"output,omitempty"`
-	CreatedAt  time.Time `json:"createdAt,omitzero"`
-	UpdatedAt  time.Time `json:"updatedAt,omitzero"`
+	MergeState string `json:"mergeState,omitempty"`
+	LastError  string `json:"lastError,omitempty"`
+	Detail     string `json:"detail,omitempty"`
+	Diff       string `json:"diff,omitempty"`
+	Output     string `json:"output,omitempty"`
+	// BaseSHA and Fingerprint describe a run that found nothing to change:
+	// the base commit it ran on, and the change's fingerprint for the repo.
+	BaseSHA     string    `json:"baseSha,omitempty"`
+	Fingerprint string    `json:"fingerprint,omitempty"`
+	CreatedAt   time.Time `json:"createdAt,omitzero"`
+	UpdatedAt   time.Time `json:"updatedAt,omitzero"`
 }
 
 // Campaign is the stored state of one campaign.
@@ -61,6 +65,10 @@ type Campaign struct {
 	File      string                `json:"file,omitempty"`
 	UpdatedAt time.Time             `json:"updatedAt,omitzero"`
 	Repos     map[string]*RepoState `json:"repos"`
+	// Unchanged records, per repo, the last plan or apply that found
+	// nothing to change, so apply can skip the repo while neither its base
+	// nor the change has moved.
+	Unchanged map[string]Unchanged `json:"unchanged,omitempty"`
 
 	mu sync.Mutex
 }
@@ -90,6 +98,36 @@ func (c *Campaign) Set(s RepoState, now time.Time) {
 	s.Diff, s.Output = "", ""
 	c.Repos[s.Repo] = &s
 	c.UpdatedAt = now
+}
+
+// Unchanged is a run that found nothing to change in a repo.
+type Unchanged struct {
+	BaseSHA     string    `json:"baseSha"`
+	Fingerprint string    `json:"fingerprint"`
+	At          time.Time `json:"at"`
+}
+
+// NoteResult records whether a run left a repo unchanged: a no-op with a
+// fingerprint is remembered, anything else forgets the repo.
+func (c *Campaign) NoteResult(s RepoState, now time.Time) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if s.Status != Noop || s.Fingerprint == "" || s.BaseSHA == "" {
+		delete(c.Unchanged, s.Repo)
+		return
+	}
+	if c.Unchanged == nil {
+		c.Unchanged = map[string]Unchanged{}
+	}
+	c.Unchanged[s.Repo] = Unchanged{BaseSHA: s.BaseSHA, Fingerprint: s.Fingerprint, At: now}
+}
+
+// UnchangedFor returns the last run that left repo unchanged.
+func (c *Campaign) UnchangedFor(repo string) (Unchanged, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	u, ok := c.Unchanged[repo]
+	return u, ok
 }
 
 // Sorted returns repo states ordered by repo name.

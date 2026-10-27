@@ -28,6 +28,8 @@ type Client struct {
 	Files map[string][]string
 	// Search maps a code search query to the repos it hits.
 	Search map[string][]string
+	// Heads maps "owner/name:branch" to the commit the branch points at.
+	Heads map[string]string
 	// SearchPartial marks every code search result as partial.
 	SearchPartial bool
 	// RepoSearchIncomplete makes every repo search incomplete.
@@ -155,6 +157,22 @@ func (c *Client) PathsExist(ctx context.Context, repos []ghapi.Repo, paths []str
 			if slices.Contains(have, strings.TrimPrefix(p, "/")) {
 				out[r.FullName()] = append(out[r.FullName()], p)
 			}
+		}
+	}
+	return out, nil
+}
+
+// BranchHeads returns the Heads registered for each repo's branch.
+func (c *Client) BranchHeads(ctx context.Context, branches map[string]string) (map[string]string, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if err := c.call(ctx, "BranchHeads", ""); err != nil {
+		return nil, err
+	}
+	out := map[string]string{}
+	for repo, branch := range branches {
+		if sha, ok := c.Heads[repo+":"+branch]; ok {
+			out[repo] = sha
 		}
 	}
 	return out, nil

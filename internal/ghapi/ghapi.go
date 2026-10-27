@@ -121,6 +121,10 @@ type Client interface {
 	// lower-cased name asked for. Missing repos are absent from the map.
 	// Queries are batched, BatchSize repos each.
 	GetRepos(ctx context.Context, names []string) (map[string]Repo, error)
+	// BranchHeads returns the commit each repo's branch points at, for
+	// branches keyed by repo full name. Missing repos or branches are
+	// absent from the map.
+	BranchHeads(ctx context.Context, branches map[string]string) (map[string]string, error)
 	// PathsExist reports, per repo full name, which of paths exist on the
 	// repo's default branch.
 	PathsExist(ctx context.Context, repos []Repo, paths []string) (map[string][]string, error)

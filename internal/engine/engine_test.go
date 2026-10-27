@@ -310,3 +310,129 @@ func TestPipelineSteps(t *testing.T) {
 		t.Fatalf("rs = %+v", rs)
 	}
 }
+
+func TestRepoFingerprint(t *testing.T) {
+	t.Parallel()
+	tg := target.Target{Repo: ghapi.Repo{Owner: "acme", Name: "api", Topics: []string{"a"}}, Vars: map[string]any{"node": 20}}
+	fp := RepoFingerprint("camp", tg)
+	if len(fp) != 64 || RepoFingerprint("camp", tg) != fp {
+		t.Fatalf("fingerprint %q", fp)
+	}
+	if RepoFingerprint("", tg) != "" {
+		t.Error("no campaign fingerprint, but a repo one")
+	}
+	other := tg
+	other.Vars = map[string]any{"node": 22}
+	topics := tg
+	topics.Repo.Topics = []string{"b"}
+	for _, o := range []target.Target{other, topics} {
+		if RepoFingerprint("camp", o) == fp {
+			t.Errorf("%+v kept the fingerprint", o)
+		}
+	}
+	if RepoFingerprint("camp2", tg) == fp {
+		t.Error("campaign change kept the fingerprint")
+	}
+}
+
+func TestPipelineUnchanged(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	for _, mode := range []Mode{Plan, Apply} {
+		f := newFixture(t, mode, "true")
+		f.pipe.Fingerprint = "camp"
+		rs, err := f.pipe.Process(ctx, f.target)
+		if err != nil || rs.Status != state.Noop {
+			t.Fatalf("mode %d: %+v, %v", mode, rs, err)
+		}
+		// The record says which base commit the change found nothing on.
+		if rs.BaseSHA != f.remote.Branch("main") || rs.Fingerprint != RepoFingerprint("camp", f.target) {
+			t.Errorf("mode %d: base %q fingerprint %q", mode, rs.BaseSHA, rs.Fingerprint)
+		}
+		// Without a campaign fingerprint, there's nothing to record.
+		f.pipe.Fingerprint = ""
+		if rs, _ := f.pipe.Process(ctx, f.target); rs.Status != state.Noop || rs.BaseSHA != "" || rs.Fingerprint != "" {
+			t.Errorf("mode %d without fingerprint: %+v", mode, rs)
+		}
+	}
+}
+
+func TestPipelineExistingPRs(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	withPR := func(run, state string) *fixture {
+		f := newFixture(t, Apply, run)
+		f.gh.PRs = append(f.gh.PRs, &ghapi.PR{Repo: "acme/api", Number: 7, State: state, HeadRef: "fleet/fx"})
+		if err := f.pipe.PRs.Index(ctx, []string{"acme/api"}, "fleet/fx", "", nil); err != nil {
+			t.Fatal(err)
+		}
+		return f
+	}
+	api := target.Target{Repo: ghapi.Repo{Owner: "acme", Name: "api", DefaultBranch: "main"}}
+	if rs, _ := withPR("true", ghapi.StateMerged).pipe.Process(ctx, api); rs.Status != state.Merged || rs.PRNumber != 7 {
+		t.Errorf("merged: %+v", rs)
+	}
+	if rs, _ := withPR("true", ghapi.StateClosed).pipe.Process(ctx, api); rs.Status != state.Closed || !strings.Contains(rs.Detail, "--reopen") {
+		t.Errorf("closed: %+v", rs)
+	}
+	// An open PR whose change already landed is left, or closed on request.
+	f := withPR("true", ghapi.StateOpen)
+	if rs, _ := f.pipe.Process(ctx, f.target); rs.Status != state.Noop || !strings.Contains(rs.Detail, "--close-noop") || rs.Fingerprint != "" {
+		t.Errorf("open noop: %+v", rs)
+	}
+	f.pipe.CloseNoop = true
+	if rs, _ := f.pipe.Process(ctx, f.target); rs.Status != state.Closed || f.gh.PRs[0].State != ghapi.StateClosed {
+		t.Errorf("close noop: %+v", rs)
+	}
+	f = withPR("true", ghapi.StateOpen)
+	f.pipe.CloseNoop = true
+	f.gh.Errors["Comment"] = errors.New("boom")
+	if rs, _ := f.pipe.Process(ctx, f.target); rs.Status != state.Failed {
+		t.Errorf("close noop error: %+v", rs)
+	}
+	// With every PR slot taken, a change isn't pushed.
+	f = newFixture(t, Apply, "echo x >> README.md")
+	f.pipe.PRs = pr.NewManager(f.gh, 1)
+	f.pipe.PRs.Reserve()
+	if rs, _ := f.pipe.Process(ctx, f.target); rs.Status != state.Changed || !strings.Contains(rs.Detail, "maxOpenPRs reached (1)") {
+		t.Errorf("max open: %+v", rs)
+	}
+}
+
+func TestPipelineReviewersFrom(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	setup := func() *fixture {
+		f := newFixture(t, Apply, "echo x >> README.md")
+		f.remote.Commit("main", "owners", map[string]string{
+			".github/CODEOWNERS": "* @alice @acme/team\n",
+			"catalog-info.yaml":  "apiVersion: backstage.io/v1alpha1\nkind: Component\nmetadata: {name: api}\nspec: {owner: group:payments}\n",
+		})
+		f.pipe.Campaign.PR.Reviewers = []string{"alice"}
+		f.pipe.Campaign.PR.ReviewersFrom = []string{"codeowners", "catalog"}
+		return f
+	}
+	f := setup()
+	rs, err := f.pipe.Process(ctx, f.target)
+	if err != nil || rs.Status != state.PROpen {
+		t.Fatalf("rs = %+v, %v", rs, err)
+	}
+	// alice was already asked; the owners are asked once, together.
+	got := f.gh.Reviewers["acme/api#1"]
+	if strings.Join(got, ",") != "alice,acme/team,acme/payments" {
+		t.Fatalf("reviewers = %v", got)
+	}
+	if b, _ := os.ReadFile(filepath.Join(f.logs, "acme_api.log")); !strings.Contains(string(b), "## reviewers from codeowners, catalog: acme/team, acme/payments") {
+		t.Fatalf("log:\n%s", b)
+	}
+
+	// Owners GitHub refuses are skipped and logged, not a failure.
+	f = setup()
+	f.gh.Errors["RequestReviewers"] = errors.New("not a collaborator")
+	f.pipe.Campaign.PR.Reviewers = nil
+	rs, _ = f.pipe.Process(ctx, f.target)
+	b, _ := os.ReadFile(filepath.Join(f.logs, "acme_api.log"))
+	if rs.Status != state.PROpen || !strings.Contains(string(b), "reviewer acme/team skipped: not a collaborator") {
+		t.Fatalf("rs = %+v, log:\n%s", rs, b)
+	}
+}

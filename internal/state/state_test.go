@@ -119,3 +119,28 @@ func TestDefaultDir(t *testing.T) {
 		t.Fatal("expected error without HOME")
 	}
 }
+
+func TestNoteResult(t *testing.T) {
+	t.Parallel()
+	now := time.Unix(1000, 0)
+	c := &Campaign{}
+	if _, ok := c.UnchangedFor("acme/api"); ok {
+		t.Fatal("empty campaign has a record")
+	}
+	c.NoteResult(RepoState{Repo: "acme/api", Status: Noop, BaseSHA: "abc", Fingerprint: "fp"}, now)
+	if u, ok := c.UnchangedFor("acme/api"); !ok || u.BaseSHA != "abc" || u.Fingerprint != "fp" || !u.At.Equal(now) {
+		t.Fatalf("record = %+v, %v", u, ok)
+	}
+	// Anything but a fingerprinted no-op forgets the repo.
+	for _, rs := range []RepoState{
+		{Repo: "acme/api", Status: Changed},
+		{Repo: "acme/api", Status: Noop, BaseSHA: "abc"},
+		{Repo: "acme/api", Status: Noop, Fingerprint: "fp"},
+	} {
+		c.NoteResult(RepoState{Repo: "acme/api", Status: Noop, BaseSHA: "abc", Fingerprint: "fp"}, now)
+		c.NoteResult(rs, now)
+		if _, ok := c.UnchangedFor("acme/api"); ok {
+			t.Errorf("%+v kept the record", rs)
+		}
+	}
+}

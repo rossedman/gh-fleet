@@ -2,6 +2,9 @@ package engine
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -61,6 +64,41 @@ type Pipeline struct {
 	// Scripts holds the compiled script of each starlark step, by index
 	// into change.steps.
 	Scripts map[int]*star.Script
+	// Fingerprint is the campaign's fingerprint. When set, a repo found
+	// unchanged reports its base commit and RepoFingerprint, so a later
+	// apply can skip it.
+	Fingerprint string
+}
+
+// RepoFingerprint is the fingerprint of the change in one repo: the
+// campaign's, plus everything about the repo the change can read besides
+// its files. It is "" when the campaign has no fingerprint.
+func RepoFingerprint(campaign string, t target.Target) string {
+	if campaign == "" {
+		return ""
+	}
+	b, _ := json.Marshal(struct {
+		Campaign string
+		Repo     ghapi.Repo
+		Vars     map[string]any
+	}{campaign, t.Repo, t.Vars})
+	sum := sha256.Sum256(b)
+	return hex.EncodeToString(sum[:])
+}
+
+// unchanged marks rs as a repo the change left alone: its base commit and
+// fingerprint, for a later apply to skip it.
+func (p *Pipeline) unchanged(ctx context.Context, ws *workspace.Workspace, base string, t target.Target, rs *state.RepoState) {
+	rs.Status = state.Noop
+	fp := RepoFingerprint(p.Fingerprint, t)
+	if fp == "" {
+		return
+	}
+	sha, err := p.Git.Rev(ctx, ws.Dir, "origin/"+base)
+	if err != nil {
+		return
+	}
+	rs.BaseSHA, rs.Fingerprint = sha, fp
 }
 
 // NoopComment is posted on a PR closed because its change already landed.
@@ -141,7 +179,7 @@ func (p *Pipeline) Process(ctx context.Context, t target.Target) (state.RepoStat
 			return fail(err)
 		}
 		if diff == "" {
-			rs.Status = state.Noop
+			p.unchanged(ctx, ws, base, t, &rs)
 			return rs, nil
 		}
 		rs.Status, rs.Diff = state.Changed, diff
@@ -201,7 +239,7 @@ func (p *Pipeline) apply(ctx context.Context, t target.Target, ws *workspace.Wor
 			rs.Status, rs.Detail = state.Noop, "PR open but change already on "+base+"; use --close-noop to close it"
 			return rs, nil
 		}
-		rs.Status = state.Noop
+		p.unchanged(ctx, ws, base, t, &rs)
 		return rs, nil
 	}
 

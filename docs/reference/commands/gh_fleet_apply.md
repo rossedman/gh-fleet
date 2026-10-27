@@ -12,6 +12,12 @@ A merged PR's repo is skipped. A PR closed without merging is left alone
 unless --reopen is passed. When the change is already on the base branch and
 a PR is still open, --close-noop closes it.
 
+A repo that the last plan or apply (within a day) found nothing to change in
+is skipped without cloning, as long as it has no campaign PR, its base branch
+hasn't moved and the campaign's files are the same. --recheck runs every repo,
+for a change that depends on something outside the repo, such as the latest
+version of a tool.
+
 apply asks for confirmation before pushing anything unless --yes is passed.
 
 ```
@@ -38,6 +44,7 @@ gh fleet apply [campaign] [flags]
   -q, --jq expression          filter JSON output using a jq expression
       --json fields            output JSON with the specified fields (comma-separated; --json alone lists them)
       --keep-workdirs          leave clones on disk for debugging
+      --recheck                run the change even in repos the last run found nothing to change in
       --reopen                 reopen campaign PRs that were closed without merging
       --repo strings           limit to these repos (owner/name, repeatable)
       --repo-file strings      limit to the repos listed in this file, one per line (- for stdin, repeatable)
