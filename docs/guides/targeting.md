@@ -30,6 +30,20 @@ Only what you name is fetched:
 
 No org listing runs for exact names. Lookups go 50 repos to a query, so a list of 500 repos costs 10 queries even in an org of thousands. Add any include filter, such as `topics`, and `include.repos` goes back to adding its repos to the org's matches.
 
+### `include.names` or `include.repos`?
+
+They look alike but do different jobs:
+
+| | `include.names` | `include.repos` |
+| --- | --- | --- |
+| What it is | a filter, like `topics` | a list of repos to add |
+| With other include filters | AND: a repo must pass them too | bypasses them: a listed repo is always in |
+| Owners | only repos of `orgs` | any owner, as `owner/name` |
+| Cost with exact names | looked up, no listing | looked up, no listing, when it's the only include filter |
+| Cost with a pattern | lists each org | lists the pattern's owner, or each org |
+
+Use `include.repos` for "exactly these repos", and `include.names` to narrow what the other filters select, such as `names: [api, web]` with `files: [go.mod]`. When gh fleet does list an org, its progress note says which filter made it: `Listing all of acme's repos: include.files is checked in every repo`.
+
 ## Include filters
 
 ```yaml
@@ -109,7 +123,7 @@ targets:
 
 Matching ignores case. A pattern without a slash matches the repo's name, and one with a slash matches `owner/name`, so `*-domain` and `acme/*-domain` both work. This holds everywhere repos are listed: `include.names`, `include.repos`, `exclude.repos`, [`vars.match[].when.repos`](../configuration.md#variables) and [`limits.waves[].repos`](tracking-prs.md#rolling-out-in-waves).
 
-`include.names` is a filter like `topics`, so it combines with the other filters with AND: `names: [service-*]` and `languages: [Go]` select Go repos named `service-*`. A pattern in `include.repos` instead adds every match and bypasses the filters, as a plain name does. With an owner, the owner doesn't need to be in `orgs`: `tools/cli-*` lists `tools` once and keeps the matches. Without one, as in `*-domain`, or with a pattern for the owner, as in `*/cli-*`, it only matches the repos of `orgs`, so the campaign needs `orgs`.
+`include.names` is a filter like `topics`, so it combines with the other filters with AND: `names: [service-*]` and `languages: [Go]` select Go repos named `service-*`. When every name is exact, with no pattern, only those repos can match, so gh fleet looks them up in each org instead of listing it. A pattern in `include.repos` instead adds every match and bypasses the filters, as a plain name does. With an owner, the owner doesn't need to be in `orgs`: `tools/cli-*` lists `tools` once and keeps the matches. Without one, as in `*-domain`, or with a pattern for the owner, as in `*/cli-*`, it only matches the repos of `orgs`, so the campaign needs `orgs`.
 
 A pattern that doesn't parse, such as `acme/[ab`, is an error when the campaign loads, with its line and column.
 
