@@ -26,8 +26,9 @@ on:
       - "CONTRIBUTING.md"
       - "SECURITY.md"
       - ".github/workflows/docs.yml"
-  release:
-    types: [published]
+  # No release trigger: the docs aren't versioned, so the push to main has
+  # already deployed what a release would, and the github-pages environment
+  # only accepts deploys from main, so a run on a release tag is rejected.
   workflow_dispatch:
 
 permissions: {}
