@@ -38,10 +38,12 @@ checksum:
   algorithm: sha256
 
 signs:
-  - cmd: cosign
+  # tools/sign.sh runs cosign sign-blob, retrying when Sigstore's log is
+  # slow to answer.
+  - cmd: sh
     artifacts: checksum
     signature: "${artifact}.sigstore.json"
-    args: ["sign-blob", "--bundle=${signature}", "${artifact}", "--yes"]
+    args: ["tools/sign.sh", "${signature}", "${artifact}"]
 
 release:
   github:
