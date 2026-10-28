@@ -202,6 +202,50 @@ func (rs *Resolver) search(ctx context.Context, t campaign.Targets) (map[string]
 	return hits, nil
 }
 
+// exactNames returns the repos of org that include.names can match when
+// every name is exact, with no pattern: the include filters AND together,
+// so no other repo can be a target, and looking these up replaces listing
+// the org. It reports false when a name is a pattern, there are no names,
+// or a fresh listing of org is cached.
+func (rs *Resolver) exactNames(org string, names []string) ([]string, bool) {
+	if len(names) == 0 || rs.cachedListing(org) {
+		return nil, false
+	}
+	var out []string
+	for _, n := range names {
+		if campaign.IsPattern(n) {
+			return nil, false
+		}
+		owner, name, hasOwner := strings.Cut(n, "/")
+		switch {
+		case !hasOwner:
+			out = append(out, org+"/"+n)
+		case strings.EqualFold(owner, org):
+			out = append(out, org+"/"+name)
+		}
+	}
+	if len(out) > 0 {
+		rs.progress(fmt.Sprintf("Looking up %s named by include.names in %s", countRepos(len(out)), org))
+	}
+	return out, true
+}
+
+// listReason says which include filter makes a listing of every repo of
+// an org necessary, for the progress note.
+func listReason(inc campaign.Include) string {
+	switch {
+	case len(inc.Names) > 0:
+		return "include.names has a pattern"
+	case len(inc.Properties) > 0:
+		return "include.properties reads every repo's properties"
+	case len(inc.Topics) > 0 || len(inc.Languages) > 0:
+		return "repo search couldn't narrow it"
+	case len(inc.Files) > 0:
+		return "include.files is checked in every repo"
+	}
+	return "no include filter narrows it"
+}
+
 // searchQueries are repo searches that between them find every repo of
 // org that can pass the include topics, or failing those the include
 // languages: one per value, since a search ANDs its qualifiers. Forks are
@@ -231,10 +275,8 @@ func (rs *Resolver) searchRepos(ctx context.Context, org string, inc campaign.In
 	if len(qs) == 0 || rs.props {
 		return nil, false
 	}
-	if rs.Cache != nil {
-		if _, ok := rs.Cache.Get(org); ok {
-			return nil, false
-		}
+	if rs.cachedListing(org) {
+		return nil, false
 	}
 	found := map[string]string{}
 	for _, q := range qs {
@@ -257,16 +299,36 @@ func (rs *Resolver) searchRepos(ctx context.Context, org string, inc campaign.In
 	return names, true
 }
 
-// listOwner lists an owner's repos, with their custom properties, through
-// the cache.
-func (rs *Resolver) listOwner(ctx context.Context, owner string) ([]ghapi.Repo, error) {
-	// Custom properties take a REST call per 100 repos, so they are only
-	// fetched for campaigns that use them, and cached apart: a listing with
-	// them also serves campaigns that don't.
+// listingKeys are the cache keys a listing of owner can be read from.
+// Custom properties take a REST call per 100 repos, so they are only
+// fetched for campaigns that use them, and cached apart: a listing with
+// them also serves campaigns that don't.
+func (rs *Resolver) listingKeys(owner string) []string {
 	keys := []string{owner + "@properties"}
 	if !rs.props {
 		keys = append(keys, owner)
 	}
+	return keys
+}
+
+// cachedListing reports whether a fresh listing of owner is cached, which
+// makes listing it free.
+func (rs *Resolver) cachedListing(owner string) bool {
+	if rs.Cache == nil {
+		return false
+	}
+	for _, key := range rs.listingKeys(owner) {
+		if _, ok := rs.Cache.Get(key); ok {
+			return true
+		}
+	}
+	return false
+}
+
+// listOwner lists an owner's repos, with their custom properties, through
+// the cache. why says what makes the listing necessary.
+func (rs *Resolver) listOwner(ctx context.Context, owner, why string) ([]ghapi.Repo, error) {
+	keys := rs.listingKeys(owner)
 	if rs.Cache != nil {
 		for _, key := range keys {
 			if repos, ok := rs.Cache.Get(key); ok {
@@ -275,7 +337,7 @@ func (rs *Resolver) listOwner(ctx context.Context, owner string) ([]ghapi.Repo, 
 			}
 		}
 	}
-	rs.progress("Listing " + owner + "'s repos")
+	rs.progress("Listing all of " + owner + "'s repos: " + why)
 	repos, err := rs.Client.ListOwnerRepos(ctx, owner)
 	if err != nil {
 		return nil, err
@@ -396,12 +458,12 @@ func countRepos(n int) string {
 func (rs *Resolver) candidates(ctx context.Context, t campaign.Targets, hits map[string]string) (map[string]ghapi.Repo, error) {
 	candidates := map[string]ghapi.Repo{}
 	listed := map[string]bool{}
-	list := func(owner string, keep func(ghapi.Repo) bool) error {
+	list := func(owner, why string, keep func(ghapi.Repo) bool) error {
 		if listed[strings.ToLower(owner)] {
 			return nil
 		}
 		listed[strings.ToLower(owner)] = true
-		repos, err := rs.listOwner(ctx, owner)
+		repos, err := rs.listOwner(ctx, owner, why)
 		if err != nil {
 			return err
 		}
@@ -427,9 +489,12 @@ func (rs *Resolver) candidates(ctx context.Context, t campaign.Targets, hits map
 		}
 	default:
 		for _, org := range t.Orgs {
-			names, ok := rs.searchRepos(ctx, org, t.Include)
+			names, ok := rs.exactNames(org, t.Include.Names)
 			if !ok {
-				if err := list(org, func(ghapi.Repo) bool { return true }); err != nil {
+				names, ok = rs.searchRepos(ctx, org, t.Include)
+			}
+			if !ok {
+				if err := list(org, listReason(t.Include), func(ghapi.Repo) bool { return true }); err != nil {
 					return nil, err
 				}
 				continue
@@ -454,12 +519,12 @@ func (rs *Resolver) candidates(ctx context.Context, t campaign.Targets, hits map
 			// A bare or wildcard-owner pattern matches the repos of orgs;
 			// load rejects one without orgs.
 			for _, org := range t.Orgs {
-				if err := list(org, named); err != nil {
+				if err := list(org, "include.repos pattern "+name, named); err != nil {
 					return nil, err
 				}
 			}
 		case campaign.IsPattern(name):
-			if err := list(owner, named); err != nil {
+			if err := list(owner, "include.repos pattern "+name, named); err != nil {
 				return nil, err
 			}
 		default:

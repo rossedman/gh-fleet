@@ -20,7 +20,8 @@ targets:
     # languages: [Go]
     # files: [.github/workflows]   # path must exist on the default branch
     # search: "uses: actions/ path:.github/workflows"
-    # repos: [{{ .Org }}/always-included]
+    # names: [api, web]          # a filter: ANDs with the keys above
+    # repos: [{{ .Org }}/api]      # alone: only these repos; with other keys: added to their matches
   exclude:
     archived: true
     forks: true

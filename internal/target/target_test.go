@@ -380,7 +380,7 @@ func TestResolveProgress(t *testing.T) {
 		}
 	}
 	want := []string{
-		"Listing acme's repos",
+		"Listing all of acme's repos: include.files is checked in every repo",
 		"Listed acme: 5 repos",
 		"Checking .github/workflows, go.mod in 5 repos",
 		"Listed acme: 5 repos, from the cache",
@@ -647,5 +647,88 @@ func TestRepoSearchNarrowsListing(t *testing.T) {
 	}
 	if got := searchQueries("acme", campaign.Include{Languages: []string{"Visual Basic"}}); !slices.Equal(got, []string{`org:acme language:"Visual Basic" fork:true`}) {
 		t.Errorf("queries = %v", got)
+	}
+}
+
+func TestExactNamesSkipListing(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name    string
+		targets campaign.Targets
+		want    []string
+	}{
+		{"bare name", campaign.Targets{Orgs: []string{"acme"}, Include: campaign.Include{Names: []string{"api"}}}, []string{"acme/api"}},
+		{"owner/name and a missing name", campaign.Targets{Orgs: []string{"acme"}, Include: campaign.Include{Names: []string{"ACME/web", "gone"}}}, []string{"acme/web"}},
+		{"other owner can't match", campaign.Targets{Orgs: []string{"acme"}, Include: campaign.Include{Names: []string{"other/legacy"}}}, nil},
+		{"filters still apply", campaign.Targets{Orgs: []string{"acme"}, Include: campaign.Include{Names: []string{"api", "web", "lib"}, Languages: []string{"Go"}, Files: []string{".github/workflows"}}}, []string{"acme/api"}},
+		{"plus include.repos", campaign.Targets{Orgs: []string{"acme"}, Include: campaign.Include{Names: []string{"web"}, Repos: []string{"other/legacy"}}}, []string{"acme/web", "other/legacy"}},
+		{"exclusion wins", campaign.Targets{Orgs: []string{"acme"}, Include: campaign.Include{Names: []string{"sandbox", "api"}}, Exclude: campaign.Exclude{Repos: []string{"acme/sandbox"}}}, []string{"acme/api"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			f := newFake()
+			var msgs []string
+			got, err := (&Resolver{Client: f, Progress: func(m string) { msgs = append(msgs, m) }}).Resolve(context.Background(), tc.targets)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !slices.Equal(got.Names(), tc.want) {
+				t.Errorf("targets = %v, want %v", got.Names(), tc.want)
+			}
+			if n := f.CallCount("ListOwnerRepos"); n != 0 {
+				t.Errorf("listed the org %d times; progress %v", n, msgs)
+			}
+			// Listing the org selects the same repos.
+			listed := newFake()
+			cache := &Cache{Dir: t.TempDir()}
+			all, _ := listed.ListOwnerRepos(context.Background(), "acme")
+			cache.Put("acme", all)
+			want, err := (&Resolver{Client: listed, Cache: cache}).Resolve(context.Background(), tc.targets)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !slices.Equal(got.Names(), want.Names()) {
+				t.Errorf("looked up %v, listing gives %v", got.Names(), want.Names())
+			}
+		})
+	}
+
+	// A pattern among the names, or a cached listing, means listing, and
+	// the note says why.
+	f := newFake()
+	var msgs []string
+	tg := campaign.Targets{Orgs: []string{"acme"}, Include: campaign.Include{Names: []string{"api", "w*"}}}
+	got, err := (&Resolver{Client: f, Progress: func(m string) { msgs = append(msgs, m) }}).Resolve(context.Background(), tg)
+	if err != nil || !slices.Equal(got.Names(), []string{"acme/api", "acme/web"}) || f.CallCount("ListOwnerRepos") != 1 {
+		t.Fatalf("pattern: %v %v, %d listings", got.Names(), err, f.CallCount("ListOwnerRepos"))
+	}
+	if !slices.Contains(msgs, "Listing all of acme's repos: include.names has a pattern") {
+		t.Errorf("progress = %v", msgs)
+	}
+	f = newFake()
+	cache := &Cache{Dir: t.TempDir()}
+	all, _ := f.ListOwnerRepos(context.Background(), "acme")
+	cache.Put("acme", all)
+	if _, err := (&Resolver{Client: f, Cache: cache}).Resolve(context.Background(), campaign.Targets{Orgs: []string{"acme"}, Include: campaign.Include{Names: []string{"api"}}}); err != nil || f.CallCount("GetRepos") != 0 {
+		t.Errorf("cached listing: %v, %d lookups", err, f.CallCount("GetRepos"))
+	}
+}
+
+func TestListReason(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		inc  campaign.Include
+		want string
+	}{
+		{campaign.Include{Names: []string{"a*"}, Files: []string{"x"}}, "include.names has a pattern"},
+		{campaign.Include{Properties: map[string]campaign.StringList{"team": {"a"}}}, "include.properties reads every repo's properties"},
+		{campaign.Include{Topics: []string{"svc"}}, "repo search couldn't narrow it"},
+		{campaign.Include{Languages: []string{"Go"}}, "repo search couldn't narrow it"},
+		{campaign.Include{Files: []string{"go.mod"}}, "include.files is checked in every repo"},
+		{campaign.Include{}, "no include filter narrows it"},
+	} {
+		if got := listReason(tc.inc); got != tc.want {
+			t.Errorf("listReason(%+v) = %q, want %q", tc.inc, got, tc.want)
+		}
 	}
 }
