@@ -10,6 +10,8 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/rossedman/gh-fleet/internal/timing"
 )
 
 // Git runs git commands.
@@ -18,6 +20,8 @@ type Git struct {
 	Bin string
 	// Env is added to the environment of every git command.
 	Env []string
+	// Timings, when set, records how long each git command takes.
+	Timings *timing.Recorder
 }
 
 // bin returns the git executable.
@@ -30,6 +34,7 @@ func (g Git) bin() string {
 
 // Run runs git in dir and returns trimmed stdout. Errors include stderr.
 func (g Git) Run(ctx context.Context, dir string, args ...string) (string, error) {
+	defer g.Timings.Start("git "+subcommand(args), "args", strings.Join(args, " "), "dir", dir)()
 	cmd := exec.CommandContext(ctx, g.bin(), args...)
 	cmd.Dir = dir
 	cmd.Env = append(append(os.Environ(), "GIT_TERMINAL_PROMPT=0"), g.Env...)
@@ -43,6 +48,19 @@ func (g Git) Run(ctx context.Context, dir string, args ...string) (string, error
 		return "", fmt.Errorf("git %s: %s", args[0], msg)
 	}
 	return strings.TrimSpace(stdout.String()), nil
+}
+
+// subcommand is the git subcommand in args, past any -c options.
+func subcommand(args []string) string {
+	for i := 0; i < len(args); i++ {
+		switch {
+		case args[i] == "-c" || args[i] == "-C":
+			i++
+		case !strings.HasPrefix(args[i], "-"):
+			return args[i]
+		}
+	}
+	return "?"
 }
 
 // Clone makes a shallow, blobless, single-branch clone of branch into dir.

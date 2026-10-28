@@ -25,6 +25,7 @@ import (
 	"github.com/rossedman/gh-fleet/internal/star"
 	"github.com/rossedman/gh-fleet/internal/state"
 	"github.com/rossedman/gh-fleet/internal/target"
+	"github.com/rossedman/gh-fleet/internal/timing"
 	"github.com/rossedman/gh-fleet/internal/workspace"
 )
 
@@ -68,6 +69,8 @@ type Pipeline struct {
 	// unchanged reports its base commit and RepoFingerprint, so a later
 	// apply can skip it.
 	Fingerprint string
+	// Timings, when set, records how long each repo spends in each stage.
+	Timings *timing.Recorder
 }
 
 // RepoFingerprint is the fingerprint of the change in one repo: the
@@ -110,6 +113,7 @@ func (p *Pipeline) Process(ctx context.Context, t target.Target) (state.RepoStat
 	ctx = context.WithoutCancel(ctx)
 	repo := t.Repo
 	rs := state.RepoState{Repo: repo.FullName()}
+	defer p.Timings.Start("repo: total", "repo", repo.FullName())()
 	fail := func(err error) (state.RepoState, error) {
 		rs.Status = state.Failed
 		rs.LastError = err.Error()
@@ -145,15 +149,20 @@ func (p *Pipeline) Process(ctx context.Context, t target.Target) (state.RepoStat
 
 	var ws *workspace.Workspace
 	var err error
+	stop := p.Timings.Start("repo: clone", "repo", repo.FullName())
 	if p.Mode == Exec {
 		ws, err = p.Workspaces.Clone(ctx, p.Campaign.Name, repo, base)
 	} else {
 		ws, err = p.Workspaces.Prepare(ctx, p.Campaign.Name, repo, base, p.Campaign.PR.Branch)
 	}
+	stop()
 	if err != nil {
 		return fail(err)
 	}
-	defer ws.Cleanup()
+	defer func() {
+		defer p.Timings.Start("repo: cleanup", "repo", repo.FullName())()
+		ws.Cleanup()
+	}()
 
 	logw, closeLog := p.openLog(repo.FullName())
 	defer closeLog()
@@ -174,7 +183,9 @@ func (p *Pipeline) Process(ctx context.Context, t target.Target) (state.RepoStat
 	}
 
 	if p.Mode == Plan {
+		stop := p.Timings.Start("repo: diff", "repo", repo.FullName())
 		diff, err := p.Git.StagedDiff(ctx, ws.Dir, "origin/"+base)
+		stop()
 		if err != nil {
 			return fail(err)
 		}
@@ -261,7 +272,10 @@ func (p *Pipeline) apply(ctx context.Context, t target.Target, ws *workspace.Wor
 		return fail(err)
 	}
 	if head != ws.RemoteSHA {
-		if err := p.Git.Push(ctx, ws.Dir, p.Campaign.PR.Branch, ws.RemoteSHA); err != nil {
+		stop := p.Timings.Start("repo: push", "repo", repo.FullName())
+		err := p.Git.Push(ctx, ws.Dir, p.Campaign.PR.Branch, ws.RemoteSHA)
+		stop()
+		if err != nil {
 			release()
 			return fail(err)
 		}
@@ -272,7 +286,9 @@ func (p *Pipeline) apply(ctx context.Context, t target.Target, ws *workspace.Wor
 		Repo: repo.FullName(), Title: c.title, Body: c.body, Head: p.Campaign.PR.Branch, Base: base,
 		Draft: p.Campaign.PR.Draft, Labels: c.labels, Reviewers: c.reviewers,
 	}
+	stop := p.Timings.Start("repo: sync PR", "repo", repo.FullName())
 	got, action, err := p.PRs.Sync(ctx, d, existing, p.Reopen)
+	stop()
 	if got.Number != 0 {
 		rs.PRNumber, rs.PRURL = got.Number, got.URL
 	}
@@ -309,7 +325,9 @@ func (p *Pipeline) runChange(ctx context.Context, dir string, t target.Target, l
 		}
 		maps.Copy(cur.Vars, extra)
 		fmt.Fprintf(log, "## step %s\n", st.Label(i))
+		stop := p.Timings.Start("repo: step "+st.Label(i), "repo", t.Repo.FullName())
 		vars, msg, err := p.runStep(ctx, dir, i, st, cur, log)
+		stop()
 		if err != nil {
 			if len(p.Campaign.Change.Steps) > 1 || st.Name != "" {
 				err = fmt.Errorf("step %s: %w", st.Label(i), err)

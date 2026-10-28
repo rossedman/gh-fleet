@@ -89,7 +89,7 @@ func (a *App) Exec(ctx context.Context, o ExecOptions) error {
 	}
 	p := a.printer(o.Common)
 	progress := a.errPrinter(o.Common)
-	pipe := &engine.Pipeline{Mode: engine.Exec, Campaign: camp, Workspaces: a.workspaces(o.Common), Git: a.Git, Argv: o.Argv, ExecTimeout: o.Timeout}
+	pipe := &engine.Pipeline{Mode: engine.Exec, Campaign: camp, Workspaces: a.workspaces(o.Common), Git: a.Git, Argv: o.Argv, ExecTimeout: o.Timeout, Timings: a.Timings}
 	// Exec lists only failures as they happen; the tally comes at the end.
 	tr, stop := a.track(o.Common, "Running in", len(res.Targets), concurrency(o.Common, camp), false)
 	results, fatal := engine.Run(ctx, res.Targets, pipe, engine.Options{

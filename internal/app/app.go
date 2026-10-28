@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
@@ -24,6 +25,7 @@ import (
 	"github.com/rossedman/gh-fleet/internal/star"
 	"github.com/rossedman/gh-fleet/internal/state"
 	"github.com/rossedman/gh-fleet/internal/target"
+	"github.com/rossedman/gh-fleet/internal/timing"
 	"github.com/rossedman/gh-fleet/internal/ui"
 	"github.com/rossedman/gh-fleet/internal/workspace"
 )
@@ -65,6 +67,10 @@ type App struct {
 	LibCache string
 	// LibURL overrides the clone URL of those libraries (for tests).
 	LibURL func(host, owner, repo string) string
+	// Log gets debug logs; nil without --debug.
+	Log *slog.Logger
+	// Timings records how long things take; nil without --debug.
+	Timings *timing.Recorder
 }
 
 // Default wires the real GitHub client, state dir, cache and git.
@@ -88,7 +94,7 @@ func Default(out, errOut io.Writer, in io.Reader, tty, errTTY, interactive, colo
 		},
 	}
 	a.NewClient = func(rate float64) (ghapi.Client, error) {
-		gh, err := ghapi.New(ghapi.Options{WriteRate: rate})
+		gh, err := ghapi.New(ghapi.Options{WriteRate: rate, Timings: a.Timings})
 		if err == nil {
 			gh.Transport.OnWait = a.rateLimitWait
 		}

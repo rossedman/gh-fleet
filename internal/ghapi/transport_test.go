@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"golang.org/x/time/rate"
+
+	"github.com/rossedman/gh-fleet/internal/timing"
 )
 
 // handlerTransport serves requests from an http.Handler in process.
@@ -534,3 +536,57 @@ type errReader struct{}
 
 // Read returns an error.
 func (errReader) Read([]byte) (int, error) { return 0, errors.New("read failed") }
+
+// errTransport fails every request.
+type errTransport struct{}
+
+// RoundTrip returns an error.
+func (errTransport) RoundTrip(*http.Request) (*http.Response, error) {
+	return nil, errors.New("connection refused")
+}
+
+func TestTransportRecordsTimings(t *testing.T) {
+	t.Parallel()
+	var calls atomic.Int64
+	h := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		switch calls.Add(1) {
+		case 1:
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = io.WriteString(w, `{"message":"You have exceeded a secondary rate limit."}`)
+		case 2:
+			w.WriteHeader(http.StatusBadGateway)
+		default:
+			_, _ = io.WriteString(w, "{}")
+		}
+	})
+	tr, _ := newTestTransport(h)
+	tr.Timings = timing.New(nil)
+	if resp := get(t, tr, "/repos/a/b"); resp.StatusCode != http.StatusOK {
+		t.Fatalf("status %d", resp.StatusCode)
+	}
+	got := map[string]timing.Stat{}
+	for _, s := range tr.Timings.Stats() {
+		got[s.Name] = s
+	}
+	if s := got["api core"]; s.Count != 3 {
+		t.Fatalf("api core = %+v", s)
+	}
+	// The secondary limit's minute is spent waiting before the next try.
+	if s := got["api wait: rate limits"]; s.Count != 1 || s.Total != time.Minute {
+		t.Fatalf("rate limit wait = %+v", s)
+	}
+	// The 502 came on the second attempt, which backs off 2s.
+	if s := got["api wait: retry backoff"]; s.Count != 1 || s.Total != 2*time.Second {
+		t.Fatalf("backoff = %+v", s)
+	}
+
+	failing := NewTransport(errTransport{}, 0)
+	failing.Timings = timing.New(nil)
+	req, _ := http.NewRequestWithContext(t.Context(), http.MethodPost, "https://api.github.com/graphql", strings.NewReader(`{"query":"query{viewer{login}}"}`))
+	if _, err := failing.RoundTrip(req); err == nil {
+		t.Fatal("no error")
+	}
+	if s := failing.Timings.Stats(); len(s) != 1 || s[0].Name != "api graphql" || s[0].Count != 1 {
+		t.Fatalf("stats = %+v", s)
+	}
+}

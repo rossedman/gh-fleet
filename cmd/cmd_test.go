@@ -361,3 +361,27 @@ func TestRepoFiles(t *testing.T) {
 		}
 	}
 }
+
+func TestDebugPrintsTimings(t *testing.T) {
+	e := setup(t)
+	if _, _, err := execute(t, "init", "add-file", "--org", "acme", "--file", e.file); err != nil {
+		t.Fatal(err)
+	}
+	_, errOut, err := execute(t, "plan", "-f", e.file, "--debug")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"resolve targets: starting", "Timings", "total: plan", "repo: clone", "git clone"} {
+		if !strings.Contains(errOut, want) {
+			t.Fatalf("--debug output lacks %q:\n%s", want, errOut)
+		}
+	}
+	_, errOut, err = execute(t, "plan", "-f", e.file)
+	if err != nil || strings.Contains(errOut, "Timings") {
+		t.Fatalf("timings without --debug: %q, %v", errOut, err)
+	}
+	t.Setenv("GH_FLEET_DEBUG", "1")
+	if _, errOut, _ = execute(t, "plan", "-f", e.file); !strings.Contains(errOut, "Timings") {
+		t.Fatalf("GH_FLEET_DEBUG didn't turn on timings:\n%s", errOut)
+	}
+}
