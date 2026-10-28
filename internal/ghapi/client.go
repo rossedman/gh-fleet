@@ -18,6 +18,8 @@ import (
 	"time"
 
 	"github.com/cli/go-gh/v2/pkg/api"
+
+	"github.com/rossedman/gh-fleet/internal/timing"
 )
 
 // BatchSize is how many repos or PRs go into one batched GraphQL query.
@@ -41,6 +43,8 @@ type Options struct {
 	WriteRate float64
 	// Base is the transport requests finally go through (for tests).
 	Base http.RoundTripper
+	// Timings, when set, records how long requests take.
+	Timings *timing.Recorder
 }
 
 // ErrAuthRequired is returned when gh has no token for the host. Its
@@ -55,6 +59,7 @@ func New(opts Options) (*GitHub, error) {
 		rate = DefaultWriteRate
 	}
 	tr := NewTransport(opts.Base, rate)
+	tr.Timings = opts.Timings
 	co := api.ClientOptions{Host: opts.Host, AuthToken: opts.AuthToken, Transport: tr}
 	rest, err := api.NewRESTClient(co)
 	if err != nil {

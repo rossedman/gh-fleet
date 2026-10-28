@@ -9,6 +9,7 @@ import (
 
 	"github.com/rossedman/gh-fleet/internal/gitops"
 	"github.com/rossedman/gh-fleet/internal/testutil"
+	"github.com/rossedman/gh-fleet/internal/timing"
 )
 
 func TestCloneCommitPush(t *testing.T) {
@@ -143,5 +144,35 @@ func TestErrors(t *testing.T) {
 	}
 	if _, err := tg.SameTree(ctx, clone, "HEAD", "nope"); err == nil {
 		t.Fatal("expected bad rev error")
+	}
+}
+
+func TestRunRecordsTimings(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	env := testutil.GitEnv(t)
+	remote := testutil.NewRemote(t, env, map[string]string{"a.txt": "a\n"})
+	g := testutil.Git(env)
+	g.Timings = timing.New(nil)
+	dir := filepath.Join(t.TempDir(), "clone")
+	if err := g.Clone(ctx, remote.URL(), dir, "main"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := g.StagedDiff(ctx, dir, "origin/main"); err != nil {
+		t.Fatal(err)
+	}
+	_, _ = g.Run(ctx, dir, "no-such-command")
+	got := map[string]int{}
+	for _, s := range g.Timings.Stats() {
+		got[s.Name] = s.Count
+	}
+	want := map[string]int{"git clone": 1, "git add": 1, "git diff": 1, "git no-such-command": 1}
+	if len(got) != len(want) {
+		t.Fatalf("timings = %v, want %v", got, want)
+	}
+	for k, n := range want {
+		if got[k] != n {
+			t.Fatalf("timings = %v, want %v", got, want)
+		}
 	}
 }

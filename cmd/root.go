@@ -59,6 +59,7 @@ duplicating them.`,
 // init registers the persistent --config flag.
 func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default $XDG_CONFIG_HOME/gh-fleet/config.yaml)")
+	rootCmd.PersistentFlags().Bool("debug", false, "log what gh fleet is doing and print how long each part took")
 	rootCmd.SetFlagErrorFunc(flagError)
 }
 
@@ -281,14 +282,25 @@ func countStdin(paths []string) int {
 	return n
 }
 
-// run builds the App and calls f with it.
+// run builds the App and calls f with it. With --debug it prints how long
+// each part of the command took.
 func run(cmd *cobra.Command, f func(a *app.App) error) error {
 	a, err := newApp(cmd)
 	if err != nil {
 		return err
 	}
 	a.Version = version
-	return f(a)
+	if !viper.GetBool("debug") {
+		return f(a)
+	}
+	a.EnableDebug()
+	stop := a.Timings.Start("total: " + cmd.Name())
+	err = f(a)
+	stop()
+	if serr := a.TimingSummary(); err == nil {
+		err = serr
+	}
+	return err
 }
 
 // Exit codes, the same as gh's.

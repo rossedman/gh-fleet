@@ -51,6 +51,7 @@ gh fleet exec -- <command> [args...] [flags]
 
 ```
       --config string   config file (default $XDG_CONFIG_HOME/gh-fleet/config.yaml)
+      --debug           log what gh fleet is doing and print how long each part took
 ```
 
 ### SEE ALSO

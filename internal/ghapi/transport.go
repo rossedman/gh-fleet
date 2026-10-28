@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"golang.org/x/time/rate"
+
+	"github.com/rossedman/gh-fleet/internal/timing"
 )
 
 // ErrQuotaLow is returned instead of sending a request that would eat into
@@ -47,6 +49,9 @@ const (
 	// maxSecondaryWait caps the doubling wait for repeated secondary
 	// rate limits that don't say how long to wait.
 	maxSecondaryWait = 15 * time.Minute
+	// minRecordedWait is the shortest rate limit wait worth recording;
+	// below it is the bookkeeping every request does.
+	minRecordedWait = time.Millisecond
 )
 
 // GitHub's secondary limits on content-creating requests.
@@ -80,6 +85,9 @@ type Transport struct {
 	// OnWait, when set, is told each time every request starts waiting on
 	// a rate limit, and for how long, so a long silence can be explained.
 	OnWait func(why string, d time.Duration)
+	// Timings, when set, records how long each request takes and how
+	// long requests wait on rate limits and retries.
+	Timings *timing.Recorder
 
 	mu          sync.Mutex
 	pausedUntil time.Time
@@ -144,6 +152,7 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 
 	for attempt := 1; ; attempt++ {
+		waitStart := t.now()
 		if err := t.waitForPause(ctx); err != nil {
 			return nil, err
 		}
@@ -162,16 +171,22 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 				}
 			}
 		}
+		if w := t.now().Sub(waitStart); w >= minRecordedWait {
+			t.Timings.Add("api wait: rate limits", w, "resource", resource, "path", req.URL.Path)
+		}
 		r := req.Clone(ctx)
 		if body != nil {
 			r.Body = io.NopCloser(bytes.NewReader(body))
 			r.GetBody = func() (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(body)), nil }
 			r.ContentLength = int64(len(body))
 		}
+		sent := time.Now()
 		resp, err := t.base().RoundTrip(r)
 		if err != nil {
+			t.Timings.Add("api "+resource, time.Since(sent), "method", req.Method, "path", req.URL.Path, "attempt", attempt, "err", err)
 			return nil, err
 		}
+		t.Timings.Add("api "+resource, time.Since(sent), "method", req.Method, "path", req.URL.Path, "status", resp.StatusCode, "attempt", attempt, "bytes", len(body))
 		t.recordQuota(resp.Header)
 		last := attempt >= attempts
 
@@ -219,6 +234,7 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 			t.retries.Add(1)
 			d := baseBackoff << (attempt - 1)
 			d += t.jitter(d)
+			t.Timings.Add("api wait: retry backoff", d, "status", resp.StatusCode, "path", req.URL.Path, "attempt", attempt)
 			if err := t.sleep(ctx, d); err != nil {
 				return nil, err
 			}

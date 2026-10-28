@@ -65,11 +65,15 @@ type PlanOptions struct {
 // pushing or writing anything to GitHub.
 func (a *App) Plan(ctx context.Context, o PlanOptions) error {
 	c := o.Common
+	stop := a.phase("load campaign")
 	camp, err := a.LoadCampaign(c)
+	stop()
 	if err != nil {
 		return err
 	}
+	stop = a.phase("compile starlark")
 	scripts, err := a.scripts(ctx, camp)
+	stop()
 	if err != nil {
 		return err
 	}
@@ -83,7 +87,9 @@ func (a *App) Plan(ctx context.Context, o PlanOptions) error {
 	if o.Wave > 0 && o.AllWaves {
 		return errors.New("--wave and --all-waves can't be combined")
 	}
+	stop = a.phase("resolve targets")
 	res, err := a.resolve(ctx, c, client, camp, c.Repos, true)
+	stop()
 	if err != nil {
 		return err
 	}
@@ -91,15 +97,19 @@ func (a *App) Plan(ctx context.Context, o PlanOptions) error {
 	progress := a.errPrinter(c)
 	// Like apply, plan takes one wave at a time; --repo names its own.
 	if len(c.Repos) == 0 && !o.AllWaves {
-		if res.Targets, err = a.planWave(ctx, c, client, camp, res, o.Wave); err != nil {
+		stop = a.phase("pick wave")
+		res.Targets, err = a.planWave(ctx, c, client, camp, res, o.Wave)
+		stop()
+		if err != nil {
 			return err
 		}
 	}
 	pipe := &engine.Pipeline{
 		Mode: engine.Plan, Campaign: camp, Workspaces: a.workspaces(c), Git: a.Git, Scripts: scripts,
 		LogPath:     func(repo string) string { return a.Store.LogPath(camp.Name, repo) },
-		Fingerprint: a.fingerprint(camp),
+		Fingerprint: a.fingerprint(camp), Timings: a.Timings,
 	}
+	stopRun := a.phase("run change in every repo")
 	tr, stop := a.track(c, "Planning", len(res.Targets), concurrency(c, camp), true)
 	results, fatal := engine.Run(ctx, res.Targets, pipe, engine.Options{
 		Concurrency: concurrency(c, camp),
@@ -111,7 +121,11 @@ func (a *App) Plan(ctx context.Context, o PlanOptions) error {
 		},
 	})
 	stop()
-	if err := a.noteUnchanged(camp, results); err != nil {
+	stopRun()
+	stop = a.phase("save state")
+	err = a.noteUnchanged(camp, results)
+	stop()
+	if err != nil {
 		return err
 	}
 	results = append(results, skippedStates(res)...)
@@ -156,11 +170,15 @@ func (a *App) Retry(ctx context.Context, o ApplyOptions) error {
 
 // apply is Apply with an optional filter over targets.
 func (a *App) apply(ctx context.Context, o ApplyOptions, keep func(*state.Campaign, target.Target) bool) error {
+	stop := a.phase("load campaign")
 	camp, err := a.LoadCampaign(o.Common)
+	stop()
 	if err != nil {
 		return err
 	}
+	stop = a.phase("compile starlark")
 	scripts, err := a.scripts(ctx, camp)
+	stop()
 	if err != nil {
 		return err
 	}
@@ -168,7 +186,9 @@ func (a *App) apply(ctx context.Context, o ApplyOptions, keep func(*state.Campai
 	if err != nil {
 		return err
 	}
+	stop = a.phase("resolve targets")
 	res, err := a.resolve(ctx, o.Common, client, camp, o.Repos, true)
+	stop()
 	if err != nil {
 		return err
 	}
@@ -202,7 +222,10 @@ func (a *App) apply(ctx context.Context, o ApplyOptions, keep func(*state.Campai
 	if !a.quiet(o.Common) {
 		a.note("Looking up existing PRs in " + plural(len(all), "repo"))
 	}
-	if err := prs.Index(ctx, all, camp.PR.Branch, camp.Marker(), searchScope(camp)); err != nil {
+	stop = a.phase("index existing PRs")
+	err = prs.Index(ctx, all, camp.PR.Branch, camp.Marker(), searchScope(camp))
+	stop()
+	if err != nil {
 		return err
 	}
 
@@ -236,7 +259,9 @@ func (a *App) apply(ctx context.Context, o ApplyOptions, keep func(*state.Campai
 	fp := a.fingerprint(camp)
 	var unchanged []state.RepoState
 	if !o.Recheck {
+		stop = a.phase("skip unchanged repos")
 		res.Targets, unchanged = a.skipUnchanged(ctx, o.Common, client, camp, st, prs, res.Targets, fp)
+		stop()
 	}
 	if len(res.Targets) == 0 {
 		done := slices.Concat(unchanged, held)
@@ -265,10 +290,11 @@ func (a *App) apply(ctx context.Context, o ApplyOptions, keep func(*state.Campai
 	pipe := &engine.Pipeline{
 		Mode: engine.Apply, Campaign: camp, Workspaces: a.workspaces(o.Common), Git: a.Git, PRs: prs, Scripts: scripts,
 		LogPath: func(repo string) string { return a.Store.LogPath(camp.Name, repo) },
-		Reopen:  o.Reopen, CloseNoop: o.CloseNoop, Fingerprint: fp,
+		Reopen:  o.Reopen, CloseNoop: o.CloseNoop, Fingerprint: fp, Timings: a.Timings,
 	}
 	done := 0
-	tr, stop := a.track(o.Common, "Applying to", len(res.Targets), concurrency(o.Common, camp), true)
+	stopRun := a.phase("run change in every repo")
+	tr, stopTrack := a.track(o.Common, "Applying to", len(res.Targets), concurrency(o.Common, camp), true)
 	results, fatal := engine.Run(ctx, res.Targets, pipe, engine.Options{
 		Concurrency: concurrency(o.Common, camp),
 		OnResult: func(rs state.RepoState) {
@@ -281,7 +307,8 @@ func (a *App) apply(ctx context.Context, o ApplyOptions, keep func(*state.Campai
 			tr.Result(rs)
 		},
 	})
-	stop()
+	stopTrack()
+	stopRun()
 	for _, r := range results {
 		if r.Status == state.Pending {
 			if old := st.Get(r.Repo); old != nil {
