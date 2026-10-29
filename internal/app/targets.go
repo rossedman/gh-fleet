@@ -17,6 +17,7 @@ func (a *App) Targets(ctx context.Context, c Common) error {
 	if err != nil {
 		return err
 	}
+	a.noteTargets(c, camp)
 	// Check the change script now, so a broken one shows up before plan.
 	if _, err := a.scripts(ctx, camp); err != nil {
 		return err

@@ -201,7 +201,7 @@ concurrency: 4
 | Campaign state | `$XDG_STATE_HOME/gh-fleet/<name>.json` |
 | Per-repo script logs | `$XDG_STATE_HOME/gh-fleet/<name>/logs/` |
 | Org listing cache (10 minutes) | `gh-fleet/repos/` under your user cache directory |
-| Clones | `gh-fleet/<campaign>/<owner>/<repo>` under `$TMPDIR`, removed when a repo finishes unless `--keep-workdirs` is set |
+| Clones | `gh-fleet/<campaign>/<owner>/<repo>` under `$TMPDIR`, moved aside when a repo finishes and deleted in the background, all before the command exits, unless `--keep-workdirs` is set |
 
 `XDG_STATE_HOME` falls back to `~/.local/state`.
 

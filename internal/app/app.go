@@ -249,6 +249,22 @@ func (a *App) LoadCampaign(c Common) (*campaign.Campaign, error) {
 	return camp, nil
 }
 
+// noteTargets prints the campaign's target warnings and notes on stderr:
+// parts of targets that can't do what they look like they do, and
+// combinations that are easy to misread.
+func (a *App) noteTargets(c Common, camp *campaign.Campaign) {
+	if a.quiet(c) {
+		return
+	}
+	e := a.errPrinter(c)
+	for _, w := range camp.Warnings() {
+		a.note(e.Styles.Warn.Render("warning:") + " " + w)
+	}
+	for _, n := range camp.Notes() {
+		a.note(e.Styles.Dim.Render("note:") + " " + n)
+	}
+}
+
 // loadCampaign finds and parses the campaign c names.
 func (a *App) loadCampaign(c Common) (*campaign.Campaign, error) {
 	switch {
