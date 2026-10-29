@@ -31,6 +31,7 @@ gh fleet retry [campaign] [flags]
   -q, --jq expression          filter JSON output using a jq expression
       --json fields            output JSON with the specified fields (comma-separated; --json alone lists them)
       --keep-workdirs          leave clones on disk for debugging
+      --no-git-cache           clone every repo from GitHub instead of through the git cache kept between runs
       --reopen                 reopen campaign PRs that were closed without merging
       --repo strings           limit to these repos (owner/name, repeatable)
       --repo-file strings      limit to the repos listed in this file, one per line (- for stdin, repeatable)

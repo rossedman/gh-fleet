@@ -37,6 +37,7 @@ gh fleet exec -- <command> [args...] [flags]
       --json fields            output JSON with the specified fields (comma-separated; --json alone lists them)
       --keep-workdirs          leave clones on disk for debugging
       --language strings       only repos with any of these primary languages
+      --no-git-cache           clone every repo from GitHub instead of through the git cache kept between runs
       --org strings            target this org's repos (repeatable)
       --raw                    print each repo's output instead of a tally
       --repo strings           target these repos (owner/name, repeatable); with a campaign, limit to them

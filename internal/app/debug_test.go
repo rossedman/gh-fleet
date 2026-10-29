@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -140,5 +141,54 @@ func TestRunsLeaveNoClonesBehind(t *testing.T) {
 		if rel, _ := filepath.Rel(h.app.Workspaces.Root, p); strings.Count(rel, string(filepath.Separator)) > 1 {
 			t.Fatalf("left behind: %v", left)
 		}
+	}
+}
+
+func TestRunsCloneThroughTheGitCache(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.app.Workspaces.CacheDir = filepath.Join(t.TempDir(), "git")
+	h.app.EnableDebug()
+	f := h.campaign(basic, files)
+	ctx := context.Background()
+	if err := h.app.Plan(ctx, PlanOptions{Common: Common{File: f}}); err != nil {
+		t.Fatal(err)
+	}
+	// Apply after the base moved still sees the new commit, and pushes
+	// from a workspace that borrows the cache's files.
+	h.remotes["acme/api"].Commit("main", "moved", map[string]string{"NEW": "1\n"})
+	if err := h.app.Apply(ctx, ApplyOptions{Common: Common{File: f, Yes: true}}); err != nil {
+		t.Fatal(err)
+	}
+	if h.remotes["acme/api"].Show("fleet/add-line", "NEW") != "1" || len(h.gh.PRs) != 2 {
+		t.Fatalf("branch NEW %q, %d PRs", h.remotes["acme/api"].Show("fleet/add-line", "NEW"), len(h.gh.PRs))
+	}
+	got := timingNames(h.app)
+	if got["git clone"] != 0 || got["git fetch"] != 4 {
+		t.Fatalf("timings = %v", got)
+	}
+	if entries, _ := os.ReadDir(filepath.Join(h.app.Workspaces.CacheDir, "acme")); len(entries) != 2 {
+		t.Fatalf("cache = %v", entries)
+	}
+
+	// --no-git-cache clones from GitHub, and a cache that can't be used
+	// is noted and cloned around.
+	h.reset()
+	if err := h.app.Plan(ctx, PlanOptions{Common: Common{File: f, NoGitCache: true}}); err != nil {
+		t.Fatal(err)
+	}
+	if got := timingNames(h.app)["git clone"]; got != 2 {
+		t.Fatalf("--no-git-cache clones = %d", got)
+	}
+	h.app.Workspaces.CacheDir = filepath.Join(t.TempDir(), "file")
+	if err := os.WriteFile(h.app.Workspaces.CacheDir, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	h.reset()
+	if err := h.app.Plan(ctx, PlanOptions{Common: Common{File: f}}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(h.errOut.String(), "Couldn't use the git cache for acme/api (update git cache:") {
+		t.Fatalf("stderr:\n%s", h.errOut)
 	}
 }

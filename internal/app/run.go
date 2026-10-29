@@ -40,7 +40,8 @@ const unchangedMaxAge = 24 * time.Hour
 // saveEvery is how many finished repos pass between state saves.
 const saveEvery = 25
 
-// workspaces returns the workspace manager with --keep-workdirs applied.
+// workspaces returns the workspace manager with --keep-workdirs and
+// --no-git-cache applied.
 // Finished clones are deleted in the background; call the manager's
 // Reaper.Wait before returning, so none is left behind.
 func (a *App) workspaces(c Common) *workspace.Manager {
@@ -48,6 +49,14 @@ func (a *App) workspaces(c Common) *workspace.Manager {
 	m.Git = a.Git
 	m.Keep = m.Keep || c.KeepWorkdirs
 	m.Reaper = &workspace.Reaper{Timings: a.Timings}
+	if c.NoGitCache {
+		m.CacheDir = ""
+	}
+	if !a.quiet(c) {
+		m.OnCacheError = func(repo string, err error) {
+			a.note(fmt.Sprintf("Couldn't use the git cache for %s (%v); cloning it from GitHub instead", repo, err))
+		}
+	}
 	return &m
 }
 
