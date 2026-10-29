@@ -90,6 +90,7 @@ nav:
       - Testing a campaign: guides/testing.md
       - Tracking pull requests: guides/tracking-prs.md
       - Rate limits: guides/rate-limits.md
+      - Performance: guides/performance.md
       - Exploring with exec: guides/exec.md
       - Scripting and CI: guides/scripting.md
   - Examples:
