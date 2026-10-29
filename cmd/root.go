@@ -226,6 +226,7 @@ func addOutputFlags(cmd *cobra.Command, samples ...any) {
 // addRunFlags adds the flags of commands that clone and run the change.
 func addRunFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool("keep-workdirs", false, "leave clones on disk for debugging")
+	cmd.Flags().Bool("no-git-cache", false, "clone every repo from GitHub instead of through the git cache kept between runs")
 }
 
 // addWriteFlags adds the flags of commands that write to GitHub.
@@ -243,6 +244,7 @@ func common(cmd *cobra.Command, args []string) (app.Common, error) {
 		WriteRate:    viper.GetFloat64("write-rate"),
 		Yes:          viper.GetBool("yes"),
 		KeepWorkdirs: viper.GetBool("keep-workdirs"),
+		NoGitCache:   viper.GetBool("no-git-cache"),
 		JSON:         viper.GetString("json") != "",
 		JSONFields:   jsonFields(viper.GetString("json")),
 		JQ:           viper.GetString("jq"),

@@ -26,7 +26,7 @@ fix, and run it again before pushing.
 | `ci / fuzz (<target>)` | 30s per fuzz target | `go test -run='^$' -fuzz='^FuzzX$' -fuzztime=30s ./pkg`; keep a failing input under `testdata/fuzz/` as a regression test |
 | `ci / vuln` | govulncheck | `make vuln` |
 | `ci / release-check` | goreleaser check and snapshot | `make release-check` |
-| `guardrails / gate` | build, race tests, 90% coverage (90% of changed lines), lint, govulncheck on touched packages | `guardrails gate --all` if installed; otherwise `make cover lint vuln` covers the same ground |
+| `guardrails / gate` | build, race tests, 90% coverage (90% of changed lines), lint, govulncheck on touched packages | `guardrails gate --base origin/main --explain`, as CI runs it, with the release `guardrails.yml` pins and golangci-lint and govulncheck built by `GOTOOLCHAIN=$(go env GOVERSION) go install` first on `PATH`. `make cover lint vuln` does **not** check coverage of changed lines, the gate's most common failure; the gate's report names the uncovered `file:line`s |
 | `Docs / build` | `go run ./tools/gendocs`, then `mkdocs build --strict` | `make docs-build` (needs `uv`) |
 
 Tooling notes:

@@ -44,6 +44,7 @@ gh fleet apply [campaign] [flags]
   -q, --jq expression          filter JSON output using a jq expression
       --json fields            output JSON with the specified fields (comma-separated; --json alone lists them)
       --keep-workdirs          leave clones on disk for debugging
+      --no-git-cache           clone every repo from GitHub instead of through the git cache kept between runs
       --recheck                run the change even in repos the last run found nothing to change in
       --reopen                 reopen campaign PRs that were closed without merging
       --repo strings           limit to these repos (owner/name, repeatable)

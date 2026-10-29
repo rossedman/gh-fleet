@@ -1,7 +1,8 @@
 // Package workspace prepares a fresh clone of a target repo for a change:
 // a shallow clone of the base branch under
 // $TMPDIR/gh-fleet/<campaign>/<owner>/<repo>, with the campaign branch
-// checked out and, if it already existed, rebased onto the base.
+// checked out and, if it already existed, rebased onto the base. With a
+// CacheDir, clones borrow their files from a git cache kept between runs.
 package workspace
 
 import (
@@ -11,6 +12,7 @@ import (
 	"path/filepath"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/rossedman/gh-fleet/internal/ghapi"
 	"github.com/rossedman/gh-fleet/internal/gitops"
@@ -30,6 +32,15 @@ type Manager struct {
 	// Reaper, when set, deletes workspaces in the background on Cleanup;
 	// otherwise Cleanup deletes them before it returns.
 	Reaper *Reaper
+	// CacheDir, when set, keeps a git cache of every repo there between
+	// runs, so a clone only fetches what changed since the last one. A
+	// clone the cache can't make is made without it. It must be an
+	// absolute path, since workspaces elsewhere point into it.
+	CacheDir string
+	// OnCacheError, when set, is told when a clone couldn't use the cache.
+	OnCacheError func(repo string, err error)
+	// Now returns the current time; defaults to time.Now.
+	Now func() time.Time
 }
 
 // Reaper deletes workspaces in the background, so a finished repo frees
@@ -171,7 +182,20 @@ func (m *Manager) Clone(ctx context.Context, campaign string, repo ghapi.Repo, b
 		return nil, err
 	}
 	ws := &Workspace{Dir: dir, Base: base, keep: m.Keep, reaper: m.Reaper}
-	if err := m.Git.Clone(ctx, m.url(repo), dir, base); err != nil {
+	url := m.url(repo)
+	if m.CacheDir != "" {
+		err := m.cachedClone(ctx, repo.Owner, repo.Name, url, dir, base)
+		if err == nil {
+			return ws, nil
+		}
+		if m.OnCacheError != nil {
+			m.OnCacheError(repo.FullName(), err)
+		}
+		if err := os.RemoveAll(dir); err != nil {
+			return nil, err
+		}
+	}
+	if err := m.Git.Clone(ctx, url, dir, base); err != nil {
 		ws.Cleanup()
 		return nil, err
 	}

@@ -87,7 +87,7 @@ func Default(out, errOut io.Writer, in io.Reader, tty, errTTY, interactive, colo
 		Out: out, Err: errOut, In: in, TTY: tty, ErrTTY: errTTY, Interactive: interactive, Color: color,
 		Store:      &state.Store{Dir: stateDir},
 		Cache:      &target.Cache{Dir: filepath.Join(cacheDir, "gh-fleet", "repos")},
-		Workspaces: &workspace.Manager{},
+		Workspaces: &workspace.Manager{CacheDir: filepath.Join(cacheDir, "gh-fleet", "git")},
 		LibCache:   filepath.Join(cacheDir, "gh-fleet", "starlark"),
 		Confirm: func(title string) (bool, error) {
 			return ui.Confirm(in, errOut, title)
@@ -165,6 +165,9 @@ type Common struct {
 	Yes bool
 	// KeepWorkdirs leaves clones on disk.
 	KeepWorkdirs bool
+	// NoGitCache clones every repo from GitHub instead of through the git
+	// cache kept between runs (--no-git-cache).
+	NoGitCache bool
 	// JSON switches to JSON output (--json); JSONFields, when set, keeps
 	// only those fields of each record.
 	JSON       bool

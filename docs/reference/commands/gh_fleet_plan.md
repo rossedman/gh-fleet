@@ -43,6 +43,7 @@ gh fleet plan [campaign] [flags]
   -q, --jq expression          filter JSON output using a jq expression
       --json fields            output JSON with the specified fields (comma-separated; --json alone lists them)
       --keep-workdirs          leave clones on disk for debugging
+      --no-git-cache           clone every repo from GitHub instead of through the git cache kept between runs
       --repo strings           limit to these repos (owner/name, repeatable)
       --repo-file strings      limit to the repos listed in this file, one per line (- for stdin, repeatable)
   -t, --template string        format JSON output using a Go template; see gh help formatting
