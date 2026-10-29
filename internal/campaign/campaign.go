@@ -208,9 +208,13 @@ func (d Duration) Std() time.Duration { return time.Duration(d) }
 
 // Defaults used when a campaign leaves a field empty.
 const (
-	DefaultShell       = "bash"
-	DefaultTimeout     = 5 * time.Minute
-	DefaultConcurrency = 8
+	DefaultShell   = "bash"
+	DefaultTimeout = 5 * time.Minute
+	// DefaultConcurrency is how many repos are cloned and run at once.
+	// GitHub API requests are capped apart from it, by the client
+	// (ghapi.DefaultMaxInFlight), so more workers mean more clones, not
+	// more API pressure.
+	DefaultConcurrency = 16
 	BranchPrefix       = "fleet/"
 )
 

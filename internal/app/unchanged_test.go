@@ -110,7 +110,8 @@ func TestApplySkipsUnchangedRepos(t *testing.T) {
 	apply(ApplyOptions{})
 	h.gh.Errors["BranchHeads"] = errors.New("boom")
 	apply(ApplyOptions{})
-	if d := detail("acme/web"); d != "" || !strings.Contains(h.errOut.String(), "Couldn't check which repos are unchanged (boom)") {
+	if d := detail("acme/web"); d != "" || !strings.Contains(h.errOut.String(), "Couldn't check which repos are unchanged (boom)") ||
+		!strings.Contains(h.errOut.String(), "Couldn't look up fleet/add-line in batches (boom), so each repo will ask its git server") {
 		t.Fatalf("web detail %q, output:\n%s", d, h.errOut)
 	}
 }

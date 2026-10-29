@@ -143,7 +143,7 @@ Safety limits for a run.
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
-| `concurrency` | integer | `8` | Repos processed in parallel. `--concurrency` overrides it. Between 1 and 256. |
+| `concurrency` | integer | `16` | Repos cloned and run in parallel. GitHub API requests are capped separately, so this sets clone and script throughput, not API load. `--concurrency` overrides it. Between 1 and 256. |
 | `maxOpenPRs` | integer | `0` | Stop opening new PRs once this many campaign PRs are open. 0 means no limit. At least 0. |
 | `waves` | list of object |  | Roll the change out in order. `apply` opens PRs for a wave only once every repo in the waves before it is merged or needed no change, so a problem stops at the canaries. Targets left after the last wave form one final wave. `--repo` bypasses waves. |
 

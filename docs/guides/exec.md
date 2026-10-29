@@ -35,6 +35,6 @@ The command runs directly, **without a shell**. Wrap it in `sh -c` when you need
 
 - `--raw` prints each repo's output, prefixed with the repo name, instead of the tally.
 - `--json repos,tally` prints every repo's result and the tally; `--jq` filters it.
-- `--timeout` limits each repo (default 5 minutes), and `--concurrency` sets the parallelism (default 8).
+- `--timeout` limits each repo (default 5 minutes), and `--concurrency` sets the parallelism (default 16).
 
 A repo where the command exits non-zero is reported as failed, and `exec` exits non-zero at the end.

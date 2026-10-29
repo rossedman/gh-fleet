@@ -199,7 +199,7 @@ func addCampaignFlags(cmd *cobra.Command) {
 	cmd.Flags().StringP("file", "f", "", "campaign file (default ./fleet.yaml)")
 	cmd.Flags().StringSlice("repo", nil, "limit to these repos (owner/name, repeatable)")
 	addRepoFileFlags(cmd, "limit to the repos listed in this file, one per line (- for stdin, repeatable)")
-	cmd.Flags().Int("concurrency", 0, "repos processed in parallel (default limits.concurrency, else 8)")
+	cmd.Flags().Int("concurrency", 0, "repos cloned and run in parallel (default limits.concurrency, else 16)")
 	cmd.Flags().Float64("write-rate", 1, "GitHub API writes per second")
 }
 

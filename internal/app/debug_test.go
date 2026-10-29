@@ -87,3 +87,29 @@ func TestNoteWriterSplitsLines(t *testing.T) {
 		t.Fatalf("wrote %d, %v: %q", n, err, h.errOut.String())
 	}
 }
+
+func TestRunsLookUpCampaignBranchesInBatches(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.app.EnableDebug()
+	f := h.campaign(basic, files)
+	ctx := context.Background()
+	if err := h.app.Apply(ctx, ApplyOptions{Common: Common{File: f, Yes: true}}); err != nil {
+		t.Fatal(err)
+	}
+	// The second run finds the branches the first pushed, in one query.
+	h.remotes["acme/api"].Commit("main", "moved", map[string]string{"NEW": "1\n"})
+	if err := h.app.Plan(ctx, PlanOptions{Common: Common{File: f}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.app.Apply(ctx, ApplyOptions{Common: Common{File: f, Yes: true}, Recheck: true}); err != nil {
+		t.Fatal(err)
+	}
+	got := timingNames(h.app)
+	if got["git ls-remote"] != 0 || got["look up campaign branches"] != 3 {
+		t.Fatalf("timings = %v", got)
+	}
+	if h.remotes["acme/api"].Show("fleet/add-line", "NEW") != "1" {
+		t.Fatal("existing branch not rebased onto the moved base")
+	}
+}

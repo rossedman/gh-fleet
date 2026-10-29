@@ -40,7 +40,7 @@ func TestSchemaMarkdown(t *testing.T) {
 		"| `repos` | list of repo or pattern |",
 		"| `names` | list of repo or pattern |",
 		"| `env` | map of string |",
-		"| `concurrency` | integer | `8` |",
+		"| `concurrency` | integer | `16` |",
 		"Between 1 and 256.",
 		"At least 0.",
 		"| `base` | string | \"\" |",

@@ -51,7 +51,7 @@ func init() {
 	execCmd.Flags().String("campaign", "", "take targets from this campaign file or name (default ./fleet.yaml)")
 	execCmd.Flags().StringSlice("repo", nil, "target these repos (owner/name, repeatable); with a campaign, limit to them")
 	addRepoFileFlags(execCmd, "target the repos listed in this file, one per line (- for stdin, repeatable); with a campaign, limit to them")
-	execCmd.Flags().Int("concurrency", 0, "repos processed in parallel (default 8)")
+	execCmd.Flags().Int("concurrency", 0, "repos cloned and run in parallel (default 16)")
 	addRunFlags(execCmd)
 	addOutputFlags(execCmd, app.ExecReport{})
 	execCmd.Flags().StringSlice("org", nil, "target this org's repos (repeatable)")

@@ -108,6 +108,7 @@ func (a *App) Plan(ctx context.Context, o PlanOptions) error {
 		Mode: engine.Plan, Campaign: camp, Workspaces: a.workspaces(c), Git: a.Git, Scripts: scripts,
 		LogPath:     func(repo string) string { return a.Store.LogPath(camp.Name, repo) },
 		Fingerprint: a.fingerprint(camp), Timings: a.Timings,
+		BranchHeads: a.branchHeads(ctx, client, camp, res.Targets),
 	}
 	stopRun := a.phase("run change in every repo")
 	tr, stop := a.track(c, "Planning", len(res.Targets), concurrency(c, camp), true)
@@ -291,6 +292,7 @@ func (a *App) apply(ctx context.Context, o ApplyOptions, keep func(*state.Campai
 		Mode: engine.Apply, Campaign: camp, Workspaces: a.workspaces(o.Common), Git: a.Git, PRs: prs, Scripts: scripts,
 		LogPath: func(repo string) string { return a.Store.LogPath(camp.Name, repo) },
 		Reopen:  o.Reopen, CloseNoop: o.CloseNoop, Fingerprint: fp, Timings: a.Timings,
+		BranchHeads: a.branchHeads(ctx, client, camp, res.Targets),
 	}
 	done := 0
 	stopRun := a.phase("run change in every repo")
@@ -344,6 +346,26 @@ func (a *App) apply(ctx context.Context, o ApplyOptions, keep func(*state.Campai
 		return ctx.Err()
 	}
 	return failures(results, statusHint)
+}
+
+// branchHeads looks up where the campaign branch is in every target, in
+// batched queries, so each repo needn't ask its git server. On error it
+// returns nil, and each repo asks instead.
+func (a *App) branchHeads(ctx context.Context, client ghapi.Client, camp *campaign.Campaign, targets []target.Target) map[string]string {
+	if len(targets) == 0 {
+		return nil
+	}
+	defer a.phase("look up campaign branches")()
+	branches := make(map[string]string, len(targets))
+	for _, t := range targets {
+		branches[t.Repo.FullName()] = camp.PR.Branch
+	}
+	heads, err := client.BranchHeads(ctx, branches)
+	if err != nil {
+		a.note(fmt.Sprintf("Couldn't look up %s in batches (%v), so each repo will ask its git server", camp.PR.Branch, err))
+		return nil
+	}
+	return heads
 }
 
 // indexPRs loads a campaign's PRs for repos.

@@ -13,6 +13,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	"github.com/rossedman/gh-fleet/internal/campaign"
 	"github.com/rossedman/gh-fleet/internal/state"
 	"github.com/rossedman/gh-fleet/internal/target"
 )
@@ -32,7 +33,8 @@ func (f ProcessorFunc) Process(ctx context.Context, t target.Target) (state.Repo
 
 // Options configures Run.
 type Options struct {
-	// Concurrency is the number of repos processed at once (default 8).
+	// Concurrency is the number of repos processed at once (default
+	// campaign.DefaultConcurrency).
 	Concurrency int
 	// OnResult is called once per repo as it finishes, from one goroutine
 	// at a time.
@@ -44,7 +46,7 @@ type Options struct {
 func Run(ctx context.Context, targets []target.Target, p Processor, opts Options) ([]state.RepoState, error) {
 	n := opts.Concurrency
 	if n < 1 {
-		n = 8
+		n = campaign.DefaultConcurrency
 	}
 	ctx, cancel := context.WithCancelCause(ctx)
 	defer cancel(nil)

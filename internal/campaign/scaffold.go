@@ -62,7 +62,7 @@ pr:
     signoff: false
 
 limits:
-  concurrency: 8
+  concurrency: 16     # repos cloned and run at once; API requests are capped apart
   maxOpenPRs: 0       # 0 means no limit
   # waves:            # roll out in stages; each starts when the one before is merged
   #   - repos: [{{ .Org }}/canary]

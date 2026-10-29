@@ -590,3 +590,36 @@ func TestTransportRecordsTimings(t *testing.T) {
 		t.Fatalf("stats = %+v", s)
 	}
 }
+
+func TestInFlightCap(t *testing.T) {
+	t.Parallel()
+	var sent atomic.Int64
+	h := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		sent.Add(1)
+		_, _ = io.WriteString(w, "{}")
+	})
+	tr, _ := newTestTransport(h)
+	if cap(tr.inFlight) != DefaultMaxInFlight || DefaultMaxInFlight >= 100 {
+		t.Fatalf("cap = %d", cap(tr.inFlight))
+	}
+	// Every slot taken: a request waits, and gives up with its context.
+	for range DefaultMaxInFlight {
+		tr.inFlight <- struct{}{}
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com/x", nil)
+	if _, err := tr.RoundTrip(req); !errors.Is(err, context.Canceled) || sent.Load() != 0 {
+		t.Fatalf("full: %v, %d sent", err, sent.Load())
+	}
+	// A freed slot lets it through, and it gives the slot back.
+	<-tr.inFlight
+	if resp := get(t, tr, "/x"); resp.StatusCode != http.StatusOK || sent.Load() != 1 || len(tr.inFlight) != DefaultMaxInFlight-1 {
+		t.Fatalf("freed: %d sent, %d slots taken", sent.Load(), len(tr.inFlight))
+	}
+	// A transport built without NewTransport has no cap.
+	bare := &Transport{Base: handlerTransport{h}}
+	if resp := get(t, bare, "/x"); resp.StatusCode != http.StatusOK {
+		t.Fatalf("bare: %d", resp.StatusCode)
+	}
+}
