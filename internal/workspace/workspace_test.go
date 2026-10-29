@@ -226,3 +226,41 @@ func TestRemoveError(t *testing.T) {
 		t.Fatal("Clone: expected an error for an invalid path")
 	}
 }
+
+func TestPrepareAt(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	env := testutil.GitEnv(t)
+	remote := testutil.NewRemote(t, env, map[string]string{"a.txt": "a\n"})
+	m := &Manager{Root: t.TempDir(), Git: testutil.Git(env), CloneURL: func(ghapi.Repo) string { return remote.URL() }}
+	repo := ghapi.Repo{Owner: "acme", Name: "api"}
+
+	// No branch: checked out fresh from the base.
+	ws, err := m.PrepareAt(ctx, "c", repo, "main", "fleet/c", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cur, _ := m.Git.Run(ctx, ws.Dir, "rev-parse", "--abbrev-ref", "HEAD")
+	if ws.RemoteSHA != "" || ws.Branch != "fleet/c" || cur != "fleet/c" {
+		t.Fatalf("new: %+v on %q", ws, cur)
+	}
+	ws.Cleanup()
+
+	// A branch at the given commit is fetched and rebased onto the base.
+	remote.Commit("fleet/c", "old", map[string]string{"old.txt": "1\n"})
+	remote.Commit("main", "moved", map[string]string{"b.txt": "b\n"})
+	sha := remote.Branch("fleet/c")
+	ws, err = m.PrepareAt(ctx, "c", repo, "main", "fleet/c", sha)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ws.Cleanup()
+	for _, f := range []string{"old.txt", "b.txt"} {
+		if _, err := os.Stat(filepath.Join(ws.Dir, f)); err != nil {
+			t.Fatalf("%s missing after rebase: %v", f, err)
+		}
+	}
+	if ws.RemoteSHA != sha || ws.Reset {
+		t.Fatalf("existing: %+v", ws)
+	}
+}

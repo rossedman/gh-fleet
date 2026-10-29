@@ -44,6 +44,10 @@ const (
 	DefaultWriteRate   = 1.0 // writes per second
 	DefaultMaxAttempts = 5
 	DefaultHeadroom    = 0.10
+	// DefaultMaxInFlight caps GitHub API requests in flight at once, well
+	// under GitHub's limit of 100 concurrent requests, whatever the number
+	// of repos being worked on.
+	DefaultMaxInFlight = 8
 	defaultRetryAfter  = 60 * time.Second
 	baseBackoff        = time.Second
 	// maxSecondaryWait caps the doubling wait for repeated secondary
@@ -88,6 +92,8 @@ type Transport struct {
 	// Timings, when set, records how long each request takes and how
 	// long requests wait on rate limits and retries.
 	Timings *timing.Recorder
+	// inFlight holds a slot per request being sent; nil means no cap.
+	inFlight chan struct{}
 
 	mu          sync.Mutex
 	pausedUntil time.Time
@@ -106,7 +112,7 @@ type Transport struct {
 
 // NewTransport returns a Transport with writes limited to writesPerSecond.
 func NewTransport(base http.RoundTripper, writesPerSecond float64) *Transport {
-	t := &Transport{Base: base, MaxAttempts: DefaultMaxAttempts, Headroom: DefaultHeadroom}
+	t := &Transport{Base: base, MaxAttempts: DefaultMaxAttempts, Headroom: DefaultHeadroom, inFlight: make(chan struct{}, DefaultMaxInFlight)}
 	if writesPerSecond > 0 {
 		t.Writes = rate.NewLimiter(rate.Limit(writesPerSecond), 1)
 	}
@@ -180,8 +186,12 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 			r.GetBody = func() (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(body)), nil }
 			r.ContentLength = int64(len(body))
 		}
+		if err := t.acquire(ctx); err != nil {
+			return nil, err
+		}
 		sent := time.Now()
 		resp, err := t.base().RoundTrip(r)
+		t.release()
 		if err != nil {
 			t.Timings.Add("api "+resource, time.Since(sent), "method", req.Method, "path", req.URL.Path, "attempt", attempt, "err", err)
 			return nil, err
@@ -241,6 +251,26 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 			continue
 		}
 		return resp, nil
+	}
+}
+
+// acquire takes an in-flight slot, waiting while every slot is taken.
+func (t *Transport) acquire(ctx context.Context) error {
+	if t.inFlight == nil {
+		return nil
+	}
+	select {
+	case t.inFlight <- struct{}{}:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+// release gives back the slot acquire took.
+func (t *Transport) release() {
+	if t.inFlight != nil {
+		<-t.inFlight
 	}
 }
 

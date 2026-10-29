@@ -157,7 +157,7 @@ A script can add or override variables for its repo by writing `NAME=value` line
 
 ### `limits`
 
-`concurrency` is how many repos are processed in parallel (default 8, between 1 and 256); `--concurrency` overrides it. `maxOpenPRs` stops opening new PRs once that many campaign PRs are open (default 0, no limit). Repos held back this way are marked `changed` and `retry` picks them up later.
+`concurrency` is how many repos are cloned and run in parallel (default 16, between 1 and 256); `--concurrency` overrides it. GitHub API requests are capped separately, so this doesn't add API load ([rate limits](guides/rate-limits.md#tuning)). `maxOpenPRs` stops opening new PRs once that many campaign PRs are open (default 0, no limit). Repos held back this way are marked `changed` and `retry` picks them up later.
 
 `waves` rolls a change out in stages; see [Rolling out in waves](guides/tracking-prs.md#rolling-out-in-waves).
 

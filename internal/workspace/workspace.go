@@ -67,25 +67,35 @@ func (m *Manager) url(repo ghapi.Repo) string {
 
 // Prepare clones repo's base branch and checks out branch. An existing
 // remote branch is rebased onto base; on conflict it is reset to base, as
-// the script, not the old branch, is the source of truth.
+// the script, not the old branch, is the source of truth. It asks origin
+// where branch is; PrepareAt takes that from the caller instead.
 func (m *Manager) Prepare(ctx context.Context, campaign string, repo ghapi.Repo, base, branch string) (*Workspace, error) {
-	dir := m.Path(campaign, repo)
-	if err := os.RemoveAll(dir); err != nil {
-		return nil, err
-	}
-	if err := os.MkdirAll(filepath.Dir(dir), 0o700); err != nil {
-		return nil, err
-	}
-	ws := &Workspace{Dir: dir, Base: base, Branch: branch, keep: m.Keep}
-	if err := m.Git.Clone(ctx, m.url(repo), dir, base); err != nil {
-		ws.Cleanup()
-		return nil, err
-	}
-	sha, err := m.Git.RemoteBranchSHA(ctx, dir, branch)
+	return m.prepare(ctx, campaign, repo, base, branch, nil)
+}
+
+// PrepareAt is Prepare for a branch the caller already looked up: remote
+// is its commit on origin, or "" when it doesn't exist. Looking branches
+// up in batches saves a round trip to the git server per repo. A branch
+// that moved since is caught by the push's lease.
+func (m *Manager) PrepareAt(ctx context.Context, campaign string, repo ghapi.Repo, base, branch, remote string) (*Workspace, error) {
+	return m.prepare(ctx, campaign, repo, base, branch, &remote)
+}
+
+// prepare is Prepare, or PrepareAt when remote is set.
+func (m *Manager) prepare(ctx context.Context, campaign string, repo ghapi.Repo, base, branch string, remote *string) (*Workspace, error) {
+	ws, err := m.Clone(ctx, campaign, repo, base)
 	if err != nil {
+		return nil, err
+	}
+	ws.Branch = branch
+	var sha string
+	if remote != nil {
+		sha = *remote
+	} else if sha, err = m.Git.RemoteBranchSHA(ctx, ws.Dir, branch); err != nil {
 		ws.Cleanup()
 		return nil, err
 	}
+	dir := ws.Dir
 	ws.RemoteSHA = sha
 	if sha == "" {
 		if err := m.Git.Checkout(ctx, dir, branch, "origin/"+base); err != nil {

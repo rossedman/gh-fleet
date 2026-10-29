@@ -307,11 +307,11 @@
       "additionalProperties": false,
       "properties": {
         "concurrency": {
-          "description": "Repos processed in parallel. `--concurrency` overrides it.",
+          "description": "Repos cloned and run in parallel. GitHub API requests are capped separately, so this sets clone and script throughput, not API load. `--concurrency` overrides it.",
           "type": "integer",
           "minimum": 1,
           "maximum": 256,
-          "default": 8
+          "default": 16
         },
         "maxOpenPRs": {
           "description": "Stop opening new PRs once this many campaign PRs are open. 0 means no limit.",

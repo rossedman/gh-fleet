@@ -30,7 +30,7 @@ gh fleet apply --write-rate 0.5   # one write every two seconds
 
 Set it permanently with `GH_FLEET_WRITE_RATE` or `write-rate` in the [config file](../configuration.md#cli-settings).
 
-`--concurrency` (or `limits.concurrency`, default 8) sets how many repos are processed in parallel. It affects clone and script time, not the write rate: more workers share the same writes-per-second budget.
+`--concurrency` (or `limits.concurrency`, default 16) sets how many repos are cloned and run in parallel. Cloning goes through git, not the API, so it costs no quota. API requests are capped at 8 in flight however many workers there are, well under GitHub's limit of 100 concurrent requests, and every worker shares the same writes-per-second budget. Raising `--concurrency` speeds up cloning and scripts without adding API pressure.
 
 The content creation limits are GitHub's and can't be raised. Each new PR is one content-creating request, however many labels and reviewers it gets, so `apply` can open up to **500 PRs an hour**; past that it waits for the window. Re-running `apply` on repos that already have their PR creates nothing, and `merge`, `close` and `status` don't count toward the limit (closing with a comment counts the comment). Waves (`limits.waves`) and `retry` let a rollout of thousands of repos span several sessions.
 

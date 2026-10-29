@@ -37,7 +37,7 @@ gh fleet status [campaign] [flags]
 ### Options
 
 ```
-      --concurrency int        repos processed in parallel (default limits.concurrency, else 8)
+      --concurrency int        repos cloned and run in parallel (default limits.concurrency, else 16)
       --exclude strings        leave out these repos (owner/name, repeatable)
       --exclude-file strings   leave out the repos listed in this file, one per line (- for stdin, repeatable)
       --exit-status            exit 1 if a repo failed, or 8 while repos still need work

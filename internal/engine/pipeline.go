@@ -71,6 +71,10 @@ type Pipeline struct {
 	Fingerprint string
 	// Timings, when set, records how long each repo spends in each stage.
 	Timings *timing.Recorder
+	// BranchHeads holds the campaign branch's commit per repo full name,
+	// looked up in batches; a repo without the branch is absent. When nil,
+	// each repo asks its git server instead.
+	BranchHeads map[string]string
 }
 
 // RepoFingerprint is the fingerprint of the change in one repo: the
@@ -150,10 +154,14 @@ func (p *Pipeline) Process(ctx context.Context, t target.Target) (state.RepoStat
 	var ws *workspace.Workspace
 	var err error
 	stop := p.Timings.Start("repo: clone", "repo", repo.FullName())
-	if p.Mode == Exec {
+	branch := p.Campaign.PR.Branch
+	switch {
+	case p.Mode == Exec:
 		ws, err = p.Workspaces.Clone(ctx, p.Campaign.Name, repo, base)
-	} else {
-		ws, err = p.Workspaces.Prepare(ctx, p.Campaign.Name, repo, base, p.Campaign.PR.Branch)
+	case p.BranchHeads != nil:
+		ws, err = p.Workspaces.PrepareAt(ctx, p.Campaign.Name, repo, base, branch, p.BranchHeads[repo.FullName()])
+	default:
+		ws, err = p.Workspaces.Prepare(ctx, p.Campaign.Name, repo, base, branch)
 	}
 	stop()
 	if err != nil {

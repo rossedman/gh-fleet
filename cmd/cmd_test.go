@@ -39,6 +39,7 @@ func setup(t *testing.T) *env {
 	e := &env{gh: fake.New(), dir: t.TempDir()}
 	e.gh.AddRepo(ghapi.Repo{Owner: "acme", Name: "api", CanPush: true})
 	e.gh.Limits = []ghapi.RateLimit{{Resource: "core", Limit: 5000, Remaining: 5000}}
+	e.gh.HeadsFrom = func(_, branch string) string { return remote.Branch(branch) }
 	stateDir := filepath.Join(t.TempDir(), "state")
 	work := t.TempDir()
 	old := newApp

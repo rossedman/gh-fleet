@@ -18,6 +18,7 @@ import (
 	"github.com/rossedman/gh-fleet/internal/state"
 	"github.com/rossedman/gh-fleet/internal/target"
 	"github.com/rossedman/gh-fleet/internal/testutil"
+	"github.com/rossedman/gh-fleet/internal/timing"
 	"github.com/rossedman/gh-fleet/internal/workspace"
 )
 
@@ -434,5 +435,64 @@ func TestPipelineReviewersFrom(t *testing.T) {
 	b, _ := os.ReadFile(filepath.Join(f.logs, "acme_api.log"))
 	if rs.Status != state.PROpen || !strings.Contains(string(b), "reviewer acme/team skipped: not a collaborator") {
 		t.Fatalf("rs = %+v, log:\n%s", rs, b)
+	}
+}
+
+// gitCalls returns how many times each git subcommand ran.
+func gitCalls(rec *timing.Recorder) map[string]int {
+	got := map[string]int{}
+	for _, s := range rec.Stats() {
+		got[s.Name] = s.Count
+	}
+	return got
+}
+
+func TestPipelineUsesBranchHeads(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	f := newFixture(t, Apply, "echo x >> README.md")
+	rec := timing.New(nil)
+	f.pipe.Git.Timings, f.pipe.Workspaces.Git.Timings = rec, rec
+
+	// A branch the lookup didn't find is created, without asking origin.
+	f.pipe.BranchHeads = map[string]string{}
+	rs, err := f.pipe.Process(ctx, f.target)
+	if err != nil || rs.Status != state.PROpen {
+		t.Fatalf("new branch: %+v, %v", rs, err)
+	}
+	head := f.remote.Branch("fleet/fx")
+	if head == "" || rs.HeadSHA != head {
+		t.Fatalf("pushed %q, branch at %q", rs.HeadSHA, head)
+	}
+
+	// A branch the lookup found is updated on top of where it is.
+	f.remote.Commit("main", "base moved", map[string]string{"BASE": "1\n"})
+	f.pipe.BranchHeads = map[string]string{"acme/api": head}
+	f.pipe.Campaign.Change.Steps[0].Run = "echo y >> README.md"
+	rs, err = f.pipe.Process(ctx, f.target)
+	if err != nil || rs.Status != state.PROpen || f.remote.Show("fleet/fx", "BASE") != "1" || !strings.Contains(f.remote.Show("fleet/fx", "README.md"), "x\ny") {
+		t.Fatalf("existing branch: %+v, %v; README %q", rs, err, f.remote.Show("fleet/fx", "README.md"))
+	}
+	if n := gitCalls(rec)["git ls-remote"]; n != 0 {
+		t.Fatalf("asked origin %d times with BranchHeads set", n)
+	}
+
+	// A stale lookup can't overwrite the branch: the push's lease fails.
+	moved := f.remote.Branch("fleet/fx")
+	f.pipe.BranchHeads = map[string]string{}
+	rs, err = f.pipe.Process(ctx, f.target)
+	if err != nil || rs.Status != state.Failed || !strings.Contains(rs.LastError, "git push") || f.remote.Branch("fleet/fx") != moved {
+		t.Fatalf("stale lookup: %+v, %v", rs, err)
+	}
+
+	// Plan with BranchHeads still shows what the PR would contain.
+	f = newFixture(t, Plan, "echo x >> README.md")
+	rec = timing.New(nil)
+	f.pipe.Git.Timings, f.pipe.Workspaces.Git.Timings = rec, rec
+	f.remote.Commit("fleet/fx", "old", map[string]string{"OLD": "1\n"})
+	f.pipe.BranchHeads = map[string]string{"acme/api": f.remote.Branch("fleet/fx")}
+	rs, _ = f.pipe.Process(ctx, f.target)
+	if rs.Status != state.Changed || rs.Detail != "updates existing branch" || !strings.Contains(rs.Diff, "OLD") || gitCalls(rec)["git ls-remote"] != 0 {
+		t.Fatalf("plan: %+v, calls %v", rs, gitCalls(rec))
 	}
 }

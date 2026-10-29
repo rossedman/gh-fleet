@@ -117,7 +117,7 @@ pr: {title: "chore: bump {{ .Repo.Name }}"}
 		t.Fatal(err)
 	}
 	if c.PR.Branch != "fleet/bump" || c.Change.Shell != "bash" ||
-		c.Limits.Concurrency != 8 || !*c.Targets.Exclude.Archived || !*c.Targets.Exclude.Forks {
+		c.Limits.Concurrency != DefaultConcurrency || DefaultConcurrency != 16 || !*c.Targets.Exclude.Archived || !*c.Targets.Exclude.Forks {
 		t.Fatalf("defaults not applied: %+v", c)
 	}
 	if c.PR.Commit.Message != c.PR.Title {

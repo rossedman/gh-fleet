@@ -28,7 +28,7 @@ gh fleet exec -- <command> [args...] [flags]
 
 ```
       --campaign string        take targets from this campaign file or name (default ./fleet.yaml)
-      --concurrency int        repos processed in parallel (default 8)
+      --concurrency int        repos cloned and run in parallel (default 16)
       --exclude strings        leave out these repos (owner/name, repeatable)
       --exclude-file strings   leave out the repos listed in this file, one per line (- for stdin, repeatable)
       --file strings           only repos where any of these paths exist

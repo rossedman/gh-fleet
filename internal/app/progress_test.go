@@ -17,7 +17,7 @@ func TestRunProgress(t *testing.T) {
 	if err := h.app.Plan(ctx, PlanOptions{Common: Common{File: f}}); err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"Searching for repos: org:acme topic:service fork:true\n", "Repo search found 4 repos in acme\n", "Planning 2 repos, 8 at a time\n", "changed  acme/api\n"} {
+	for _, want := range []string{"Searching for repos: org:acme topic:service fork:true\n", "Repo search found 4 repos in acme\n", "Planning 2 repos, 16 at a time\n", "changed  acme/api\n"} {
 		if !strings.Contains(h.errOut.String(), want) {
 			t.Errorf("plan progress missing %q:\n%s", want, h.errOut)
 		}

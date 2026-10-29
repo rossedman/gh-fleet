@@ -39,7 +39,7 @@ gh fleet merge [campaign] [flags]
       --allow-no-checks        merge PRs whose head has no checks
       --allow-unreviewed       merge PRs in repos that don't require a review
       --auto                   turn on auto-merge for PRs that aren't ready yet
-      --concurrency int        repos processed in parallel (default limits.concurrency, else 8)
+      --concurrency int        repos cloned and run in parallel (default limits.concurrency, else 16)
       --dry-run                show what would happen without changing anything
       --exclude strings        leave out these repos (owner/name, repeatable)
       --exclude-file strings   leave out the repos listed in this file, one per line (- for stdin, repeatable)

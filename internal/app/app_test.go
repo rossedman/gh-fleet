@@ -47,6 +47,13 @@ func newHarness(t *testing.T) *harness {
 		h.gh.AddRepo(r)
 		h.remotes[r.FullName()] = testutil.NewRemote(t, h.env, map[string]string{"README.md": "# " + r.Name + "\n"})
 	}
+	// GitHub sees the branches the local remotes have.
+	h.gh.HeadsFrom = func(repo, branch string) string {
+		if r := h.remotes[repo]; r != nil {
+			return r.Branch(branch)
+		}
+		return ""
+	}
 	h.gh.Files["acme/api"] = []string{"README.md", "go.mod"}
 	h.gh.Files["acme/web"] = []string{"README.md"}
 	h.app = &App{

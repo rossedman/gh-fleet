@@ -30,6 +30,9 @@ type Client struct {
 	Search map[string][]string
 	// Heads maps "owner/name:branch" to the commit the branch points at.
 	Heads map[string]string
+	// HeadsFrom, when set, answers branches Heads doesn't list, such as
+	// from the git remotes a test pushes to; "" means no such branch.
+	HeadsFrom func(repo, branch string) string
 	// SearchPartial marks every code search result as partial.
 	SearchPartial bool
 	// RepoSearchIncomplete makes every repo search incomplete.
@@ -173,6 +176,10 @@ func (c *Client) BranchHeads(ctx context.Context, branches map[string]string) (m
 	for repo, branch := range branches {
 		if sha, ok := c.Heads[repo+":"+branch]; ok {
 			out[repo] = sha
+		} else if c.HeadsFrom != nil {
+			if sha := c.HeadsFrom(repo, branch); sha != "" {
+				out[repo] = sha
+			}
 		}
 	}
 	return out, nil
