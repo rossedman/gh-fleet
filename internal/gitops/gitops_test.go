@@ -25,6 +25,13 @@ func TestCloneCommitPush(t *testing.T) {
 	if shallow, _ := g.Run(ctx, dir, "rev-parse", "--is-shallow-repository"); shallow != "true" {
 		t.Fatal("clone is not shallow")
 	}
+	// The files come with the clone, not in a second fetch at checkout.
+	if promisor, _ := g.Run(ctx, dir, "config", "--get", "remote.origin.promisor"); promisor != "" {
+		t.Fatal("clone is a partial clone")
+	}
+	if spec, _ := g.Run(ctx, dir, "config", "--get", "remote.origin.fetch"); spec != "+refs/heads/main:refs/remotes/origin/main" {
+		t.Fatalf("clone is not single-branch: fetches %q", spec)
+	}
 	if sha, err := g.RemoteBranchSHA(ctx, dir, "fleet/x"); err != nil || sha != "" {
 		t.Fatalf("missing branch: %q, %v", sha, err)
 	}

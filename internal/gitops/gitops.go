@@ -63,10 +63,13 @@ func subcommand(args []string) string {
 	return "?"
 }
 
-// Clone makes a shallow, blobless, single-branch clone of branch into dir.
-// Servers that do not support partial clone fall back to a full blob fetch.
+// Clone makes a shallow, single-branch clone of branch into dir. It
+// fetches the files too: checking out the one commit needs all of them,
+// so leaving them out (--filter=blob:none) would only fetch them in a
+// second round trip. FetchBranches, which needs history without files,
+// filters instead.
 func (g Git) Clone(ctx context.Context, url, dir, branch string) error {
-	_, err := g.Run(ctx, "", "clone", "--quiet", "--depth", "1", "--filter=blob:none", "--single-branch", "--branch", branch, url, dir)
+	_, err := g.Run(ctx, "", "clone", "--quiet", "--depth", "1", "--single-branch", "--branch", branch, url, dir)
 	return err
 }
 
