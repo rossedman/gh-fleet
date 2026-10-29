@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"io/fs"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -111,5 +113,32 @@ func TestRunsLookUpCampaignBranchesInBatches(t *testing.T) {
 	}
 	if h.remotes["acme/api"].Show("fleet/add-line", "NEW") != "1" {
 		t.Fatal("existing branch not rebased onto the moved base")
+	}
+}
+
+func TestRunsLeaveNoClonesBehind(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.app.EnableDebug()
+	if err := h.app.Plan(context.Background(), PlanOptions{Common: Common{File: h.campaign(basic, files)}}); err != nil {
+		t.Fatal(err)
+	}
+	// Clones are deleted in the background, and all of them by the time
+	// the run returns.
+	if got := timingNames(h.app)["cleanup (background)"]; got != 2 {
+		t.Fatalf("background cleanups = %d", got)
+	}
+	var left []string
+	_ = filepath.WalkDir(h.app.Workspaces.Root, func(p string, d fs.DirEntry, err error) error {
+		if err == nil && p != h.app.Workspaces.Root {
+			left = append(left, p)
+		}
+		return nil
+	})
+	// Only the campaign and owner directories may remain.
+	for _, p := range left {
+		if rel, _ := filepath.Rel(h.app.Workspaces.Root, p); strings.Count(rel, string(filepath.Separator)) > 1 {
+			t.Fatalf("left behind: %v", left)
+		}
 	}
 }

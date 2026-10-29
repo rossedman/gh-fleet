@@ -6,11 +6,15 @@ package workspace
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
+	"sync/atomic"
 
 	"github.com/rossedman/gh-fleet/internal/ghapi"
 	"github.com/rossedman/gh-fleet/internal/gitops"
+	"github.com/rossedman/gh-fleet/internal/timing"
 )
 
 // Manager creates and removes workspaces.
@@ -23,6 +27,39 @@ type Manager struct {
 	CloneURL func(ghapi.Repo) string
 	// Keep leaves workspaces on disk after Cleanup, for debugging.
 	Keep bool
+	// Reaper, when set, deletes workspaces in the background on Cleanup;
+	// otherwise Cleanup deletes them before it returns.
+	Reaper *Reaper
+}
+
+// Reaper deletes workspaces in the background, so a finished repo frees
+// its worker without waiting for thousands of files to be deleted. Wait
+// blocks until every deletion is done.
+type Reaper struct {
+	// Timings, when set, records how long each deletion takes.
+	Timings *timing.Recorder
+
+	wg sync.WaitGroup
+	n  atomic.Int64
+}
+
+// Remove moves dir aside, which is quick, and deletes it in the
+// background. A dir that can't be moved is deleted before Remove returns.
+func (r *Reaper) Remove(dir string) {
+	trash := fmt.Sprintf("%s.removing-%d-%d", dir, os.Getpid(), r.n.Add(1))
+	if err := os.Rename(dir, trash); err != nil {
+		_ = os.RemoveAll(dir)
+		return
+	}
+	r.wg.Go(func() {
+		defer r.Timings.Start("cleanup (background)", "dir", dir)()
+		_ = os.RemoveAll(trash)
+	})
+}
+
+// Wait blocks until every directory Remove moved aside is deleted.
+func (r *Reaper) Wait() {
+	r.wg.Wait()
 }
 
 // Workspace is one prepared clone.
@@ -36,7 +73,8 @@ type Workspace struct {
 	// reset to the base branch instead.
 	Reset bool
 
-	keep bool
+	keep   bool
+	reaper *Reaper
 }
 
 // DefaultRoot returns $TMPDIR/gh-fleet.
@@ -132,7 +170,7 @@ func (m *Manager) Clone(ctx context.Context, campaign string, repo ghapi.Repo, b
 	if err := os.MkdirAll(filepath.Dir(dir), 0o700); err != nil {
 		return nil, err
 	}
-	ws := &Workspace{Dir: dir, Base: base, keep: m.Keep}
+	ws := &Workspace{Dir: dir, Base: base, keep: m.Keep, reaper: m.Reaper}
 	if err := m.Git.Clone(ctx, m.url(repo), dir, base); err != nil {
 		ws.Cleanup()
 		return nil, err
@@ -140,10 +178,14 @@ func (m *Manager) Clone(ctx context.Context, campaign string, repo ghapi.Repo, b
 	return ws, nil
 }
 
-// Cleanup removes the workspace unless it is kept for debugging.
+// Cleanup removes the workspace unless it is kept for debugging: in the
+// background when the manager has a Reaper.
 func (w *Workspace) Cleanup() {
-	if w.keep {
-		return
+	switch {
+	case w.keep:
+	case w.reaper != nil:
+		w.reaper.Remove(w.Dir)
+	default:
+		_ = os.RemoveAll(w.Dir)
 	}
-	_ = os.RemoveAll(w.Dir)
 }

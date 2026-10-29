@@ -41,10 +41,13 @@ const unchangedMaxAge = 24 * time.Hour
 const saveEvery = 25
 
 // workspaces returns the workspace manager with --keep-workdirs applied.
+// Finished clones are deleted in the background; call the manager's
+// Reaper.Wait before returning, so none is left behind.
 func (a *App) workspaces(c Common) *workspace.Manager {
 	m := *a.Workspaces
 	m.Git = a.Git
 	m.Keep = m.Keep || c.KeepWorkdirs
+	m.Reaper = &workspace.Reaper{Timings: a.Timings}
 	return &m
 }
 
@@ -71,6 +74,7 @@ func (a *App) Plan(ctx context.Context, o PlanOptions) error {
 	if err != nil {
 		return err
 	}
+	a.noteTargets(c, camp)
 	stop = a.phase("compile starlark")
 	scripts, err := a.scripts(ctx, camp)
 	stop()
@@ -104,8 +108,9 @@ func (a *App) Plan(ctx context.Context, o PlanOptions) error {
 			return err
 		}
 	}
+	ws := a.workspaces(c)
 	pipe := &engine.Pipeline{
-		Mode: engine.Plan, Campaign: camp, Workspaces: a.workspaces(c), Git: a.Git, Scripts: scripts,
+		Mode: engine.Plan, Campaign: camp, Workspaces: ws, Git: a.Git, Scripts: scripts,
 		LogPath:     func(repo string) string { return a.Store.LogPath(camp.Name, repo) },
 		Fingerprint: a.fingerprint(camp), Timings: a.Timings,
 		BranchHeads: a.branchHeads(ctx, client, camp, res.Targets),
@@ -121,6 +126,9 @@ func (a *App) Plan(ctx context.Context, o PlanOptions) error {
 			tr.Result(rs)
 		},
 	})
+	// Clones still being deleted finish while progress is drawn, so
+	// nothing writes to stderr behind the summary.
+	ws.Reaper.Wait()
 	stop()
 	stopRun()
 	stop = a.phase("save state")
@@ -177,6 +185,7 @@ func (a *App) apply(ctx context.Context, o ApplyOptions, keep func(*state.Campai
 	if err != nil {
 		return err
 	}
+	a.noteTargets(o.Common, camp)
 	stop = a.phase("compile starlark")
 	scripts, err := a.scripts(ctx, camp)
 	stop()
@@ -288,8 +297,9 @@ func (a *App) apply(ctx context.Context, o ApplyOptions, keep func(*state.Campai
 	if err := a.confirm(o.Common, title); err != nil {
 		return err
 	}
+	ws := a.workspaces(o.Common)
 	pipe := &engine.Pipeline{
-		Mode: engine.Apply, Campaign: camp, Workspaces: a.workspaces(o.Common), Git: a.Git, PRs: prs, Scripts: scripts,
+		Mode: engine.Apply, Campaign: camp, Workspaces: ws, Git: a.Git, PRs: prs, Scripts: scripts,
 		LogPath: func(repo string) string { return a.Store.LogPath(camp.Name, repo) },
 		Reopen:  o.Reopen, CloseNoop: o.CloseNoop, Fingerprint: fp, Timings: a.Timings,
 		BranchHeads: a.branchHeads(ctx, client, camp, res.Targets),
@@ -309,6 +319,7 @@ func (a *App) apply(ctx context.Context, o ApplyOptions, keep func(*state.Campai
 			tr.Result(rs)
 		},
 	})
+	ws.Reaper.Wait()
 	stopTrack()
 	stopRun()
 	for _, r := range results {

@@ -44,6 +44,13 @@ They look alike but do different jobs:
 
 Use `include.repos` for "exactly these repos", and `include.names` to narrow what the other filters select, such as `names: [api, web]` with `files: [go.mod]`. When gh fleet does list an org, its progress note says which filter made it: `Listing all of acme's repos: include.files is checked in every repo`.
 
+`targets`, `plan` and `apply` also point out targets that are easy to get wrong, on stderr, before they start:
+
+- **A note** when `include.repos` sits beside other include filters, saying that it adds to what they select in `orgs` rather than being the whole selection.
+- **A warning** when include filters have no `orgs` to filter, so they select nothing, or when an `include.names` entry names an owner that isn't in `orgs`, so it can never match.
+
+Neither stops the run, and both stay off stderr when the output is JSON and nobody is watching.
+
 ## Include filters
 
 ```yaml

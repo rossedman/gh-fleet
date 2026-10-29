@@ -7,11 +7,13 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/rossedman/gh-fleet/internal/ghapi"
 	"github.com/rossedman/gh-fleet/internal/testutil"
+	"github.com/rossedman/gh-fleet/internal/timing"
 )
 
 // failGitEnv names the git call the test binary fails when it runs as git:
@@ -262,5 +264,85 @@ func TestPrepareAt(t *testing.T) {
 	}
 	if ws.RemoteSHA != sha || ws.Reset {
 		t.Fatalf("existing: %+v", ws)
+	}
+}
+
+func TestReaper(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	rec := timing.New(nil)
+	r := &Reaper{Timings: rec}
+
+	// Removed dirs are gone at once, under their own name, and deleted
+	// by the time Wait returns.
+	var dirs []string
+	for i := range 3 {
+		d := filepath.Join(root, "acme", strconv.Itoa(i))
+		if err := os.MkdirAll(filepath.Join(d, "sub"), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(d, "sub", "f"), []byte("x"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		dirs = append(dirs, d)
+	}
+	for _, d := range dirs {
+		r.Remove(d)
+		if _, err := os.Stat(d); !os.IsNotExist(err) {
+			t.Fatalf("%s still there after Remove: %v", d, err)
+		}
+	}
+	r.Wait()
+	if left, _ := os.ReadDir(filepath.Join(root, "acme")); len(left) != 0 {
+		t.Fatalf("left behind: %v", left)
+	}
+	if s := rec.Stats(); len(s) != 1 || s[0].Name != "cleanup (background)" || s[0].Count != 3 {
+		t.Fatalf("timings = %+v", s)
+	}
+
+	// A dir that can't be moved, here one that doesn't exist, is handled
+	// on the spot.
+	r.Remove(filepath.Join(root, "missing"))
+	r.Wait()
+	if s := rec.Stats(); s[0].Count != 3 {
+		t.Fatalf("timings = %+v", s)
+	}
+}
+
+func TestCleanupWithReaper(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	env := testutil.GitEnv(t)
+	remote := testutil.NewRemote(t, env, map[string]string{"a.txt": "a\n"})
+	reaper := &Reaper{}
+	m := &Manager{Root: t.TempDir(), Git: testutil.Git(env), CloneURL: func(ghapi.Repo) string { return remote.URL() }, Reaper: reaper}
+	repo := ghapi.Repo{Owner: "acme", Name: "api"}
+
+	ws, err := m.Clone(ctx, "c", repo, "main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ws.Cleanup()
+	// The same repo can be cloned again before the deletion finishes.
+	again, err := m.Clone(ctx, "c", repo, "main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	again.Cleanup()
+	reaper.Wait()
+	if left, _ := os.ReadDir(filepath.Dir(ws.Dir)); len(left) != 0 {
+		t.Fatalf("left behind: %v", left)
+	}
+
+	// --keep-workdirs wins over the reaper.
+	m.Keep = true
+	kept, err := m.Clone(ctx, "c", repo, "main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	kept.Cleanup()
+	reaper.Wait()
+	if _, err := os.Stat(kept.Dir); err != nil {
+		t.Fatalf("kept workspace removed: %v", err)
 	}
 }
