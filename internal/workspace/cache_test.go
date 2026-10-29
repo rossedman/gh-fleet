@@ -3,6 +3,7 @@ package workspace
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -230,5 +231,65 @@ func TestCacheFollowsURLAndCollectsGarbage(t *testing.T) {
 	// Hosts don't share a cache.
 	if m.cachePath("acme", "api", "https://a.example/acme/api.git") == m.cachePath("acme", "api", "https://b.example/acme/api.git") {
 		t.Fatal("two hosts share a cache")
+	}
+}
+
+func TestCacheGitFailuresFallBackToCloning(t *testing.T) {
+	t.Parallel()
+	// Each git step of the cache failing in turn: in a new cache, and in
+	// one an earlier run filled.
+	for _, tc := range []struct {
+		name string
+		fail string
+		warm bool
+	}{
+		{name: "create the cache", fail: "init"},
+		{name: "turn off automatic gc", fail: "config:0"},
+		{name: "point the cache at the remote", fail: "config:URL"},
+		{name: "fetch into the cache", fail: "fetch"},
+		{name: "create the workspace", fail: "init", warm: true},
+		{name: "point the workspace at the cache's commit", fail: "update-ref", warm: true},
+		{name: "check out the base", fail: "checkout:origin/main", warm: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ctx := t.Context()
+			env := testutil.GitEnv(t)
+			remote := testutil.NewRemote(t, env, map[string]string{"a.txt": "a\n"})
+			cacheDir := t.TempDir()
+			repo := ghapi.Repo{Owner: "acme", Name: "api"}
+			if tc.warm {
+				warm := &Manager{Root: t.TempDir(), Git: testutil.Git(env), CacheDir: cacheDir, CloneURL: func(ghapi.Repo) string { return remote.URL() }}
+				ws, err := warm.Clone(ctx, "c", repo, "main")
+				if err != nil {
+					t.Fatal(err)
+				}
+				ws.Cleanup()
+			}
+			fail := strings.Replace(tc.fail, "URL", remote.URL(), 1)
+			m := &Manager{
+				Root: t.TempDir(), CacheDir: cacheDir,
+				Git:      testutil.Git(slices.Concat(env, []string{failGitEnv + "=" + fail})),
+				CloneURL: func(ghapi.Repo) string { return remote.URL() },
+			}
+			m.Git.Bin = os.Args[0]
+			var failed []error
+			m.OnCacheError = func(_ string, err error) { failed = append(failed, err) }
+			ws, err := m.Clone(ctx, "c", repo, "main")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer ws.Cleanup()
+			if len(failed) != 1 || !strings.Contains(failed[0].Error(), "injected failure") {
+				t.Fatalf("cache errors = %v", failed)
+			}
+			// The direct clone made a complete workspace of its own.
+			if b, err := os.ReadFile(filepath.Join(ws.Dir, "a.txt")); err != nil || string(b) != "a\n" {
+				t.Fatalf("a.txt = %q, %v", b, err)
+			}
+			if _, err := os.Stat(filepath.Join(ws.Dir, ".git", "objects", "info", "alternates")); err == nil {
+				t.Fatal("fallback clone borrows from the cache")
+			}
+		})
 	}
 }

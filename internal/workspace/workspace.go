@@ -34,7 +34,8 @@ type Manager struct {
 	Reaper *Reaper
 	// CacheDir, when set, keeps a git cache of every repo there between
 	// runs, so a clone only fetches what changed since the last one. A
-	// clone the cache can't make is made without it.
+	// clone the cache can't make is made without it. It must be an
+	// absolute path, since workspaces elsewhere point into it.
 	CacheDir string
 	// OnCacheError, when set, is told when a clone couldn't use the cache.
 	OnCacheError func(repo string, err error)

@@ -39,12 +39,9 @@ func (m *Manager) cachedClone(ctx context.Context, owner, name, url, dir, branch
 	if _, err := m.Git.Run(ctx, "", "init", "--quiet", dir); err != nil {
 		return err
 	}
-	objects, err := filepath.Abs(filepath.Join(cache, "objects"))
-	if err != nil {
-		return err
-	}
 	gitDir := filepath.Join(dir, ".git")
-	if err := os.WriteFile(filepath.Join(gitDir, "objects", "info", "alternates"), []byte(filepath.ToSlash(objects)+"\n"), 0o600); err != nil {
+	objects := filepath.ToSlash(filepath.Join(cache, "objects"))
+	if err := os.WriteFile(filepath.Join(gitDir, "objects", "info", "alternates"), []byte(objects+"\n"), 0o600); err != nil {
 		return err
 	}
 	// The cache's history is shallow, and so is the workspace that
