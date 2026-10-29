@@ -208,10 +208,4 @@ concurrency: 4
 
 ### Finding out what's slow
 
-`--debug` (or `GH_FLEET_DEBUG=1`) logs each step on stderr as it starts and finishes, and ends with a table of how long everything took: each phase of the command, each stage of each repo (clone, every change step, diff, cleanup, push, PR sync), every git command, every GitHub request by API, and the time requests spent waiting on rate limits and retries.
-
-```sh
-gh fleet plan --debug 2> plan-debug.log
-```
-
-Repos run in parallel, so per-repo, git and API totals add up across workers and can be larger than the wall time; compare the `AVG` and `MAX` columns, and `run change in every repo` against `total`, to see where the time goes.
+`--debug` (or `GH_FLEET_DEBUG=1`) logs each step on stderr and ends with a table of how long everything took. [Performance](guides/performance.md) explains how to read it, and what to change when a run is slow.
